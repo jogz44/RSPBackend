@@ -426,8 +426,13 @@ class RaterController extends Controller
                         'id' => $user->id,
                         'name' => $user->name,
                         'username' => $user->username,
-                        // Only pending job titles shown
-                        'job_batches_rsp' => $user->job_batches_rsp->pluck('Position')->implode(', '),
+                    // Only pending job titles shown
+                    'job_batches_rsp' => $user->job_batches_rsp->map(function ($job) {
+                        return [
+                            'id' => $job->id,
+                            'position' => $job->Position
+                        ];
+                    }),
                         'office' => $user->office,
                         'pending' => $pendingCount,
                         'active' => $user->active,

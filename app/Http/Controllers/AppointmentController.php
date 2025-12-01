@@ -112,6 +112,8 @@ class AppointmentController extends Controller
     //     $employee = DB::table('xPersonal')->select('ControlNo', 'Firstname', 'Surname', 'Occupation')->get();
 
     //     return response()->json($employee);
+
+
     // }
     public function employee(Request $request)
     {
