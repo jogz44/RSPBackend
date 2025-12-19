@@ -134,7 +134,8 @@ class ReportController extends Controller
                         is_null($r->unit)
                     );
 
-                    foreach ($remainingGroupRows->sortBy('DivisionID')->groupBy('division') as $divisionName => $divisionRows) {
+                    // ----- SORT HERE by divordr -----
+                    foreach ($remainingGroupRows->sortBy('divordr')->groupBy('division') as $divisionName => $divisionRows) {
                         $divisionData = [
                             'division'  => $divisionName,
                             'employees' => [],
@@ -157,7 +158,8 @@ class ReportController extends Controller
                             is_null($r->unit)
                         );
 
-                        foreach ($remainingDivisionRows->sortBy('SectionID')->groupBy('section') as $sectionName => $sectionRows) {
+                        // ----- SORT HERE by secordr -----
+                        foreach ($remainingDivisionRows->sortBy('secordr')->groupBy('section') as $sectionName => $sectionRows) {
                             $sectionData = [
                                 'section'   => $sectionName,
                                 'employees' => [],
@@ -178,7 +180,8 @@ class ReportController extends Controller
                                 is_null($r->unit)
                             );
 
-                            foreach ($remainingSectionRows->sortBy('UnitID')->groupBy('unit') as $unitName => $unitRows) {
+                            // ----- SORT HERE by unitordr -----
+                            foreach ($remainingSectionRows->sortBy('unitordr')->groupBy('unit') as $unitName => $unitRows) {
                                 $sectionData['units'][] = [
                                     'unit'      => $unitName,
                                     'employees' => $unitRows
@@ -223,7 +226,6 @@ class ReportController extends Controller
                 ->values();
 
             if ($xList->count()) {
-                // Appointment date logic
                 if (strtolower($status) === 'regular') {
                     $first = $xList->first();
                     $designation = $first->Designation ?? null;
@@ -276,7 +278,7 @@ class ReportController extends Controller
 
                 if (!is_null($dateOriginalAppointed) && !is_null($highestGrade) && !is_null($initialGrades)) {
                     // if current/initial grade is greater than or equal to highest, there is no promotion
-                    if ($initialGrades >= $highestGrade) { // Non-strict comparison
+                    if ($initialGrades >= $highestGrade) {
                         $dateLastPromotion = null;
                     } else {
                         $promotionRows = $xList
