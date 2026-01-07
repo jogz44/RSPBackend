@@ -918,75 +918,107 @@ class ReportController extends Controller
                         'job_batches_rsp_id',
                         'nPersonalInfo_id',
                         'ControlNo',
-                        'status'
-                    )
+                        'status',
+                        'education_qualification',  // [182,234,241]
+                        'experience_qualification', // [12,334,241]
+                        'training_qualification', // [12,334,241]
+                        'eligibility_qualification', // [12,334,241]
+                )
                         ->where('status', 'Qualified')
                         ->with([
                             'nPersonalInfo:id,firstname,lastname',
-                            'nPersonalInfo.education',
-                            'nPersonalInfo.work_experience',
-                            'nPersonalInfo.training',
-                            'nPersonalInfo.eligibity',
+                            // 'nPersonalInfo.education',
+                            // 'nPersonalInfo.work_experience',
+                            // 'nPersonalInfo.training',
+                            // 'nPersonalInfo.eligibity',
                         ]);
                 }
             ])
             ->get();
+
 
         $responseJobs = [];
 
         foreach ($jobPosts as $job) {
 
             $applicants = [];
-
             foreach ($job->submissions as $submission) {
 
-                // ✅ INTERNAL / OUTSIDER
-                if ($submission->nPersonalInfo) {
+                // =====================
+                // INTERNAL
+                // =====================
+                if ($submission->nPersonalInfo_id) {
+
+                    $educationRecords   = $submission->getEducationRecordsInternal();
+                    $experienceRecords  = $submission->getExperienceRecordsInternal();
+                    $trainingRecords    = $submission->getTrainingRecordsInternal();
+                    $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+
                     $applicants[] = [
                         'firstname' => $submission->nPersonalInfo->firstname,
                         'lastname'  => $submission->nPersonalInfo->lastname,
-                        'current_designation' => null,
-                        'office' => null,
-                        'status' => $submission->status,
+                        'status'    => $submission->status,
                         'applicant_status' => 'OUTSIDER',
-                        'education' => $submission->nPersonalInfo->education,
-                        'training' => $submission->nPersonalInfo->training,
-                        'eligibity' => $submission->nPersonalInfo->eligibity,
-                        'work_experience' => $submission->nPersonalInfo->work_experience,
+
+                        'education'        => $educationRecords,
+                        'experience'       => $experienceRecords,
+                        'training'         => $trainingRecords,
+                        'eligibility'      => $eligibilityRecords,
+
+                        'education_text'   => $this->formatEducationForQualified($educationRecords),
+                        'experience_text'  => $this->formatExperienceForQualified($experienceRecords),
+                        'training_text'    => $this->formatTrainingForQualified($trainingRecords),
+                        'eligibility_text' => $this->formatEligibilityForQualified($eligibilityRecords),
                     ];
                 }
 
-                // ✅ EXTERNAL
-                elseif ($submission->ControlNo) {
+                // =====================
+                // EXTERNAL
+                // =====================
+                elseif (!empty($submission->ControlNo)) {
+
+                    $personal = DB::table('xPersonal')
+                        ->where('ControlNo', $submission->ControlNo)
+                        ->select('Firstname', 'Surname')
+                        ->first();
+
+                    // 🚨 SAFETY CHECK
+                    if (!$personal) {
+                        continue; // ❌ skip broken external record
+                    }
 
                     $tempReorg = DB::table('tempRegAppointmentReorg')
                         ->where('ControlNo', $submission->ControlNo)
                         ->select('Office', 'Designation')
                         ->first();
 
-                    $xPDS = new \App\Http\Controllers\xPDSController();
-                    $employeeData = $xPDS->getPersonalDataSheet(
-                        new \Illuminate\Http\Request([
-                            'controlno' => $submission->ControlNo
-                        ])
-                    );
-                    $employeeJson = $employeeData->getData(true);
+                    $educationRecords   = $submission->getEducationRecordsExternal();
+                    $experienceRecords  = $submission->getExperienceRecordsExternal();
+                    $trainingRecords    = $submission->getTrainingRecordsExternal();
+                    $eligibilityRecords = $submission->getEligibilityRecordsExternal();
 
                     $applicants[] = [
                         'controlno' => $submission->ControlNo,
-                        'firstname' => $employeeJson['User'][0]['Firstname'] ?? '',
-                        'lastname'  => $employeeJson['User'][0]['Surname'] ?? '',
+                        'firstname' => $personal->Firstname,
+                        'lastname'  => $personal->Surname,
                         'current_designation' => $tempReorg->Designation ?? null,
                         'office' => $tempReorg->Office ?? null,
                         'status' => $submission->status,
                         'applicant_status' => 'EXTERNAL',
-                        'education' => $employeeJson['Education'] ?? [],
-                        'training' => $employeeJson['Training'] ?? [],
-                        'eligibity' => $employeeJson['Eligibility'] ?? [],
-                        'work_experience' => $employeeJson['Experience'] ?? [],
+
+                        'education'        => $educationRecords,
+                        'experience'       => $experienceRecords,
+                        'training'         => $trainingRecords,
+                        'eligibility'      => $eligibilityRecords,
+
+                        'education_text'   => $this->formatEducationForQualifiedExternal($educationRecords),
+                        'experience_text'  => $this->formatExperienceForQualifiedExternal($experienceRecords),
+                        'training_text'    => $this->formatTrainingForQualifiedExternal($trainingRecords),
+                        'eligibility_text' => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
                     ];
                 }
             }
+
 
             // ✅ BUILD FINAL JOB OBJECT (ORDER GUARANTEED)
             $responseJobs[] = [
@@ -1006,7 +1038,159 @@ class ReportController extends Controller
     }
 
 
-    // list of Unqualified applicants  for job post publication
+
+    // formatting helpers for qualified applicants for the internal
+    // Helper method to format education
+    private function formatEducationForQualified($educationRecords)
+    {
+        if ($educationRecords->isEmpty()) {
+            return 'No relevant education based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($educationRecords as $edu) {
+            $degree = $edu->degree ?? 'N/A';
+            $unit = $edu->highest_units ?? 'N/A';
+            // $year = $edu->year_graduated ?? 'N/A';
+            $formatted[] = "• {$degree} ({$unit} units)";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+    // ✅ Helper method to format experience
+    private function formatExperienceForQualified($experienceRecords)
+    {
+        if ($experienceRecords->isEmpty()) {
+            return 'No relevant experience based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($experienceRecords as $exp) {
+            $position = $exp->position_title ?? 'N/A';
+            $department = $exp->department ?? 'N/A';
+            $dateFrom = $exp->work_date_from ?? 'N/A';
+            $dateTo = $exp->work_date_to ?? 'N/A';
+            $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+    // ✅ Helper method to format training
+    private function formatTrainingForQualified($trainingRecords)
+    {
+        if ($trainingRecords->isEmpty()) {
+            return 'No relevant training based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($trainingRecords as $training) {
+            $title = $training->training_title ?? 'N/A';
+            $hours = $training->number_of_hours ?? 'N/A';
+            $formatted[] = "• {$title} ({$hours} hours)";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+    // ✅ Helper method to format eligibility
+    private function formatEligibilityForQualified($eligibilityRecords)
+    {
+        if ($eligibilityRecords->isEmpty()) {
+            return 'No relevant eligibility based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($eligibilityRecords as $eligibility) {
+            $name = $eligibility->eligibility ?? 'N/A';
+            $rating = $eligibility->rating ? " - Rating: {$eligibility->rating}" : '';
+            $formatted[] = "• {$name}{$rating}";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+    // formatting helpers for qualified applicants for the external
+    // Helper method to format education
+    private function formatEducationForQualifiedExternal($educationRecords)
+    {
+        if ($educationRecords->isEmpty()) {
+            return 'No relevant education based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($educationRecords as $edu) {
+            $degree = $edu->Degree ?? 'N/A';
+            // $school = $edu->School ?? 'N/A';
+            $unit = $edu->NumUnits ?? 'N/A';
+            $formatted[] = "• {$degree} ({$unit} units)";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+    // ✅ Helper method to format experience
+    private function formatExperienceForQualifiedExternal($experienceRecords)
+    {
+        if ($experienceRecords->isEmpty()) {
+            return 'No relevant experience based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($experienceRecords as $exp) {
+            $position = $exp->Wposition ?? 'N/A';
+            $department = $exp->WCompany ?? 'N/A';
+            $dateFrom = $exp->WFrom ?? 'N/A';
+            $dateTo = $exp->WTo ?? 'N/A';
+            $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+    private function formatTrainingForQualifiedExternal($trainingRecords)
+    {
+        if ($trainingRecords->isEmpty()) {
+            return 'No relevant training based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($trainingRecords as $training) {
+            $title = $training->Training ?? 'N/A';
+            $hours = $training->NumHours ?? 'N/A';
+            $formatted[] = "• {$title} ({$hours} hours)";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+    // ✅ Helper method to format eligibility
+    private function formatEligibilityForQualifiedExternal($eligibilityRecords)
+    {
+        if ($eligibilityRecords->isEmpty()) {
+            return 'No relevant eligibility based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($eligibilityRecords as $eligibility) {
+            $name = $eligibility->CivilServe ?? 'N/A';
+            $rating = $eligibility->Rates ? " - Rating: {$eligibility->rating}" : '';
+            $formatted[] = "• {$name}{$rating}";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+
+    // list of qualified applicants  for job post publication
     public function listUnQualifiedApplicantsPublication($postDate)
     {
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
@@ -1019,75 +1203,107 @@ class ReportController extends Controller
                         'job_batches_rsp_id',
                         'nPersonalInfo_id',
                         'ControlNo',
-                        'status'
+                        'status',
+                        'education_qualification',  // [182,234,241]
+                        'experience_qualification', // [12,334,241]
+                        'training_qualification', // [12,334,241]
+                        'eligibility_qualification', // [12,334,241]
                     )
                         ->where('status', 'Unqualified')
                         ->with([
                             'nPersonalInfo:id,firstname,lastname',
-                            'nPersonalInfo.education',
-                            'nPersonalInfo.work_experience',
-                            'nPersonalInfo.training',
-                            'nPersonalInfo.eligibity',
+                            // 'nPersonalInfo.education',
+                            // 'nPersonalInfo.work_experience',
+                            // 'nPersonalInfo.training',
+                            // 'nPersonalInfo.eligibity',
                         ]);
                 }
             ])
             ->get();
+
 
         $responseJobs = [];
 
         foreach ($jobPosts as $job) {
 
             $applicants = [];
-
             foreach ($job->submissions as $submission) {
 
-                // ✅ INTERNAL / OUTSIDER
-                if ($submission->nPersonalInfo) {
+                // =====================
+                // INTERNAL
+                // =====================
+                if ($submission->nPersonalInfo_id) {
+
+                    $educationRecords   = $submission->getEducationRecordsInternal();
+                    $experienceRecords  = $submission->getExperienceRecordsInternal();
+                    $trainingRecords    = $submission->getTrainingRecordsInternal();
+                    $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+
                     $applicants[] = [
                         'firstname' => $submission->nPersonalInfo->firstname,
                         'lastname'  => $submission->nPersonalInfo->lastname,
-                        'current_designation' => null,
-                        'office' => null,
-                        'status' => $submission->status,
+                        'status'    => $submission->status,
                         'applicant_status' => 'OUTSIDER',
-                        'education' => $submission->nPersonalInfo->education,
-                        'training' => $submission->nPersonalInfo->training,
-                        'eligibity' => $submission->nPersonalInfo->eligibity,
-                        'work_experience' => $submission->nPersonalInfo->work_experience,
+
+                        'education'        => $educationRecords,
+                        'experience'       => $experienceRecords,
+                        'training'         => $trainingRecords,
+                        'eligibility'      => $eligibilityRecords,
+
+                        'education_text'   => $this->formatEducationForQualified($educationRecords),
+                        'experience_text'  => $this->formatExperienceForQualified($experienceRecords),
+                        'training_text'    => $this->formatTrainingForQualified($trainingRecords),
+                        'eligibility_text' => $this->formatEligibilityForQualified($eligibilityRecords),
                     ];
                 }
 
-                // ✅ EXTERNAL
-                elseif ($submission->ControlNo) {
+                // =====================
+                // EXTERNAL
+                // =====================
+                elseif (!empty($submission->ControlNo)) {
+
+                    $personal = DB::table('xPersonal')
+                        ->where('ControlNo', $submission->ControlNo)
+                        ->select('Firstname', 'Surname')
+                        ->first();
+
+                    // 🚨 SAFETY CHECK
+                    if (!$personal) {
+                        continue; // ❌ skip broken external record
+                    }
 
                     $tempReorg = DB::table('tempRegAppointmentReorg')
                         ->where('ControlNo', $submission->ControlNo)
                         ->select('Office', 'Designation')
                         ->first();
 
-                    $xPDS = new \App\Http\Controllers\xPDSController();
-                    $employeeData = $xPDS->getPersonalDataSheet(
-                        new \Illuminate\Http\Request([
-                            'controlno' => $submission->ControlNo
-                        ])
-                    );
-                    $employeeJson = $employeeData->getData(true);
+                    $educationRecords   = $submission->getEducationRecordsExternal();
+                    $experienceRecords  = $submission->getExperienceRecordsExternal();
+                    $trainingRecords    = $submission->getTrainingRecordsExternal();
+                    $eligibilityRecords = $submission->getEligibilityRecordsExternal();
 
                     $applicants[] = [
                         'controlno' => $submission->ControlNo,
-                        'firstname' => $employeeJson['User'][0]['Firstname'] ?? '',
-                        'lastname'  => $employeeJson['User'][0]['Surname'] ?? '',
+                        'firstname' => $personal->Firstname,
+                        'lastname'  => $personal->Surname,
                         'current_designation' => $tempReorg->Designation ?? null,
                         'office' => $tempReorg->Office ?? null,
                         'status' => $submission->status,
                         'applicant_status' => 'EXTERNAL',
-                        'education' => $employeeJson['Education'] ?? [],
-                        'training' => $employeeJson['Training'] ?? [],
-                        'eligibity' => $employeeJson['Eligibility'] ?? [],
-                        'work_experience' => $employeeJson['Experience'] ?? [],
+
+                        'education'        => $educationRecords,
+                        'experience'       => $experienceRecords,
+                        'training'         => $trainingRecords,
+                        'eligibility'      => $eligibilityRecords,
+
+                        'education_text'   => $this->formatEducationForQualifiedExternal($educationRecords),
+                        'experience_text'  => $this->formatExperienceForQualifiedExternal($experienceRecords),
+                        'training_text'    => $this->formatTrainingForQualifiedExternal($trainingRecords),
+                        'eligibility_text' => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
                     ];
                 }
             }
+
 
             // ✅ BUILD FINAL JOB OBJECT (ORDER GUARANTEED)
             $responseJobs[] = [
@@ -1100,9 +1316,110 @@ class ReportController extends Controller
         }
 
         return response()->json([
-            'Header' => 'Applicants Qualified Standard',
+            'Header' => 'Applicants UnQualified Standard',
             'Date' => "$postDate Publication",
             'jobPosts' => $responseJobs
         ]);
     }
+    // // list of Unqualified applicants  for job post publication
+    // public function listUnQualifiedApplicantsPublication($postDate)
+    // {
+    //     $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
+    //         ->select('id', 'Position', 'ItemNo')
+    //         ->with([
+    //             'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
+    //             'submissions' => function ($query) {
+    //                 $query->select(
+    //                     'id',
+    //                     'job_batches_rsp_id',
+    //                     'nPersonalInfo_id',
+    //                     'ControlNo',
+    //                     'status'
+    //                 )
+    //                     ->where('status', 'Unqualified')
+    //                     ->with([
+    //                         'nPersonalInfo:id,firstname,lastname',
+    //                         'nPersonalInfo.education',
+    //                         'nPersonalInfo.work_experience',
+    //                         'nPersonalInfo.training',
+    //                         'nPersonalInfo.eligibity',
+    //                     ]);
+    //             }
+    //         ])
+    //         ->get();
+
+    //     $responseJobs = [];
+
+
+
+    //     foreach ($jobPosts as $job) {
+
+    //         $applicants = [];
+
+    //         foreach ($job->submissions as $submission) {
+
+    //             // ✅ INTERNAL / OUTSIDER
+    //             if ($submission->nPersonalInfo) {
+    //                 $applicants[] = [
+    //                     'firstname' => $submission->nPersonalInfo->firstname,
+    //                     'lastname'  => $submission->nPersonalInfo->lastname,
+    //                     'current_designation' => null,
+    //                     'office' => null,
+    //                     'status' => $submission->status,
+    //                     'applicant_status' => 'OUTSIDER',
+    //                     'education' => $submission->nPersonalInfo->education,
+    //                     'training' => $submission->nPersonalInfo->training,
+    //                     'eligibity' => $submission->nPersonalInfo->eligibity,
+    //                     'work_experience' => $submission->nPersonalInfo->work_experience,
+    //                 ];
+    //             }
+
+    //             // ✅ EXTERNAL
+    //             elseif ($submission->ControlNo) {
+
+    //                 $tempReorg = DB::table('tempRegAppointmentReorg')
+    //                     ->where('ControlNo', $submission->ControlNo)
+    //                     ->select('Office', 'Designation')
+    //                     ->first();
+
+    //                 $xPDS = new \App\Http\Controllers\xPDSController();
+    //                 $employeeData = $xPDS->getPersonalDataSheet(
+    //                     new \Illuminate\Http\Request([
+    //                         'controlno' => $submission->ControlNo
+    //                     ])
+    //                 );
+    //                 $employeeJson = $employeeData->getData(true);
+
+    //                 $applicants[] = [
+    //                     'controlno' => $submission->ControlNo,
+    //                     'firstname' => $employeeJson['User'][0]['Firstname'] ?? '',
+    //                     'lastname'  => $employeeJson['User'][0]['Surname'] ?? '',
+    //                     'current_designation' => $tempReorg->Designation ?? null,
+    //                     'office' => $tempReorg->Office ?? null,
+    //                     'status' => $submission->status,
+    //                     'applicant_status' => 'EXTERNAL',
+    //                     'education' => $employeeJson['Education'] ?? [],
+    //                     'training' => $employeeJson['Training'] ?? [],
+    //                     'eligibity' => $employeeJson['Eligibility'] ?? [],
+    //                     'work_experience' => $employeeJson['Experience'] ?? [],
+    //                 ];
+    //             }
+    //         }
+
+    //         // ✅ BUILD FINAL JOB OBJECT (ORDER GUARANTEED)
+    //         $responseJobs[] = [
+    //             'id' => $job->id,
+    //             'Position' => $job->Position,
+    //             'ItemNo' => $job->ItemNo,
+    //             'criteria' => $job->criteria,
+    //             'applicants' => $applicants
+    //         ];
+    //     }
+
+    //     return response()->json([
+    //         'Header' => 'Applicants Qualified Standard',
+    //         'Date' => "$postDate Publication",
+    //         'jobPosts' => $responseJobs
+    //     ]);
+    // }
 }

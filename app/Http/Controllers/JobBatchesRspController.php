@@ -958,7 +958,7 @@ class JobBatchesRspController extends Controller
     public function jobPostPostDate()
     {
         $dates = JobBatchesRsp::select('post_date')
-            ->whereIn('status', ['Republished', 'rated', 'Unoccupied'])
+            ->whereIn('status', ['Republished', 'rated', 'Unoccupied','assessed'])
             ->distinct()
             ->orderBy('post_date', 'desc')
             ->get();

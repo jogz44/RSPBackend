@@ -4,12 +4,13 @@ namespace App\Models;
 
 use App\Models\excel\nFamily;
 use App\Models\excel\Children;
+use Illuminate\Support\Facades\DB;
 use App\Models\excel\nPersonal_info;
+use App\Models\excel\Work_experience;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\excel\Education_background;
-use App\Models\excel\Civil_service_eligibity;
 use App\Models\excel\Learning_development;
-use App\Models\excel\Work_experience;
+use App\Models\excel\Civil_service_eligibity;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 // class Submission extends Pivot
@@ -87,8 +88,11 @@ class Submission extends Model
     }
 
 
+
+    // internal
+
     // ✅ NEW: Get education records by IDs
-    public function getEducationRecords()
+    public function getEducationRecordsInternal()
     {
         if (empty($this->education_qualification)) {
             return collect();
@@ -98,7 +102,7 @@ class Submission extends Model
     }
 
     // ✅ NEW: Get experience records by IDs
-    public function getExperienceRecords()
+    public function getExperienceRecordsInternal()
     {
         if (empty($this->experience_qualification)) {
             return collect();
@@ -108,7 +112,7 @@ class Submission extends Model
     }
 
     // ✅ NEW: Get training records by IDs
-    public function getTrainingRecords()
+    public function getTrainingRecordsInternal()
     {
         if (empty($this->training_qualification)) {
             return collect();
@@ -118,13 +122,57 @@ class Submission extends Model
     }
 
     // ✅ NEW: Get eligibility records by IDs
-    public function getEligibilityRecords()
+    public function getEligibilityRecordsInternal()
     {
         if (empty($this->eligibility_qualification)) {
             return collect();
         }
 
         return Civil_service_eligibity::whereIn('id', $this->eligibility_qualification)->get();
+    }
+
+
+
+    // external applicant
+
+    // ✅ NEW: Get education records by IDs
+    public function getEducationRecordsExternal()
+    {
+        if (empty($this->education_qualification)) {
+            return collect();
+        }
+
+        return DB::table('xEducation')->whereIn('PMID', $this->education_qualification)->get();
+    }
+
+    // ✅ NEW: Get experience records by IDs`
+    public function getExperienceRecordsExternal()
+    {
+        if (empty($this->experience_qualification)) {
+            return collect();
+        }
+
+        return  DB::table('xExperience')->whereIn('ID', $this->experience_qualification)->get();
+    }
+
+    // ✅ NEW: Get training records by IDs
+    public function getTrainingRecordsExternal()
+    {
+        if (empty($this->training_qualification)) {
+            return collect();
+        }
+
+        return DB::table('xTrainings')->whereIn('PMID', $this->training_qualification)->get();
+    }
+
+    // ✅ NEW: Get eligibility records by IDs
+    public function getEligibilityRecordsExternal()
+    {
+        if (empty($this->eligibility_qualification)) {
+            return collect();
+        }
+
+        return DB::table('xCivilService')->whereIn('PMID', $this->eligibility_qualification)->get();
     }
 }
 

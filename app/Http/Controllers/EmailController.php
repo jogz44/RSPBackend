@@ -320,18 +320,43 @@ class EmailController extends Controller
                 Log::warning("⚠️ Applicant {$fullname} has no email address.");
                 continue;
             }
+            $isInternal = !is_null($submission->nPersonalInfo_id);
 
-            // ✅ FETCH ACTUAL QUALIFICATION RECORDS
-            $educationRecords = $submission->getEducationRecords();
-            $experienceRecords = $submission->getExperienceRecords();
-            $trainingRecords = $submission->getTrainingRecords();
-            $eligibilityRecords = $submission->getEligibilityRecords();
+            // // ✅ FETCH ACTUAL QUALIFICATION RECORDS
+            // $educationRecords = $submission->getEducationRecordsInternal();
+            // $experienceRecords = $submission->getExperienceRecordsInternal();
+            // $trainingRecords = $submission->getTrainingRecordsInternal();
+            // $eligibilityRecords = $submission->getEligibilityRecordsInternal();
 
-            // ✅ FORMAT QUALIFICATIONS FOR EMAIL
-            $educationText = $this->formatEducationForEmail($educationRecords);
-            $experienceText = $this->formatExperienceForEmail($experienceRecords);
-            $trainingText = $this->formatTrainingForEmail($trainingRecords);
-            $eligibilityText = $this->formatEligibilityForEmail($eligibilityRecords);
+            // // ✅ FORMAT QUALIFICATIONS FOR EMAIL
+            // $educationText = $this->formatEducationForEmailInternal($educationRecords);
+            // $experienceText = $this->formatExperienceForEmailInternal($experienceRecords);
+            // $trainingText = $this->formatTrainingForEmailInternal($trainingRecords);
+            // $eligibilityText = $this->formatEligibilityForEmailInternal($eligibilityRecords);
+            if ($isInternal) {
+                // INTERNAL
+                $educationRecords  = $submission->getEducationRecordsInternal();
+                $experienceRecords = $submission->getExperienceRecordsInternal();
+                $trainingRecords   = $submission->getTrainingRecordsInternal();
+                $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+
+                $educationText  = $this->formatEducationForEmailInternal($educationRecords);
+                $experienceText = $this->formatExperienceForEmailInternal($experienceRecords);
+                $trainingText   = $this->formatTrainingForEmailInternal($trainingRecords);
+                $eligibilityText = $this->formatEligibilityForEmailInternal($eligibilityRecords);
+            } else {
+                // EXTERNAL
+                $educationRecords  = $submission->getEducationRecordsExternal();
+                $experienceRecords = $submission->getExperienceRecordsExternal();
+                $trainingRecords   = $submission->getTrainingRecordsExternal();
+                $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+
+                $educationText  = $this->formatEducationForEmailExternal($educationRecords);
+                $experienceText = $this->formatExperienceForEmailExternal($experienceRecords);
+                $trainingText   = $this->formatTrainingForEmailExternal($trainingRecords);
+                $eligibilityText = $this->formatEligibilityForEmailExternal($eligibilityRecords);
+            }
+
 
             $template = 'mail-template.unqualified';
 
@@ -413,7 +438,7 @@ class EmailController extends Controller
     }
 
     // ✅ Helper method to format education
-    private function formatEducationForEmail($educationRecords)
+    private function formatEducationForEmailInternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
             return 'No relevant education based on the specific requirement of the position.';
@@ -432,7 +457,7 @@ class EmailController extends Controller
 
 
     // ✅ Helper method to format experience
-    private function formatExperienceForEmail($experienceRecords)
+    private function formatExperienceForEmailInternal($experienceRecords)
     {
         if ($experienceRecords->isEmpty()) {
             return 'No relevant experience based on the specific requirement of the position.';
@@ -452,7 +477,7 @@ class EmailController extends Controller
 
 
     // ✅ Helper method to format training
-    private function formatTrainingForEmail($trainingRecords)
+    private function formatTrainingForEmailInternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
             return 'No relevant training based on the specific requirement of the position.';
@@ -469,7 +494,7 @@ class EmailController extends Controller
     }
 
     // ✅ Helper method to format eligibility
-    private function formatEligibilityForEmail($eligibilityRecords)
+    private function formatEligibilityForEmailInternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
             return 'No relevant eligibility based on the specific requirement of the position.';
@@ -479,6 +504,102 @@ class EmailController extends Controller
         foreach ($eligibilityRecords as $eligibility) {
             $name = $eligibility->eligibility ?? 'N/A';
             $rating = $eligibility->rating ? " - Rating: {$eligibility->rating}" : '';
+            $formatted[] = "• {$name}{$rating}";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+    // external
+    // formatting helpers for qualified applicants for the external
+    // Helper method to format education
+    private function formatEducationForEmailExternal($educationRecords)
+    {
+        if ($educationRecords->isEmpty()) {
+            return 'No relevant education based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($educationRecords as $edu) {
+            $degree = $edu->Degree ?? 'N/A';
+            // $school = $edu->School ?? 'N/A';
+            $unit = $edu->NumUnits ?? 'N/A';
+            $formatted[] = "• {$degree} ({$unit} units)";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+    // ✅ Helper method to format experience
+    private function formatExperienceForEmailExternal($experienceRecords)
+    {
+        if ($experienceRecords->isEmpty()) {
+            return 'No relevant experience based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($experienceRecords as $exp) {
+            $position = $exp->Wposition ?? 'N/A';
+            $department = $exp->WCompany ?? 'N/A';
+            $dateFrom = $exp->WFrom ?? 'N/A';
+            $dateTo = $exp->WTo ?? 'N/A';
+            $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+
+    private function formatTrainingForEmailExternal($trainingRecords)
+    {
+        if ($trainingRecords->isEmpty()) {
+            return 'No relevant training based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+        foreach ($trainingRecords as $training) {
+            $title = $training->Training ?? 'N/A';
+            $hours = $training->NumHours ?? 'N/A';
+            $formatted[] = "• {$title} ({$hours} hours)";
+        }
+
+        return implode('<br>', $formatted);
+    }
+
+    // ✅ Helper method to format eligibility
+    // private function formatEligibilityForEmailExternal($eligibilityRecords)
+    // {
+    //     if ($eligibilityRecords->isEmpty()) {
+    //         return 'No relevant eligibility based on the specific requirement of the position.';
+    //     }
+
+    //     $formatted = [];
+    //     foreach ($eligibilityRecords as $eligibility) {
+    //         $name = $eligibility->CivilServe ?? 'N/A';
+    //         $rating = $eligibility->Rates ? " - Rating: {$eligibility->rating}" : '';
+    //         $formatted[] = "• {$name}{$rating}";
+    //     }
+
+    //     return implode('<br>', $formatted);
+    // }
+
+    private function formatEligibilityForEmailExternal($eligibilityRecords)
+    {
+        if ($eligibilityRecords->isEmpty()) {
+            return 'No relevant eligibility based on the specific requirement of the position.';
+        }
+
+        $formatted = [];
+
+        foreach ($eligibilityRecords as $eligibility) {
+            $name = $eligibility->CivilServe ?? 'N/A';
+
+            // ✅ use Rates safely
+            $rating = !empty($eligibility->Rates)
+                ? " - Rating: {$eligibility->Rates}"
+                : '';
+
             $formatted[] = "• {$name}{$rating}";
         }
 
