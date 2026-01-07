@@ -35,10 +35,6 @@ use App\Http\Controllers\ApplicantSubmissionController;
 // });
 
 
-// Route::get('test/{controlNo}',[EmployeeController::class, 'findLastdata']);
-
-//
-
 Route::prefix('report')->group(function () {
     Route::get('/job-post', [ReportController::class, 'getJobPost']);
     Route::get('/job-post/{jobpostId}', [ReportController::class, 'getApplicantJobPost']);
@@ -215,13 +211,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/active', [PlantillaController::class, 'vwActiveGet']); // fetching employee active
     Route::get('/view/criteria/{job_batches_rsp_id}', [CriteriaController::class, 'viewCriteria']); // view details of job criteria
 
-
-
     Route::delete('/job/delete/{id}', [JobBatchesRspController::class, 'destroy']); // delete job post  with the criteria and pdf
     Route::get('/job-post', [JobBatchesRspController::class, 'jobPost']); // fetching all job post
-
-
-
 
     Route::prefix('applicant')->group(function () {
         Route::get('/submissions/index', [ApplicantSubmissionController::class, 'index']);

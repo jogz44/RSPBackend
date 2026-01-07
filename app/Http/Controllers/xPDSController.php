@@ -174,9 +174,30 @@ class xPDSController extends Controller
     {
         $result = DB::connection('sqlsrv')
             ->table('xEducation')
+            ->select([
+            'PMID as id',   // 👈 rename here
+            'ControlNo',
+            'Education',
+            'School',
+            'Codes',
+            'Degree',
+            'NumUnits',
+            'YearLevel',
+            'DateAttend',
+            'Honors',
+            'Graduated',
+            'Orders',
+            // 'Honors',
+
+            // add other columns you need
+        ])
             ->where('ControlNo', $controlNo)
             ->orderBy('Orders')
-            ->get();
+            ->get()
+            ->map(function ($row) {
+            $row->id = (int) $row->id;
+            return $row;
+        });
 
         return $this->convertToArray($result);
     }
@@ -185,8 +206,24 @@ class xPDSController extends Controller
     {
         $result = DB::connection('sqlsrv')
             ->table('xCivilService')
+            ->select([
+                'PMID as id',   // 👈 rename here
+                'ControlNo',
+                'Codes',
+                'CivilServe',
+                'Dates',
+                'Rates',
+                'Place',
+                'LNumber',
+                'LDate',
+
+            ])
             ->where('ControlNo', $controlNo)
-            ->get();
+            ->get()
+            ->map(function ($row) {
+                $row->id = (int) $row->id;
+                return $row;
+            });
 
         return $this->convertToArray($result);
     }
@@ -195,6 +232,19 @@ class xPDSController extends Controller
     {
         $result = DB::connection('sqlsrv')
             ->table('xExperience')
+            ->select([
+                'ID as id',   // 👈 rename here
+                'CONTROLNO',
+                'WFrom',
+                'WTo',
+                'WPosition',
+                'WCompany',
+                'WSalary',
+                'WGrade',
+                'Status',
+                'WGov',
+
+            ])
             ->where('ControlNo', $controlNo)
             ->get();
 
@@ -215,8 +265,25 @@ class xPDSController extends Controller
     {
         $result = DB::connection('sqlsrv')
             ->table('xTrainings')
+            ->select([
+                'PMID as id',   // 👈 rename here
+                'ControlNo',
+                'Training',
+                'Dates',
+                'NumHours',
+                'Conductor',
+                'DateFrom',
+                'DateTo',
+                'type',
+
+
+            ])
             ->where('ControlNo', $controlNo)
-            ->get();
+            ->get()
+            ->map(function ($row) {
+            $row->id = (int) $row->id;
+            return $row;
+        });
 
         return $this->convertToArray($result);
     }

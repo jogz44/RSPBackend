@@ -36,7 +36,7 @@ class SubmissionController extends Controller
         ]);
     }
 
-    public function evaluation(Request $request, $id)
+    public function evaluation(Request $request, $id) // updating the status of the applicant
     {
         // ✅ Validate input
         $validated = $request->validate([

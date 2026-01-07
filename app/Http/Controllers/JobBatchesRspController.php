@@ -614,7 +614,7 @@ class JobBatchesRspController extends Controller
     }
 
 
-    public function republished(Request $request)
+    public function republished(Request $request) // republished the job post
     {
         // ✅ Step 1: Validate Job Batch fields
         $jobValidated = $request->validate([
