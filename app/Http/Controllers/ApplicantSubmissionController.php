@@ -686,10 +686,14 @@ class ApplicantSubmissionController extends Controller
             'height' => $sheet->getCell('D21')->getValue(),
             'weight' => $sheet->getCell('D23')->getValue(),
             'blood_type' => $sheet->getCell('D24')->getValue(),
-            'gsis_no' => $sheet->getCell('D26')->getValue(),
+            // 'gsis_no' => $sheet->getCell('D26')->getValue(), // CHANGE TO  umid id no
+            'umId' => $sheet->getCell('D26')->getValue(), // CHANGE TO  umid id no
+
             'pagibig_no' => $sheet->getCell('D28')->getValue(),
             'philhealth_no' => $sheet->getCell('D30')->getValue(),
-            'sss_no' => $sheet->getCell('D31')->getValue(),
+            // 'sss_no' => $sheet->getCell('D31')->getValue(), // CHANGE TO philSys Number
+            'philSys' => $sheet->getCell('D31')->getValue(), // CHANGE TO philSys Number
+
             'tin_no' => $sheet->getCell('D32')->getValue(),
             'image_path' => $imagePath,
             'residential_house' => $sheet->getCell('I17')->getValue(),
@@ -709,6 +713,8 @@ class ApplicantSubmissionController extends Controller
             'telephone_number' => $sheet->getCell('I31')->getValue(),
             'cellphone_number' => $sheet->getCell('I32')->getValue(),
             'email_address' => $sheet->getCell('I33')->getValue(),
+
+            'agency_employee_no' => $sheet->getCell('D33')->getValue(),
         ];
     }
 
@@ -719,6 +725,7 @@ class ApplicantSubmissionController extends Controller
     {
         // Adjust based on your family sheet structure
         return [
+
             'spouse_name' => $sheet->getCell('D2')->getValue(),
             'spouse_firstname' => $sheet->getCell('D3')->getValue(),
             'spouse_occupation' => $sheet->getCell('D5')->getValue(),
@@ -825,8 +832,8 @@ class ApplicantSubmissionController extends Controller
                 'attendance_from' => $sheet->getCell("D{$rowIndex}")->getValue(),
                 'attendance_to' => $sheet->getCell("E{$rowIndex}")->getValue(),
                 'highest_units' => $this->sanitizeNumericValue($sheet->getCell("F{$rowIndex}")->getValue()),
-                // 'year_graduated' => $this->sanitizeNumericValue($sheet->getCell("G{$rowIndex}")->getValue()),
-                'graduated' => $sheet->getCell("G{$rowIndex}")->getValue(),
+                'year_graduated' => $this->sanitizeNumericValue($sheet->getCell("G{$rowIndex}")->getValue()),
+                // 'graduated' => $sheet->getCell("G{$rowIndex}")->getValue(),
                 'scholarship' => $sheet->getCell("H{$rowIndex}")->getValue(),
             ];
         }
@@ -1265,7 +1272,7 @@ class ApplicantSubmissionController extends Controller
     // }
     private function parseExcelDate($value)
     {
-        if ($value === null || $value === '') {
+        if (empty($value)) {
             return null;
         }
 
@@ -1273,14 +1280,17 @@ class ApplicantSubmissionController extends Controller
             // Excel numeric date
             if (is_numeric($value)) {
                 return Date::excelToDateTimeObject($value)
-                    ->format('m/d/Y'); // MM/DD/YYYY
+                    ->format('d/m/Y'); // DD/MM/YYYY
             }
 
-            // Force MM/DD/YYYY (no guessing)
-            return Carbon::createFromFormat('m/d/Y', trim($value))
-                ->format('m/d/Y');
+            // Explicitly expect DD/MM/YYYY
+            return Carbon::createFromFormat('d/m/Y', trim($value))
+                ->format('d/m/Y');
         } catch (\Exception $e) {
-            // dd('DATE ERROR:', $value); // 👈 TEMP DEBUG
+            // Optional: log error
+            // Log::warning('Invalid date format', ['value' => $value]);
+
+            return null;
         }
     }
 

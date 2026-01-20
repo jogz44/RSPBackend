@@ -62,6 +62,9 @@ class nPersonal_info extends Model
         'telephone_number',
         'cellphone_number',
         'email_address',
+        'agency_employee_no',
+        'umId',
+        'philSys'
     ];
 
     // protected $casts = [

@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Mail;
 class ScheduleController extends Controller
 {
     //
-    public function applicantList()
+    public function applicantList() // list of applicant qualified without schedule
     {
         $applicants = Submission::with([
             'nPersonalInfo:id,firstname,lastname',
@@ -58,7 +58,7 @@ class ScheduleController extends Controller
     }
 
 
-    public function fetchSchedule()
+    public function fetchSchedule() // list of interview schedule with applicant count
     {
         $schedules = Schedule::withCount('scheduleApplicants')
             ->get()
@@ -78,8 +78,8 @@ class ScheduleController extends Controller
 
 
 
-    // fetch applicant belong on the interview schedules
-    public function getApplicantInterview($scheduleId)
+
+    public function getApplicantInterview($scheduleId)  // fetch applicant belong on the interview schedules
     {
         $schedule = Schedule::with([
             'scheduleApplicants.submission.nPersonalInfo',
@@ -129,6 +129,13 @@ class ScheduleController extends Controller
             ];
         })->filter()->values();
 
-        return response()->json($applicants);
+        return response()->json([
+            'schedule_id' => $schedule->id,
+            'batch_name'  => $schedule->batch_name,
+            'date'        => $schedule->date_interview,
+            'time'        => $schedule->time_interview,
+            'venue'       => $schedule->venue_interview,
+            'applicants'  => $applicants
+        ]);
     }
 }

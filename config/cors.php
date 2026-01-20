@@ -22,6 +22,8 @@ return [
         // '*'
         'http://192.168.8.182:9000', // 👈 Add this
         'http://localhost:9000',
+        'http://localhos000',
+        'http://localhost:8000',
         'http://localhost:9001',
         'http://localhost:9002',
         // 'http://localhost:8000',

@@ -44,6 +44,7 @@ Route::prefix('report')->group(function () {
     Route::get('/ranking/applicant/{date}', [ReportController::class, 'topFiveApplicants']);  //get top 5 ranking applicant publication
     Route::get('/applicant/qualified/{date}', [ReportController::class, 'listQualifiedApplicantsPublication']); // list of qualified applicants  for job post publication
     Route::get('/applicant/unqualified/{date}', [ReportController::class, 'listUnQualifiedApplicantsPublication']); // list of Unqualified applicants  for job post publication
+    Route::get('/dbm', [ReportController::class, 'dbmReport']); // generate the plantilla report
 
     // Route::get('/applicant/{jobpostId}',[ReportController::class, 'getApplicantHaveSchedules']);
 
@@ -53,7 +54,6 @@ Route::prefix('report')->group(function () {
 });
 
 Route::get('/generate', [ReportController::class, 'generatePlantilla']); // generate the plantilla report
-
 
 Route::post('/verify-code', [VerificationController::class, 'verifyCode']); // verify the code
 Route::post('/send-verification', [VerificationController::class, 'sendVerification']); // sending code on email
