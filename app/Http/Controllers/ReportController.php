@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use PHPUnit\Util\PHP\Job;
 use App\Models\Submission;
 use App\Models\rating_score;
@@ -1932,26 +1933,17 @@ class ReportController extends Controller
                 'controlNo'   => null,
                 'Ordr'        => $row->Ordr,
                 'itemNo'      => $row->ItemNo,
-
                 'position'    => $row->position,
-
                 'lastname'    => 'VACANT',
                 'firstname'   => '',
                 'middlename'  => '',
                 'birthdate'   => '',
-                // ext
-
-                'salarygrade' => $row->salarygrade,
-                // 'authorized'  => '0.00',
-                'actual'      => '0.00',
-                'step'        => '1',
-
-
-                // 'code'        => '11',
-                // 'type'        => 'C',
-                // 'level'       => $row->level,
-
-                // 'funded'      => $row->Funded,
+                'currentYearSalaryGrade' => $row->salarygrade,
+                'currentYearAmount'      => '0.00',
+                'currentYearStep'        => '1',
+                'budgetYearSalaryGrade'  => $row->salarygrade,
+                'budgetYearAmount'       => '0.00',
+                'budgetYearStep'         => '1',
 
                 'dateOriginalAppointed' => null,
                 'dateLastPromotion'     => null,
@@ -1960,57 +1952,122 @@ class ReportController extends Controller
         }
 
         // ===============================
-        // AUTHORIZED SALARY (ANNUAL)
+        // X-SERVICE DATA
         // ===============================
-        $salaryGrade = $row->salarygrade;
-        $monthlySalary = 0;
+        $xList = collect();
 
-        if (!is_null($salaryGrade)) {
-            $monthlySalary = DB::table('tblSalarySchedule')
-                ->where('Grade', $salaryGrade)
-                ->where('Steps', 1) // forced Step 1
-                ->value('Salary') ?? 0;
+        if (isset($xServiceByControl[$controlNo])) {
+            $xList = $xServiceByControl[$controlNo];
         }
 
-        $authorizedAnnual = $monthlySalary * 12;
-        $authorizedSalaryFormatted = number_format($authorizedAnnual, 2);
+        // ===============================
+        // CURRENT STEP
+        // ===============================
+        $currentStep = (int) ($row->steps ?? 1);
 
         // ===============================
-        // ACTUAL SALARY (ANNUAL)
+        // COMPUTE BUDGET YEAR STEP
         // ===============================
-        $actual = number_format($row->rateyear ?? 0, 2);
+        $budgetYearStep = $this->computeBudgetYearStep($xList, $currentStep);
 
         // ===============================
-        // RETURN (FILLED POSITION)
+        // CURRENT YEAR AMOUNT
+        // ===============================
+        $currentYearAmount = number_format($row->rateyear ?? 0, 2);
+
+        // ===============================
+        // BUDGET YEAR AMOUNT (tblSalarySchedule)
+        // ===============================
+        $budgetMonthly = DB::table('tblSalarySchedule')
+            ->where('Grade', $row->salarygrade)
+            ->where('Steps', $budgetYearStep)
+            ->value('Salary');
+
+        $budgetYearAmount = $budgetMonthly
+            ? number_format($budgetMonthly * 12, 2)
+            : '0.00';
+
+        $currentAnnualRaw = (float) str_replace(',', '', $currentYearAmount);
+        $budgetAnnualRaw  = (float) str_replace(',', '', $budgetYearAmount);
+
+        $increaseDecrease = $budgetAnnualRaw - $currentAnnualRaw;
+
+
+        // ===============================
+        // RETURN DATA
         // ===============================
         return [
             'controlNo'   => $controlNo,
             'Ordr'        => $row->Ordr,
             'itemNo'      => $row->ItemNo,
-
             'position'    => $row->position,
 
             'lastname'    => $row->lastname,
             'firstname'   => $row->firstname,
             'middlename'  => $row->middlename,
             'birthdate'   => $row->birthdate,
-            //ext
 
             'currentYearSalaryGrade' => $row->salarygrade,
-            // 'authorized'  => $authorizedSalaryFormatted,
-            'currentYearAmount'      => $actual,
-            'currentYearStep'        => $row->steps ?? '1',
-            // 'code'        => '11',
-            // 'type'        => 'C',
-            // 'level'       => $row->level,
-
-            // 'funded'      => $row->Funded,
-            'eligibility' => $row->eligibility,
-
+            'currentYearAmount'      => $currentYearAmount,
+            'currentYearStep'        => $currentStep,
+            
+            'budgetYearSalaryGrade'  => $row->salarygrade,
+            'budgetYearAmount'       => $budgetYearAmount,
+            'budgetYearStep'         => $budgetYearStep,
+            'increaseDescrease' => number_format($increaseDecrease, 2),
 
             'dateOriginalAppointed' => $dateOriginalAppointed ?? null,
             'dateLastPromotion'     => $dateLastPromotion ?? null,
+            'eligibility' => $row->eligibility,
             'status'      => $row->Status,
         ];
     }
-}
+
+    private function computeBudgetYearStep($xList, $currentStep)
+    {
+        $allowedStatuses = ['regular', 'elective', 'co-terminous'];
+
+        if ($xList->isEmpty()) {
+            return $currentStep;
+        }
+
+        // Sort newest first
+        $xList = $xList->sortByDesc('FromDate')->values();
+
+        // Current designation (latest REGULAR/ELECTIVE/CO-TERM)
+        $currentService = $xList->first(function ($svc) use ($allowedStatuses) {
+            return in_array(strtolower($svc->Status), $allowedStatuses)
+                && !empty($svc->Designation);
+        });
+
+        if (!$currentService) {
+            return $currentStep;
+        }
+
+        $currentDesignation = $currentService->Designation;
+
+        // Only same designation + allowed status
+        $sameDesignation = $xList->filter(function ($svc) use ($currentDesignation, $allowedStatuses) {
+            return $svc->Designation === $currentDesignation
+                && in_array(strtolower($svc->Status), $allowedStatuses);
+        })->sortBy('FromDate')->values();
+
+        if ($sameDesignation->isEmpty()) {
+            return $currentStep;
+        }
+
+        $from = Carbon::parse($sameDesignation->first()->FromDate);
+
+        // 🔥 IMPORTANT FIX:
+        // Use TODAY (or budget year end), NOT future ToDate
+        $to = Carbon::now();
+
+        $yearsOnPosition = $from->diffInYears($to);
+
+        // Every 3 years = +1 step
+        $stepIncrement = floor($yearsOnPosition / 3);
+
+        return $currentStep + $stepIncrement;
+    }
+
+    }
