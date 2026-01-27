@@ -37,6 +37,7 @@ use App\Http\Controllers\ApplicantSubmissionController;
 
 Route::prefix('report')->group(function () {
     Route::get('/job-post', [ReportController::class, 'getJobPost']);
+
     Route::get('/job-post/{jobpostId}', [ReportController::class, 'getApplicantJobPost']);
     Route::get('/applicant-final-score/{jobpostId}', [ReportController::class, 'applicantFinalScore']); // final summary of rating qulification standard
     Route::get('/placement-list/{office}', [ReportController::class, 'placementList']);
@@ -213,6 +214,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::delete('/job/delete/{id}', [JobBatchesRspController::class, 'destroy']); // delete job post  with the criteria and pdf
     Route::get('/job-post', [JobBatchesRspController::class, 'jobPost']); // fetching all job post
+    Route::get('/job-post/{postDate}/{endDate}', [JobBatchesRspController::class,'jobPostFiltered']);
 
     Route::prefix('applicant')->group(function () {
         Route::get('/submissions/index', [ApplicantSubmissionController::class, 'index']);

@@ -150,6 +150,91 @@ class JobBatchesRspController extends Controller
         return response()->json($jobPosts);
     }
 
+    public function jobPostFiltered($postDate = null, $endDate = null, Request $request)
+    {
+        $allDate = $request->query('allDate', false);
+
+
+        $query = JobBatchesRsp::select('id', 'Position', 'post_date', 'Office', 'PositionID', 'ItemNo', 'status', 'end_date', 'tblStructureDetails_ID')
+            ->whereRaw('LOWER(status) != ?', ['republished'])
+            ->withCount([
+                'submissions as total_applicants',
+                'submissions as qualified_count' => fn($q) => $q->whereRaw('LOWER(status) = ?', ['qualified']),
+                'submissions as unqualified_count' => fn($q) => $q->whereRaw('LOWER(status) = ?', ['unqualified']),
+                'submissions as pending_count' => fn($q) => $q->whereRaw('LOWER(status) = ?', ['pending']),
+                'submissions as hired_count' => fn($q) => $q->whereRaw('LOWER(status) = ?', ['hired']),
+            ]);
+
+        if (!$allDate) {
+            $query->whereDate('post_date', '>=', $postDate)
+                ->whereDate('end_date', '<=', $endDate);
+        }
+
+        $jobPosts = $query->get();
+        // return response()->json($jobPosts);
+
+        foreach ($jobPosts as $job) {
+            $originalStatus = strtolower($job->status);
+            $newStatus = $originalStatus;
+
+            // Skip manual statuses (do not override)
+            $manualStatuses = ['unoccupied', 'occupied', 'closed', 'republished'];
+            if (in_array($originalStatus, $manualStatuses)) {
+                continue;
+            }
+
+            // ✅ Check if all raters have completed their rating
+            $allRatersComplete = \App\Models\Job_batches_user::where('job_batches_rsp_id', $job->id)
+                ->exists() &&
+                !\App\Models\Job_batches_user::where('job_batches_rsp_id', $job->id)
+                    ->where('status', '!=', 'complete')
+                    ->exists();
+
+            if ($allRatersComplete) {
+                $newStatus = 'rated';
+            } elseif ($job->hired_count >= 1) {
+                $newStatus = 'occupied';
+            } elseif ($job->qualified_count > 0 || $job->unqualified_count > 0) {
+                $newStatus = $job->pending_count > 0 ? 'pending' : 'assessed';
+            } else {
+                $newStatus = 'not started';
+            }
+
+            // ✅ Update only if changed
+            if ($originalStatus !== $newStatus) {
+                $job->status = $newStatus;
+                $job->save();
+            }
+        }
+
+        // 🔄 Reload updated list (still excluding republished)
+        $jobPosts = JobBatchesRsp::select('id', 'Position', 'post_date', 'Office', 'PositionID', 'ItemNo', 'status', 'end_date', 'tblStructureDetails_ID')
+            ->whereRaw('LOWER(status) != ?', ['republished']) // ✅ exclude republished again
+            ->withCount([
+                'submissions as total_applicants',
+                'submissions as qualified_count' => function ($query) {
+                    $query->whereRaw('LOWER(status) = ?', ['qualified']);
+                },
+                'submissions as unqualified_count' => function ($query) {
+                    $query->whereRaw('LOWER(status) = ?', ['unqualified']);
+                },
+                'submissions as pending_count' => function ($query) {
+                    $query->whereRaw('LOWER(status) = ?', ['pending']);
+                },
+                'submissions as hired_count' => function ($query) {
+                    $query->whereRaw('LOWER(status) = ?', ['hired']);
+                },
+            ]);
+        // ->get();
+        if (!$allDate && $postDate && $endDate) {
+            $jobPosts->whereDate('post_date', '>=', $postDate)
+                ->whereDate('end_date', '<=', $endDate);
+        }
+
+        $jobPosts = $jobPosts->get();
+
+        return response()->json($jobPosts);
+    }
 
 
     public function jobList()
