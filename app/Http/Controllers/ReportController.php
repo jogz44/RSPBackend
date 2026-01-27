@@ -5,464 +5,53 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use PHPUnit\Util\PHP\Job;
 use App\Models\Submission;
+use Illuminate\Support\Str;
 use App\Models\rating_score;
 use Illuminate\Http\Request;
 use App\Models\JobBatchesRsp;
 use App\Services\RatingService;
 use PhpParser\Node\Expr\FuncCall;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Jobs\GeneratePlantillaReport;
+use Illuminate\Support\Facades\Cache;
+use App\Jobs\GeneratePlantillaReportJob;
 
 class ReportController extends Controller
 {
 
-    // // Generate Report on plantilla Structure...
-    public function generatePlantilla(Request $request)
-    {
-        // $rows = DB::table('vwplantillastructure as p')
-        //     ->leftJoin('vwActive as a', 'a.ControlNo', '=', 'p.ControlNo')
-        //     ->leftJoin('vwofficearrangement as o', 'o.Office', '=', 'p.office')
-        //     ->leftJoin('xService as s', 's.ControlNo', '=', 'p.ControlNo')->select('PMID')->lastest()->limit(1)
-        //     ->select(
-        //         'p.*',
-        //         'a.Status as status',
-        //         'a.Steps as steps',
-        //         'a.Birthdate as birthdate',
-        //         'a.Surname as lastname',
-        //         'a.Firstname as firstname',
-        //         'a.MIddlename as middlename',
-        //     // 'a.MIddlename as Gr',
-        //         'p.SG as salarygrade',
-        //         'p.level',
-        //         'o.office_sort',
-        //         's.RateYear'
-        //     )
 
-        // authorized salary
-
-
-
-        // actual salary
-        $latestXService = DB::table('xService')
-            ->select('ControlNo', DB::raw('MAX(PMID) as latest_pmid'))
-            ->groupBy('ControlNo');
-
-
-        $rows = DB::table('vwplantillastructure as p')
-            ->leftJoin('vwActive as a', 'a.ControlNo', '=', 'p.ControlNo')
-            ->leftJoin('vwofficearrangement as o', 'o.Office', '=', 'p.office')
-
-            // join latest PMID per employee
-            ->leftJoinSub($latestXService, 'lx', function ($join) {
-                $join->on('lx.ControlNo', '=', 'p.ControlNo');
-            })
-
-            // join xService using latest PMID
-            ->leftJoin('xService as s', 's.PMID', '=', 'lx.latest_pmid')
-
-            ->select(
-                'p.*',
-                'a.Status as status',
-                'a.Steps as steps',
-                'a.Birthdate as birthdate',
-                'a.Surname as lastname',
-                'a.Firstname as firstname',
-                'a.MIddlename as middlename',
-                'p.SG as salarygrade',
-                'p.level',
-                'o.office_sort',
-                's.RateYear as rateyear' // ✅ correct RateYear
-            )
-            ->orderBy('o.office_sort')
-            ->orderBy('p.office2')
-            ->orderBy('p.group')
-            ->orderBy('p.division')
-            ->orderBy('p.section')
-            ->orderBy('p.unit')
-            ->orderBy('p.ItemNo')
-            ->get();
-
-
-        if ($rows->isEmpty()) {
-            return response()->json([]);
-        }
-
-        $allControlNos = $rows->pluck('ControlNo')->filter()->unique()->values();
-
-        $xServices = DB::table('xService')
-            ->whereIn('ControlNo', $allControlNos)
-            ->select('ControlNo', 'Status', 'Steps', 'FromDate', 'ToDate', 'Designation', 'SepCause', 'Grades')
-            ->get();
-
-        $xServiceByControl = $xServices->groupBy('ControlNo');
-
-        $result = [];
-
-        foreach ($rows->groupBy('office') as $officeName => $officeRows) {
-            $officeSort = $officeRows->first()->office_sort;
-            $officeLevel = $officeRows->first()->level;
-
-            $officeData = [
-                'office'      => $officeName,
-                'level'       => $officeLevel,
-                'office_sort' => $officeSort,
-                'employees'   => [],
-                'office2'     => []
-            ];
-
-            $officeEmployees = $officeRows->filter(
-                fn($r) =>
-                is_null($r->office2) &&
-                is_null($r->group) &&
-                is_null($r->division) &&
-                is_null($r->section) &&
-                is_null($r->unit)
-            );
-            $officeData['employees'] = $officeEmployees
-                ->sortBy('ItemNo')
-                // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-                ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-
-                ->values();
-
-            $remainingOfficeRows = $officeRows->reject(
-                fn($r) =>
-                is_null($r->office2) &&
-                is_null($r->group) &&
-                is_null($r->division) &&
-                is_null($r->section) &&
-                is_null($r->unit)
-            );
-
-            foreach ($remainingOfficeRows->groupBy('office2') as $office2Name => $office2Rows) {
-                $office2Data = [
-                    'office2'   => $office2Name,
-                    'employees' => [],
-                    'groups'    => []
-                ];
-
-                $office2Employees = $office2Rows->filter(
-                    fn($r) =>
-                    is_null($r->group) &&
-                    is_null($r->division) &&
-                    is_null($r->section) &&
-                    is_null($r->unit)
-                );
-                $office2Data['employees'] = $office2Employees
-                    ->sortBy('ItemNo')
-                    // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-                    ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-
-                    ->values();
-
-                $remainingOffice2Rows = $office2Rows->reject(
-                    fn($r) =>
-                    is_null($r->group) &&
-                    is_null($r->division) &&
-                    is_null($r->section) &&
-                    is_null($r->unit)
-                );
-
-                foreach ($remainingOffice2Rows->groupBy('group') as $groupName => $groupRows) {
-                    $groupData = [
-                        'group'     => $groupName,
-                        'employees' => [],
-                        'divisions' => []
-                    ];
-
-                    $groupEmployees = $groupRows->filter(
-                        fn($r) =>
-                        is_null($r->division) &&
-                        is_null($r->section) &&
-                        is_null($r->unit)
-                    );
-                    $groupData['employees'] = $groupEmployees
-                        ->sortBy('ItemNo')
-                        // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-                        ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-
-                        ->values();
-
-                    $remainingGroupRows = $groupRows->reject(
-                        fn($r) =>
-                        is_null($r->division) &&
-                        is_null($r->section) &&
-                        is_null($r->unit)
-                    );
-
-                    // ----- SORT HERE by divordr -----
-                    foreach ($remainingGroupRows->sortBy('divordr')->groupBy('division') as $divisionName => $divisionRows) {
-                        $divisionData = [
-                            'division'  => $divisionName,
-                            'employees' => [],
-                            'sections'  => []
-                        ];
-
-                        $divisionEmployees = $divisionRows->filter(
-                            fn($r) =>
-                            is_null($r->section) &&
-                            is_null($r->unit)
-                        );
-                        $divisionData['employees'] = $divisionEmployees
-                            ->sortBy('ItemNo')
-                            // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-                            ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-
-                            ->values();
-
-                        $remainingDivisionRows = $divisionRows->reject(
-                            fn($r) =>
-                            is_null($r->section) &&
-                            is_null($r->unit)
-                        );
-
-                        // ----- SORT HERE by secordr -----
-                        foreach ($remainingDivisionRows->sortBy('secordr')->groupBy('section') as $sectionName => $sectionRows) {
-                            $sectionData = [
-                                'section'   => $sectionName,
-                                'employees' => [],
-                                'units'     => []
-                            ];
-
-                            $sectionEmployees = $sectionRows->filter(
-                                fn($r) =>
-                                is_null($r->unit)
-                            );
-                            $sectionData['employees'] = $sectionEmployees
-                                ->sortBy('ItemNo')
-                                // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-                                ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-
-                                ->values();
-
-                            $remainingSectionRows = $sectionRows->reject(
-                                fn($r) =>
-                                is_null($r->unit)
-                            );
-
-                            // ----- SORT HERE by unitordr -----
-                            foreach ($remainingSectionRows->sortBy('unitordr')->groupBy('unit') as $unitName => $unitRows) {
-                                $sectionData['units'][] = [
-                                    'unit'      => $unitName,
-                                    'employees' => $unitRows
-                                        ->sortBy('ItemNo')
-                                        // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-                                        ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-
-                                        ->values()
-                                ];
-                            }
-
-                            $divisionData['sections'][] = $sectionData;
-                        }
-
-                        $groupData['divisions'][] = $divisionData;
-                    }
-
-                    $office2Data['groups'][] = $groupData;
-                }
-
-                $officeData['office2'][] = $office2Data;
-            }
-
-            $result[] = $officeData;
-        }
-
-        $result = collect($result)->sortBy('office_sort')->values()->all();
-
-        return response()->json($result);
-    }
-
-    private function mapEmployee($row, $xServiceByControl,)
-
-    {
-        $controlNo = $row->ControlNo;
-        $status = $row->status;
-
-
-
-
-
-
-        $dateOriginalAppointed = null;
-        $dateLastPromotion = null;
-
-        if ($controlNo && isset($xServiceByControl[$controlNo])) {
-            $xList = $xServiceByControl[$controlNo]
-                ->filter(fn ($svc) => $svc->Status == $status)
-                ->sortBy('FromDate')
-                ->values();
-
-            if ($xList->count()) {
-                if (strtolower($status) === 'regular') {
-                    $first = $xList->first();
-                    $designation = $first->Designation ?? null;
-
-                    $resignedRows = $xList->filter(function ($svc) use ($designation) {
-                        return (
-                            ($svc->Designation ?? null) == $designation
-                            && isset($svc->SepCause)
-                            && strtolower(trim($svc->SepCause)) === 'resigned'
-                        );
-                    });
-
-                    if ($resignedRows->count()) {
-                        $resignedToDate = $resignedRows->sortByDesc('ToDate')->first()->ToDate;
-                        $nextRow = $xList
-                            ->filter(fn ($svc) => strtotime($svc->FromDate) > strtotime($resignedToDate))
-                            ->sortBy(fn ($svc) => strtotime($svc->FromDate) - strtotime($resignedToDate))
-                            ->first();
-                        $dateOriginalAppointed = $nextRow ? $nextRow->FromDate : null;
-                    } else {
-                        $dateOriginalAppointed = $first->FromDate;
-                    }
-                } else {
-                    $dateOriginalAppointed = $xList->last()->FromDate;
-                }
-
-                // Promotion logic (numeric, non-strict grades)
-                $numericGrades = $xList->pluck('Grades')->filter(function($g) {
-                    return is_numeric($g);
-                })->map(function($g) {
-                    return (float)$g;
-                });
-
-                $highestGrade = $numericGrades->max();
-
-                // Appointed Grades
-                $appointedRow = $xList->first(fn($svc) => $svc->FromDate == $dateOriginalAppointed);
-                $initialGrades = !is_null($appointedRow) ? $appointedRow->Grades : ($row->Grades ?? null);
-
-                // Log for debugging
-                logger([
-                    // 'xactiveGrades' => $row->Grades,
-                    'appointedRowGrades' => isset($appointedRow) ? $appointedRow->Grades : null,
-                    'initialGrades' => $initialGrades,
-                    'highestGrade' => $highestGrade,
-                    'all xService Grades' => $xList->pluck('Grades'),
-                    'numericGrades' => $numericGrades,
-                    'dateOriginalAppointed' => $dateOriginalAppointed,
-                ]);
-
-                if (!is_null($dateOriginalAppointed) && !is_null($highestGrade) && !is_null($initialGrades)) {
-                    // if current/initial grade is greater than or equal to highest, there is no promotion
-                    if ($initialGrades >= $highestGrade) {
-                        $dateLastPromotion = null;
-                    } else {
-                        $promotionRows = $xList
-                            ->filter(fn($svc) => $svc->Grades == $highestGrade)
-                            ->sortBy('FromDate')
-                            ->values();
-
-                        $dateLastPromotion = $promotionRows->count() ? $promotionRows->first()->FromDate : null;
-                    }
-                }
-            }
-        }
-
-
-        // ===============================
-        // VACANT → FORCE ZERO
-        // ===============================
-        if (is_null($controlNo)) {
-            return [
-                'controlNo'   => null,
-                'Ordr'        => $row->Ordr,
-                'itemNo'      => $row->ItemNo,
-                'position'    => $row->position,
-                'salarygrade' => $row->salarygrade,
-                'authorized'  => '0.00',
-                'actual'      => '0.00',
-                'step'        => '1',
-                'code'        => '11',
-                'type'        => 'C',
-                'level'       => $row->level,
-                'lastname'    => 'VACANT',
-                'firstname'   => '',
-                'middlename'  => '',
-                'birthdate'   => '',
-                'funded'      => $row->Funded,
-                'status'      => 'VACANT',
-                'dateOriginalAppointed' => null,
-                'dateLastPromotion'     => null,
-            ];
-        }
-
-        // ===============================
-        // AUTHORIZED SALARY (ANNUAL)
-        // ===============================
-        $salaryGrade = $row->salarygrade;
-        $monthlySalary = 0;
-
-        if (!is_null($salaryGrade)) {
-            $monthlySalary = DB::table('tblSalarySchedule')
-                ->where('Grade', $salaryGrade)
-                ->where('Steps', 1) // forced Step 1
-                ->value('Salary') ?? 0;
-        }
-
-        $authorizedAnnual = $monthlySalary * 12;
-        $authorizedSalaryFormatted = number_format($authorizedAnnual, 2);
-
-        // ===============================
-        // ACTUAL SALARY (ANNUAL)
-        // ===============================
-        $actual = number_format($row->rateyear ?? 0, 2);
-
-        // ===============================
-        // RETURN (FILLED POSITION)
-        // ===============================
-        return [
-            'controlNo'   => $controlNo,
-            'Ordr'        => $row->Ordr,
-            'itemNo'      => $row->ItemNo,
-            'position'    => $row->position,
-            'salarygrade' => $row->salarygrade,
-            'authorized'  => $authorizedSalaryFormatted,
-            'actual'      => $actual,
-            'step'        => $row->steps ?? '1',
-            'code'        => '11',
-            'type'        => 'C',
-            'level'       => $row->level,
-            'lastname'    => $row->lastname,
-            'firstname'   => $row->firstname,
-            'middlename'  => $row->middlename,
-            'birthdate'   => $row->birthdate,
-            'funded'      => $row->Funded,
-            'status'      => $row->Status,
-            'dateOriginalAppointed' => $dateOriginalAppointed ?? null,
-            'dateLastPromotion'     => $dateLastPromotion ?? null,
-        ];
-    }
-
+    // // // Generate Report on plantilla Structure...
     // public function generatePlantilla(Request $request)
     // {
-    //     // 🔴 REQUIRED: allow PHP to stop when client disconnects
-    //     ignore_user_abort(false);
 
-    //     // ------------------------------------------------------------
-    //     // Preload salary table (PERFORMANCE + CANCEL FRIENDLY)
-    //     // ------------------------------------------------------------
-    //     $salaryTable = DB::table('tblSalarySchedule')
-    //         ->where('Steps', 1)
-    //         ->pluck('Salary', 'Grade');
+    //     $checkAbort = function () {
+    //         if (connection_aborted()) {
+    //             Log::info('Plantilla generation cancelled by client');
+    //             exit; // or throw new Exception('Client disconnected');
+    //         }
+    //     };
 
-    //     // ------------------------------------------------------------
-    //     // Latest xService per ControlNo
-    //     // ------------------------------------------------------------
+    //     $checkAbort(); // Check at start
+
+    //     // actual salary
     //     $latestXService = DB::table('xService')
     //         ->select('ControlNo', DB::raw('MAX(PMID) as latest_pmid'))
     //         ->groupBy('ControlNo');
+    //     $checkAbort(); // Check after query
 
-    //     // ------------------------------------------------------------
-    //     // MAIN QUERY (cannot be canceled mid-query)
-    //     // ------------------------------------------------------------
     //     $rows = DB::table('vwplantillastructure as p')
     //         ->leftJoin('vwActive as a', 'a.ControlNo', '=', 'p.ControlNo')
     //         ->leftJoin('vwofficearrangement as o', 'o.Office', '=', 'p.office')
+
+    //         // join latest PMID per employee
     //         ->leftJoinSub($latestXService, 'lx', function ($join) {
     //             $join->on('lx.ControlNo', '=', 'p.ControlNo');
     //         })
+
+    //         // join xService using latest PMID
     //         ->leftJoin('xService as s', 's.PMID', '=', 'lx.latest_pmid')
+
     //         ->select(
     //             'p.*',
     //             'a.Status as status',
@@ -474,7 +63,7 @@ class ReportController extends Controller
     //             'p.SG as salarygrade',
     //             'p.level',
     //             'o.office_sort',
-    //             's.RateYear as rateyear'
+    //             's.RateYear as rateyear' // ✅ correct RateYear
     //         )
     //         ->orderBy('o.office_sort')
     //         ->orderBy('p.office2')
@@ -485,69 +74,189 @@ class ReportController extends Controller
     //         ->orderBy('p.ItemNo')
     //         ->get();
 
+    //     $checkAbort(); // Check after query
     //     if ($rows->isEmpty()) {
     //         return response()->json([]);
     //     }
 
-    //     // ------------------------------------------------------------
-    //     // Abort check after DB work
-    //     // ------------------------------------------------------------
-    //     if (connection_aborted()) {
-    //         logger('Plantilla report canceled after main query');
-    //         return;
-    //     }
-
-    //     // ------------------------------------------------------------
-    //     // Preload xService records
-    //     // ------------------------------------------------------------
     //     $allControlNos = $rows->pluck('ControlNo')->filter()->unique()->values();
 
     //     $xServices = DB::table('xService')
     //         ->whereIn('ControlNo', $allControlNos)
     //         ->select('ControlNo', 'Status', 'Steps', 'FromDate', 'ToDate', 'Designation', 'SepCause', 'Grades')
-    //         ->get()
-    //         ->groupBy('ControlNo');
+    //         ->get();
 
-    //     // ------------------------------------------------------------
-    //     // BUILD RESULT (Cancelable loops)
-    //     // ------------------------------------------------------------
+    //     $xServiceByControl = $xServices->groupBy('ControlNo');
+
     //     $result = [];
+    //     $counter = 0;
 
     //     foreach ($rows->groupBy('office') as $officeName => $officeRows) {
-
-    //         if (connection_aborted()) return;
+    //         if (++$counter % 10 === 0) { // Check every 10 iterations
+    //             $checkAbort();
+    //         }
+    //         $officeSort = $officeRows->first()->office_sort;
+    //         $officeLevel = $officeRows->first()->level;
 
     //         $officeData = [
     //             'office'      => $officeName,
-    //             'level'       => $officeRows->first()->level,
-    //             'office_sort' => $officeRows->first()->office_sort,
+    //             'level'       => $officeLevel,
+    //             'office_sort' => $officeSort,
     //             'employees'   => [],
     //             'office2'     => []
     //         ];
 
-    //         $officeData['employees'] = $officeRows
-    //             ->filter(fn($r) => is_null($r->office2) && is_null($r->group) && is_null($r->division) && is_null($r->section) && is_null($r->unit))
+    //         $officeEmployees = $officeRows->filter(
+    //             fn($r) =>
+    //             is_null($r->office2) &&
+    //                 is_null($r->group) &&
+    //                 is_null($r->division) &&
+    //                 is_null($r->section) &&
+    //                 is_null($r->unit)
+    //         );
+    //         $officeData['employees'] = $officeEmployees
     //             ->sortBy('ItemNo')
-    //             ->map(fn($r) => $this->mapEmployee($r, $xServices, $salaryTable))
-    //             ->filter()
+    //             // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+    //             ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+
     //             ->values();
 
-    //         foreach ($officeRows->whereNotNull('office2')->groupBy('office2') as $office2Name => $office2Rows) {
+    //         $remainingOfficeRows = $officeRows->reject(
+    //             fn($r) =>
+    //             is_null($r->office2) &&
+    //                 is_null($r->group) &&
+    //                 is_null($r->division) &&
+    //                 is_null($r->section) &&
+    //                 is_null($r->unit)
+    //         );
 
-    //             if (connection_aborted()) return;
-
+    //         foreach ($remainingOfficeRows->groupBy('office2') as $office2Name => $office2Rows) {
     //             $office2Data = [
     //                 'office2'   => $office2Name,
     //                 'employees' => [],
     //                 'groups'    => []
     //             ];
 
-    //             $office2Data['employees'] = $office2Rows
-    //                 ->filter(fn($r) => is_null($r->group) && is_null($r->division) && is_null($r->section) && is_null($r->unit))
+    //             $office2Employees = $office2Rows->filter(
+    //                 fn($r) =>
+    //                 is_null($r->group) &&
+    //                     is_null($r->division) &&
+    //                     is_null($r->section) &&
+    //                     is_null($r->unit)
+    //             );
+    //             $office2Data['employees'] = $office2Employees
     //                 ->sortBy('ItemNo')
-    //                 ->map(fn($r) => $this->mapEmployee($r, $xServices, $salaryTable))
-    //                 ->filter()
+    //                 // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+    //                 ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+
     //                 ->values();
+
+    //             $remainingOffice2Rows = $office2Rows->reject(
+    //                 fn($r) =>
+    //                 is_null($r->group) &&
+    //                     is_null($r->division) &&
+    //                     is_null($r->section) &&
+    //                     is_null($r->unit)
+    //             );
+
+    //             foreach ($remainingOffice2Rows->groupBy('group') as $groupName => $groupRows) {
+    //                 $groupData = [
+    //                     'group'     => $groupName,
+    //                     'employees' => [],
+    //                     'divisions' => []
+    //                 ];
+
+    //                 $groupEmployees = $groupRows->filter(
+    //                     fn($r) =>
+    //                     is_null($r->division) &&
+    //                         is_null($r->section) &&
+    //                         is_null($r->unit)
+    //                 );
+    //                 $groupData['employees'] = $groupEmployees
+    //                     ->sortBy('ItemNo')
+    //                     // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+    //                     ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+
+    //                     ->values();
+
+    //                 $remainingGroupRows = $groupRows->reject(
+    //                     fn($r) =>
+    //                     is_null($r->division) &&
+    //                         is_null($r->section) &&
+    //                         is_null($r->unit)
+    //                 );
+
+    //                 // ----- SORT HERE by divordr -----
+    //                 foreach ($remainingGroupRows->sortBy('divordr')->groupBy('division') as $divisionName => $divisionRows) {
+    //                     $divisionData = [
+    //                         'division'  => $divisionName,
+    //                         'employees' => [],
+    //                         'sections'  => []
+    //                     ];
+
+    //                     $divisionEmployees = $divisionRows->filter(
+    //                         fn($r) =>
+    //                         is_null($r->section) &&
+    //                             is_null($r->unit)
+    //                     );
+    //                     $divisionData['employees'] = $divisionEmployees
+    //                         ->sortBy('ItemNo')
+    //                         // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+    //                         ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+
+    //                         ->values();
+
+    //                     $remainingDivisionRows = $divisionRows->reject(
+    //                         fn($r) =>
+    //                         is_null($r->section) &&
+    //                             is_null($r->unit)
+    //                     );
+
+    //                     // ----- SORT HERE by secordr -----
+    //                     foreach ($remainingDivisionRows->sortBy('secordr')->groupBy('section') as $sectionName => $sectionRows) {
+    //                         $sectionData = [
+    //                             'section'   => $sectionName,
+    //                             'employees' => [],
+    //                             'units'     => []
+    //                         ];
+
+    //                         $sectionEmployees = $sectionRows->filter(
+    //                             fn($r) =>
+    //                             is_null($r->unit)
+    //                         );
+    //                         $sectionData['employees'] = $sectionEmployees
+    //                             ->sortBy('ItemNo')
+    //                             // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+    //                             ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+
+    //                             ->values();
+
+    //                         $remainingSectionRows = $sectionRows->reject(
+    //                             fn($r) =>
+    //                             is_null($r->unit)
+    //                         );
+
+    //                         // ----- SORT HERE by unitordr -----
+    //                         foreach ($remainingSectionRows->sortBy('unitordr')->groupBy('unit') as $unitName => $unitRows) {
+    //                             $sectionData['units'][] = [
+    //                                 'unit'      => $unitName,
+    //                                 'employees' => $unitRows
+    //                                     ->sortBy('ItemNo')
+    //                                     // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+    //                                     ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+
+    //                                     ->values()
+    //                             ];
+    //                         }
+
+    //                         $divisionData['sections'][] = $sectionData;
+    //                     }
+
+    //                     $groupData['divisions'][] = $divisionData;
+    //                 }
+
+    //                 $office2Data['groups'][] = $groupData;
+    //             }
 
     //             $officeData['office2'][] = $office2Data;
     //         }
@@ -555,60 +264,223 @@ class ReportController extends Controller
     //         $result[] = $officeData;
     //     }
 
-    //     return response()->json(
-    //         collect($result)->sortBy('office_sort')->values()
-    //     );
+    //     $result = collect($result)->sortBy('office_sort')->values()->all();
+
+    //     return response()->json($result);
     // }
 
-    // // ============================================================
-    // // EMPLOYEE MAPPER (Cancelable)
-    // // ============================================================
-    // private function mapEmployee($row, $xServiceByControl, $salaryTable)
+    // private function mapEmployee($row, $xServiceByControl,)
+
     // {
-    //     if (connection_aborted()) {
-    //         return null;
+    //     $controlNo = $row->ControlNo;
+    //     $status = $row->status;
+
+
+
+
+
+
+    //     $dateOriginalAppointed = null;
+    //     $dateLastPromotion = null;
+
+    //     if ($controlNo && isset($xServiceByControl[$controlNo])) {
+    //         $xList = $xServiceByControl[$controlNo]
+    //             ->filter(fn($svc) => $svc->Status == $status)
+    //             ->sortBy('FromDate')
+    //             ->values();
+
+    //         if ($xList->count()) {
+    //             if (strtolower($status) === 'regular') {
+    //                 $first = $xList->first();
+    //                 $designation = $first->Designation ?? null;
+
+    //                 $resignedRows = $xList->filter(function ($svc) use ($designation) {
+    //                     return (
+    //                         ($svc->Designation ?? null) == $designation
+    //                         && isset($svc->SepCause)
+    //                         && strtolower(trim($svc->SepCause)) === 'resigned'
+    //                     );
+    //                 });
+
+    //                 if ($resignedRows->count()) {
+    //                     $resignedToDate = $resignedRows->sortByDesc('ToDate')->first()->ToDate;
+    //                     $nextRow = $xList
+    //                         ->filter(fn($svc) => strtotime($svc->FromDate) > strtotime($resignedToDate))
+    //                         ->sortBy(fn($svc) => strtotime($svc->FromDate) - strtotime($resignedToDate))
+    //                         ->first();
+    //                     $dateOriginalAppointed = $nextRow ? $nextRow->FromDate : null;
+    //                 } else {
+    //                     $dateOriginalAppointed = $first->FromDate;
+    //                 }
+    //             } else {
+    //                 $dateOriginalAppointed = $xList->last()->FromDate;
+    //             }
+
+    //             // Promotion logic (numeric, non-strict grades)
+    //             $numericGrades = $xList->pluck('Grades')->filter(function ($g) {
+    //                 return is_numeric($g);
+    //             })->map(function ($g) {
+    //                 return (float)$g;
+    //             });
+
+    //             $highestGrade = $numericGrades->max();
+
+    //             // Appointed Grades
+    //             $appointedRow = $xList->first(fn($svc) => $svc->FromDate == $dateOriginalAppointed);
+    //             $initialGrades = !is_null($appointedRow) ? $appointedRow->Grades : ($row->Grades ?? null);
+
+    //             // Log for debugging
+    //             logger([
+    //                 // 'xactiveGrades' => $row->Grades,
+    //                 'appointedRowGrades' => isset($appointedRow) ? $appointedRow->Grades : null,
+    //                 'initialGrades' => $initialGrades,
+    //                 'highestGrade' => $highestGrade,
+    //                 'all xService Grades' => $xList->pluck('Grades'),
+    //                 'numericGrades' => $numericGrades,
+    //                 'dateOriginalAppointed' => $dateOriginalAppointed,
+    //             ]);
+
+    //             if (!is_null($dateOriginalAppointed) && !is_null($highestGrade) && !is_null($initialGrades)) {
+    //                 // if current/initial grade is greater than or equal to highest, there is no promotion
+    //                 if ($initialGrades >= $highestGrade) {
+    //                     $dateLastPromotion = null;
+    //                 } else {
+    //                     $promotionRows = $xList
+    //                         ->filter(fn($svc) => $svc->Grades == $highestGrade)
+    //                         ->sortBy('FromDate')
+    //                         ->values();
+
+    //                     $dateLastPromotion = $promotionRows->count() ? $promotionRows->first()->FromDate : null;
+    //                 }
+    //             }
+    //         }
     //     }
 
-    //     // VACANT
-    //     if (is_null($row->ControlNo)) {
+
+    //     // ===============================
+    //     // VACANT → FORCE ZERO
+    //     // ===============================
+    //     if (is_null($controlNo)) {
     //         return [
-    //             'controlNo' => null,
-    //             'itemNo'    => $row->ItemNo,
-    //             'position'  => $row->position,
-    //             'authorized' => '0.00',
-    //             'actual'    => '0.00',
-    //             'status'    => 'VACANT',
+    //             'controlNo'   => null,
+    //             'Ordr'        => $row->Ordr,
+    //             'itemNo'      => $row->ItemNo,
+    //             'position'    => $row->position,
+    //             'salarygrade' => $row->salarygrade,
+    //             'authorized'  => '0.00',
+    //             'actual'      => '0.00',
+    //             'step'        => '1',
+    //             'code'        => '11',
+    //             'type'        => 'C',
+    //             'level'       => $row->level,
+    //             'lastname'    => 'VACANT',
+    //             'firstname'   => '',
+    //             'middlename'  => '',
+    //             'birthdate'   => '',
+    //             'funded'      => $row->Funded,
+    //             'status'      => 'VACANT',
+    //             'dateOriginalAppointed' => null,
+    //             'dateLastPromotion'     => null,
     //         ];
     //     }
 
-    //     // AUTHORIZED SALARY
-    //     $monthlySalary = $salaryTable[$row->salarygrade] ?? 0;
-    //     $authorized = number_format($monthlySalary * 12, 2);
+    //     // ===============================
+    //     // AUTHORIZED SALARY (ANNUAL)
+    //     // ===============================
+    //     $salaryGrade = $row->salarygrade;
+    //     $monthlySalary = 0;
 
+    //     if (!is_null($salaryGrade)) {
+    //         $monthlySalary = DB::table('tblSalarySchedule')
+    //             ->where('Grade', $salaryGrade)
+    //             ->where('Steps', 1) // forced Step 1
+    //             ->value('Salary') ?? 0;
+    //     }
+
+    //     $authorizedAnnual = $monthlySalary * 12;
+    //     $authorizedSalaryFormatted = number_format($authorizedAnnual, 2);
+
+    //     // ===============================
+    //     // ACTUAL SALARY (ANNUAL)
+    //     // ===============================
+    //     $actual = number_format($row->rateyear ?? 0, 2);
+
+    //     // ===============================
+    //     // RETURN (FILLED POSITION)
+    //     // ===============================
     //     return [
-    //         'controlNo'   => $row->ControlNo,
+    //         'controlNo'   => $controlNo,
+    //         'Ordr'        => $row->Ordr,
     //         'itemNo'      => $row->ItemNo,
     //         'position'    => $row->position,
     //         'salarygrade' => $row->salarygrade,
-    //         'authorized'  => $authorized,
-    //         'actual'      => number_format($row->rateyear ?? 0, 2),
+    //         'authorized'  => $authorizedSalaryFormatted,
+    //         'actual'      => $actual,
+    //         'step'        => $row->steps ?? '1',
+    //         'code'        => '11',
+    //         'type'        => 'C',
+    //         'level'       => $row->level,
     //         'lastname'    => $row->lastname,
     //         'firstname'   => $row->firstname,
     //         'middlename'  => $row->middlename,
-    //         'status'      => $row->status,
+    //         'birthdate'   => $row->birthdate,
+    //         'funded'      => $row->Funded,
+    //         'status'      => $row->Status,
+    //         'dateOriginalAppointed' => $dateOriginalAppointed ?? null,
+    //         'dateLastPromotion'     => $dateLastPromotion ?? null,
     //     ];
     // }
 
-    // get all job post
-    public function getJobPost(){
 
-        $job = JobBatchesRsp::select('id','Office','Position','post_date','end_date')->get();
+       public function generatePlantilla(Request $request)
+    {
+        $jobId = Str::uuid()->toString();
 
-        return response()->json($job);
+        // Initialize job status
+        Cache::put("plantilla_job_{$jobId}", [
+            'status' => 'queued',
+            'progress' => 0
+        ], 600); // 10 minutes TTL
 
+        // Dispatch the job
+        GeneratePlantillaReportJob::dispatch($jobId);
 
+        return response()->json([
+            'job_id' => $jobId,
+            'status' => 'queued'
+        ]);
     }
 
+    public function checkPlantillaStatus($jobId)
+    {
+        $status = Cache::get("plantilla_job_{$jobId}");
+
+        if (!$status) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        return response()->json($status);
+    }
+
+    public function cancelPlantilla($jobId)
+    {
+        $status = Cache::get("plantilla_job_{$jobId}");
+
+        if (!$status) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        // Update status to cancelled
+        Cache::put("plantilla_job_{$jobId}", [
+            'status' => 'cancelled',
+            'progress' => $status['progress'] ?? 0
+        ], 600);
+
+        return response()->json([
+            'status' => 'cancelled',
+            'message' => 'Job cancellation requested'
+        ]);
+    }
 
     // report job post with applicant
     public function getApplicantJobPost($jobpostId)
@@ -1841,12 +1713,69 @@ class ReportController extends Controller
         return response()->json($result);
     }
 
-    private function mapEmployeeDbm($row, $xServiceByControl,)
+    private function computeBudgetYearStep($xList, $currentStep)
+    {
+        $allowedStatuses = ['regular', 'elective', 'co-terminous'];
 
+        if ($xList->isEmpty()) {
+            return $currentStep;
+        }
+
+        // newest first
+        $xList = $xList->sortByDesc('FromDate')->values();
+
+        // current active service
+        $currentService = $xList->first(function ($svc) use ($allowedStatuses) {
+            return in_array(strtolower($svc->Status), $allowedStatuses)
+                && !empty($svc->Designation);
+        });
+
+        if (!$currentService) {
+            return $currentStep;
+        }
+
+        $designation = $currentService->Designation;
+        $step = (int) ($currentService->Steps ?? $currentStep);
+
+        // SAME position + SAME step only
+        $samePosSameStep = $xList->filter(function ($svc) use (
+            $designation,
+            $step,
+            $allowedStatuses
+        ) {
+            return $svc->Designation === $designation
+                && (int)($svc->Steps ?? 0) === $step
+                && in_array(strtolower($svc->Status), $allowedStatuses);
+        })->sortBy('FromDate')->values();
+
+        if ($samePosSameStep->isEmpty()) {
+            return $currentStep;
+        }
+
+        // earliest SAME position + SAME step
+        $startYear = (int) Carbon::parse($samePosSameStep->first()->FromDate)->year;
+
+        // 🔥 CURRENT YEAR (not budget param)
+        $currentYear = (int) Carbon::now()->year;
+
+        // inclusive count (ex: 2024–2026 = 3)
+        $yearsRendered = ($currentYear - $startYear) + 1;
+
+        // DBM rule: after 3 years → +1 step
+        if ($yearsRendered >= 3) {
+            return $currentStep + 1;
+        }
+
+        return $currentStep;
+    }
+
+
+
+    // Update the mapEmployeeDbm function call
+    private function mapEmployeeDbm($row, $xServiceByControl)
     {
         $controlNo = $row->ControlNo;
         $status = $row->status;
-
 
         $dateOriginalAppointed = null;
         $dateLastPromotion = null;
@@ -1884,7 +1813,7 @@ class ReportController extends Controller
                     $dateOriginalAppointed = $xList->last()->FromDate;
                 }
 
-                // Promotion logic (numeric, non-strict grades)
+                // Promotion logic
                 $numericGrades = $xList->pluck('Grades')->filter(function ($g) {
                     return is_numeric($g);
                 })->map(function ($g) {
@@ -1892,24 +1821,10 @@ class ReportController extends Controller
                 });
 
                 $highestGrade = $numericGrades->max();
-
-                // Appointed Grades
                 $appointedRow = $xList->first(fn($svc) => $svc->FromDate == $dateOriginalAppointed);
                 $initialGrades = !is_null($appointedRow) ? $appointedRow->Grades : ($row->Grades ?? null);
 
-                // Log for debugging
-                logger([
-                    // 'xactiveGrades' => $row->Grades,
-                    'appointedRowGrades' => isset($appointedRow) ? $appointedRow->Grades : null,
-                    'initialGrades' => $initialGrades,
-                    'highestGrade' => $highestGrade,
-                    'all xService Grades' => $xList->pluck('Grades'),
-                    'numericGrades' => $numericGrades,
-                    'dateOriginalAppointed' => $dateOriginalAppointed,
-                ]);
-
                 if (!is_null($dateOriginalAppointed) && !is_null($highestGrade) && !is_null($initialGrades)) {
-                    // if current/initial grade is greater than or equal to highest, there is no promotion
                     if ($initialGrades >= $highestGrade) {
                         $dateLastPromotion = null;
                     } else {
@@ -1924,10 +1839,7 @@ class ReportController extends Controller
             }
         }
 
-
-        // ===============================
         // VACANT → FORCE ZERO
-        // ===============================
         if (is_null($controlNo)) {
             return [
                 'controlNo'   => null,
@@ -1944,40 +1856,32 @@ class ReportController extends Controller
                 'budgetYearSalaryGrade'  => $row->salarygrade,
                 'budgetYearAmount'       => '0.00',
                 'budgetYearStep'         => '1',
-
+                'increaseDescrease'      => '0.00',
                 'dateOriginalAppointed' => null,
                 'dateLastPromotion'     => null,
                 'status'      => 'VACANT',
             ];
         }
 
-        // ===============================
         // X-SERVICE DATA
-        // ===============================
         $xList = collect();
-
         if (isset($xServiceByControl[$controlNo])) {
             $xList = $xServiceByControl[$controlNo];
         }
 
-        // ===============================
         // CURRENT STEP
-        // ===============================
         $currentStep = (int) ($row->steps ?? 1);
 
-        // ===============================
-        // COMPUTE BUDGET YEAR STEP
-        // ===============================
-        $budgetYearStep = $this->computeBudgetYearStep($xList, $currentStep);
+        // CURRENT POSITION
+        $currentPosition = $row->position;
 
-        // ===============================
+        // COMPUTE BUDGET YEAR STEP (Pass current position)
+        $budgetYearStep = $this->computeBudgetYearStep($xList, $currentStep, $currentPosition);
+
         // CURRENT YEAR AMOUNT
-        // ===============================
         $currentYearAmount = number_format($row->rateyear ?? 0, 2);
 
-        // ===============================
-        // BUDGET YEAR AMOUNT (tblSalarySchedule)
-        // ===============================
+        // BUDGET YEAR AMOUNT
         $budgetMonthly = DB::table('tblSalarySchedule')
             ->where('Grade', $row->salarygrade)
             ->where('Steps', $budgetYearStep)
@@ -1989,85 +1893,29 @@ class ReportController extends Controller
 
         $currentAnnualRaw = (float) str_replace(',', '', $currentYearAmount);
         $budgetAnnualRaw  = (float) str_replace(',', '', $budgetYearAmount);
-
         $increaseDecrease = $budgetAnnualRaw - $currentAnnualRaw;
 
-
-        // ===============================
         // RETURN DATA
-        // ===============================
         return [
             'controlNo'   => $controlNo,
             'Ordr'        => $row->Ordr,
             'itemNo'      => $row->ItemNo,
             'position'    => $row->position,
-
             'lastname'    => $row->lastname,
             'firstname'   => $row->firstname,
             'middlename'  => $row->middlename,
             'birthdate'   => $row->birthdate,
-
             'currentYearSalaryGrade' => $row->salarygrade,
             'currentYearAmount'      => $currentYearAmount,
             'currentYearStep'        => $currentStep,
-            
             'budgetYearSalaryGrade'  => $row->salarygrade,
             'budgetYearAmount'       => $budgetYearAmount,
             'budgetYearStep'         => $budgetYearStep,
             'increaseDescrease' => number_format($increaseDecrease, 2),
-
             'dateOriginalAppointed' => $dateOriginalAppointed ?? null,
             'dateLastPromotion'     => $dateLastPromotion ?? null,
             'eligibility' => $row->eligibility,
-            'status'      => $row->Status,
+            'status'      => $row->status,
         ];
     }
-
-    private function computeBudgetYearStep($xList, $currentStep)
-    {
-        $allowedStatuses = ['regular', 'elective', 'co-terminous'];
-
-        if ($xList->isEmpty()) {
-            return $currentStep;
-        }
-
-        // Sort newest first
-        $xList = $xList->sortByDesc('FromDate')->values();
-
-        // Current designation (latest REGULAR/ELECTIVE/CO-TERM)
-        $currentService = $xList->first(function ($svc) use ($allowedStatuses) {
-            return in_array(strtolower($svc->Status), $allowedStatuses)
-                && !empty($svc->Designation);
-        });
-
-        if (!$currentService) {
-            return $currentStep;
-        }
-
-        $currentDesignation = $currentService->Designation;
-
-        // Only same designation + allowed status
-        $sameDesignation = $xList->filter(function ($svc) use ($currentDesignation, $allowedStatuses) {
-            return $svc->Designation === $currentDesignation
-                && in_array(strtolower($svc->Status), $allowedStatuses);
-        })->sortBy('FromDate')->values();
-
-        if ($sameDesignation->isEmpty()) {
-            return $currentStep;
-        }
-
-        $from = Carbon::parse($sameDesignation->first()->FromDate);
-
-        // 🔥 IMPORTANT FIX:
-        // Use TODAY (or budget year end), NOT future ToDate
-        $to = Carbon::now();
-
-        $yearsOnPosition = $from->diffInYears($to);
-
-        // Every 3 years = +1 step
-        $stepIncrement = floor($yearsOnPosition / 3);
-
-        return $currentStep + $stepIncrement;
-    }
-
     }
