@@ -646,7 +646,7 @@ class ReportController extends Controller
             ->get();
 
         if ($records->isEmpty()) {
-            return response()->json(['message' => 'No applicant ratings found'], 404);
+            return response()->json(['message' => 'Unable to generate report. This applicant has not been rated yet'], 404);
         }
 
         // Job post info (same for all)

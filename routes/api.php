@@ -35,27 +35,9 @@ use App\Http\Controllers\ApplicantSubmissionController;
 // });
 
 
-Route::prefix('report')->group(function () {
-    Route::get('/job-post', [ReportController::class, 'getJobPost']);
-
-    Route::get('/job-post/{jobpostId}', [ReportController::class, 'getApplicantJobPost']);
-    Route::get('/applicant-final-score/{jobpostId}', [ReportController::class, 'applicantFinalScore']); // final summary of rating qulification standard
-    Route::get('/placement-list/{office}', [ReportController::class, 'placementList']);
-    Route::get('/job/complete', [JobBatchesRspController::class, 'jobPostCompleteStatus']);   //  create a new job post
-    Route::get('/ranking/applicant/{date}', [ReportController::class, 'topFiveApplicants']);  //get top 5 ranking applicant publication
-    Route::get('/applicant/qualified/{date}', [ReportController::class, 'listQualifiedApplicantsPublication']); // list of qualified applicants  for job post publication
-    Route::get('/applicant/unqualified/{date}', [ReportController::class, 'listUnQualifiedApplicantsPublication']); // list of Unqualified applicants  for job post publication
-    Route::get('/dbm', [ReportController::class, 'dbmReport']); // generate the plantilla report
-
-    // Route::get('/applicant/{jobpostId}',[ReportController::class, 'getApplicantHaveSchedules']);
-    // Route::post('/send/status', [EmailController::class, 'sendEmailApplicantBatch']); // send an update of status applicant
-
-});
 
 
-Route::get('/generate', [ReportController::class, 'generatePlantilla']);
-Route::post('/generate/cancel/{jobId}', [ReportController::class, 'cancelPlantilla']);
-Route::get('/generate/status/{jobId}', [ReportController::class, 'checkPlantillaStatus']);
+
 
 // user
 Route::post('/verify-code', [VerificationController::class, 'verifyCode']); // verify the code
@@ -269,6 +251,31 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 
+
+    Route::prefix('generate')->group(function () {
+        Route::get('/', [ReportController::class, 'generatePlantilla']);
+        Route::post('/cancel/{jobId}', [ReportController::class, 'cancelPlantilla']);
+        Route::get('/status/{jobId}', [ReportController::class, 'checkPlantillaStatus']);
+    });
+
+
+
+    Route::prefix('report')->group(function () {
+        Route::get('/job-post', [ReportController::class, 'getJobPost']);
+
+        Route::get('/job-post/{jobpostId}', [ReportController::class, 'getApplicantJobPost']);
+        Route::get('/applicant-final-score/{jobpostId}', [ReportController::class, 'applicantFinalScore']); // final summary of rating qulification standard
+        Route::get('/placement-list/{office}', [ReportController::class, 'placementList']);
+        Route::get('/job/complete', [JobBatchesRspController::class, 'jobPostCompleteStatus']);   //  create a new job post
+        Route::get('/ranking/applicant/{date}', [ReportController::class, 'topFiveApplicants']);  //get top 5 ranking applicant publication
+        Route::get('/applicant/qualified/{date}', [ReportController::class, 'listQualifiedApplicantsPublication']); // list of qualified applicants  for job post publication
+        Route::get('/applicant/unqualified/{date}', [ReportController::class, 'listUnQualifiedApplicantsPublication']); // list of Unqualified applicants  for job post publication
+        Route::get('/dbm', [ReportController::class, 'dbmReport']); // generate the plantilla report
+
+        // Route::get('/applicant/{jobpostId}',[ReportController::class, 'getApplicantHaveSchedules']);
+        // Route::post('/send/status', [EmailController::class, 'sendEmailApplicantBatch']); // send an update of status applicant
+
+    });
 
 });
 
