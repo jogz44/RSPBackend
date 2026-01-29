@@ -28,36 +28,33 @@ class ApplicantSubmissionController extends Controller
 {
 
     // list of applicant
-    public function listOfApplicants()
+    // list of applicant
+    public function listOfApplicants(Request $request)
     {
-        // Fetch all submissions including related info
-        $submissions = Submission::with('nPersonalInfo:id,firstname,lastname,date_of_birth')->get();
+        $search = $request->input('search');
+        $perPage = $request->input('per_page', 10);
 
-        // Group by unique person using firstname, lastname, birthdate
-        $submissions = $submissions->filter(function ($item) {
-            return $item->nPersonalInfo !== null;
-        });
+        $query = Submission::query()
+            ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
+            ->select(
+                'p.id as nPersonal_id',
+                'p.firstname',
+                'p.lastname',
+                'p.date_of_birth',
+                DB::raw('COUNT(submission.id) as jobpost')
+            )
+            ->groupBy('p.id', 'p.firstname', 'p.lastname', 'p.date_of_birth');
 
-        $applicants = $submissions
-            ->groupBy(function ($item) {
-                return strtolower(
-                    $item->nPersonalInfo->firstname . '|' .
-                        $item->nPersonalInfo->lastname . '|' .
-                        $item->nPersonalInfo->date_of_birth
-                );
-            })
+        // 🔍 Global search (works across ALL pages)
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('p.firstname', 'like', "%{$search}%")
+                    ->orWhere('p.lastname', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(p.firstname,' ',p.lastname) LIKE ?", ["%{$search}%"]);
+            });
+        }
 
-            ->map(function ($group) {
-                $first = $group->first(); // main record for data output
-                return [
-                    'nPersonal_id'   => $first->nPersonalInfo->id,
-                    'firstname'     => $first->nPersonalInfo->firstname,
-                    'lastname'      => $first->nPersonalInfo->lastname,
-                    'date_of_birth' => $first->nPersonalInfo->date_of_birth,
-                    'jobpost'       => $group->count() // count how many submissions
-                ];
-            })
-            ->values();
+        $applicants = $query->paginate($perPage);
 
         return response()->json($applicants);
     }
@@ -77,7 +74,7 @@ class ApplicantSubmissionController extends Controller
         // ensure a Y-m-d string for whereDate
         $date_of_birth = \Carbon\Carbon::parse($validated['date_of_birth'])->toDateString();
 
-        $applicants = Submission::select('id', 'nPersonalInfo_id', 'job_batches_rsp_id', 'status')
+        $applicants = Submission::select('id', 'nPersonalInfo_id', 'job_batches_rsp_id','status')
             ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
                 $query->whereDate('date_of_birth', $date_of_birth)
                     ->where(function ($q) use ($firstname, $lastname) {
