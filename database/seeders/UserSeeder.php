@@ -26,7 +26,7 @@ class UserSeeder extends Seeder
             'role_id' => 1, // Assuming role_id 2 is for admin
             'created_at' => now(),
             'updated_at' => now(),
-            'password' => Hash::make('admin123'), // securely hash password
+            'password' => Hash::make('admin'), // securely hash password
             'remember_token' => Str::random(10),
         ]);
 

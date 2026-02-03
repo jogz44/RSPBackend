@@ -28,6 +28,8 @@ class User extends Authenticatable
         'role_id',  // Add role_id to fillable
         'remember_token', // Add remember_token to fillable
         'office', // Add office_id to fillable
+        'must_change_password',
+        'password_changed_at',
 
     ];
 
@@ -42,6 +44,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'active' => 'boolean', // Cast active as a boolean
+        'must_change_password' => 'boolean',
+        'password_changed_at' => 'datetime',
     ];
 
     public function rspControl()

@@ -75,6 +75,8 @@ Route::get('/on-funded-plantilla/by-funded/{JobpostId}', [OnFundedPlantillaContr
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/registration', [AuthController::class, 'userRegister']); // create an admin account
+
+
     Route::get('/user', [UsersController::class, 'getAuthenticatedUser']);// user
 
     Route::prefix('users')->group(function () {
@@ -83,29 +85,28 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'userLogout']); // logout
         Route::put('/{id}', [AuthController::class, 'updateUser']);
         Route::delete('/{id}', [AuthController::class, 'deleteUser']);
+        Route::post('/reset-password/{userId}', [AuthController::class, 'resetPassword']);
     });
+
+    // Route::middleware('password.change')->group(function () {
 
     Route::prefix('rater')->group(function () {
         Route::get('/assigned-job-batches', [RaterController::class, 'getAssignedJobs']);
-        Route::get('/', [UsersController::class, 'getAuthenticatedrater']);
-        // Route::get('/show/{jobpostId}', [RaterController::class, 'showScores']);
+        Route::get('/', [UsersController::class, 'getAuthenticatedrater']); // dashboard of rater
         Route::post('/logout', [RaterAuthController::class, 'raterlogout']);
         Route::get('/users', [AuthController::class, 'getAllUsers']);
-        // Route::get('/assigned-job-batches', [RaterController::class, 'getAssignedJobs']);
         Route::get('/', [UsersController::class, 'getAuthenticatedrater']);
         Route::delete('/{id}', [RaterAuthController::class, 'deleteUser']);
         Route::get('/criteria/applicant/{id}', [RaterController::class, 'getCriteriaApplicant']);
         Route::get('/show/{jobpostId}', [RaterController::class, 'showScores']);
-
         Route::post('/edit/{id}', [RaterAuthController::class, 'editRater']);
-        Route::post('/changepassword', [RaterAuthController::class, 'changePassword']);
+        Route::post('/update-password', [RaterAuthController::class, 'updatePassword']);
         Route::post('/register', [RaterAuthController::class, 'raterRegister']);
+        Route::post('/change-password', [RaterAuthController::class, 'changePassword']);
         Route::get('/list', [RaterController::class, 'getAllRaters']);
-        // Route::get('/applicant/history/score/{applicantId}', [RaterController::class, 'applicant_history_score']);
         Route::get('/{raterId}', [RaterController::class, 'view']);
-        // Route::get('job/list', [RaterController::class, 'jobListAssigned']);
+        //  });
     });
-
     Route::prefix('rating')->group(function () {
         Route::delete('/score/{id}', [RaterController::class, 'delete']);
         Route::get('/index', [RaterController::class, 'index']);

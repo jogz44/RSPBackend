@@ -6,6 +6,7 @@ use Fruitcake\Cors\HandleCors;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\LogActivity;
 use Illuminate\Foundation\Application;
+use App\Http\Middleware\CheckPasswordChange;
 use App\Http\Middleware\ActivityLoggerMiddleware;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -25,6 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
     // $middleware->append(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class);
     // $middleware->alias([
     //     // 'role' => CheckRole::class,
+    // ]);
+    // $middleware->alias([
+    //     'password.change' => CheckPasswordChange::class,
     // ]);
 
     })

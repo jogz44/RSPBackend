@@ -474,4 +474,17 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    public function resetPassword(Request $request, $userId)
+    {
+        $user = User::findOrFail($userId);
+
+        $user->password = Hash::make('admin'); // temporary password
+        $user->save();
+
+        return response()->json([
+            'message' => 'Password reset successfully',
+            'user_id' => $user->id
+        ]);
+    }
 }

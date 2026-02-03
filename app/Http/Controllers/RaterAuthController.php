@@ -39,6 +39,7 @@ class RaterAuthController extends Controller
             'active' => true, // Always set new raters as active
             'role_id' => 2,   // 2 = Rater
             'remember_token' => Str::random(32),
+            'must_change_password' => true, // ← Force password change
         ]);
 
         // Attach job batches
@@ -268,7 +269,8 @@ class RaterAuthController extends Controller
                 'name' => $user->name,
                 'position' => $user->position,
                 'role_id' => (int)$user->role_id, // Always integer
-                'role_name' => $user->role?->name // Optional chaining in case it's null
+                'role_name' => $user->role?->name,// Optional chaining in case it's null
+              
             ],
             'token' => $token,
         ])->withCookie($cookie);
@@ -276,7 +278,7 @@ class RaterAuthController extends Controller
 
 
     // change password for the rater
-    public function changePassword(Request $request)
+    public function updatePassword(Request $request)
     {
         // Validate request
         $validator = Validator::make($request->all(), [
@@ -411,6 +413,51 @@ class RaterAuthController extends Controller
         ])->withCookie($cookie);
 
 
+    }
+
+    public function changePassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+            'new_password_confirmation' => 'required'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = $request->user();
+
+        // Verify current password
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect'
+            ], 422);
+        }
+
+        // Check if new password is same as old
+        if (Hash::check($request->new_password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'New password must be different from current password'
+            ], 422);
+        }
+
+        // Update password
+        $user->password = Hash::make($request->new_password);
+        $user->must_change_password = false;
+        $user->password_changed_at = now();
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password changed successfully'
+        ]);
     }
 
 }

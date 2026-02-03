@@ -57,7 +57,7 @@ class UsersController extends Controller
         ]);
     }
 
- 
+
     // this is for rater
     public function getAuthenticatedrater(Request $request)
     {
@@ -85,6 +85,9 @@ class UsersController extends Controller
             'completed_jobs_count' => $user->total_completed,
             'pending_jobs_count' => $user->total_pending,
             'completion_rate' => $user->completion_rate . '%',
+
+            // change password
+            'must_change_password' => $user->must_change_password,
 
             // ⭐ Optional: Include job list assigned to the rater
             'assigned_jobs' => $user->job_batches_rsp->map(function ($job) {
