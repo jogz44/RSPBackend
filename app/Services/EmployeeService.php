@@ -6,6 +6,7 @@ use App\Mail\EmailApi;
 use App\Models\JobBatchesRsp;
 use App\Models\Submission;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -179,5 +180,131 @@ class EmployeeService
 
 
         ));
+    }
+
+
+    //update tempreg and xservice and xpersonal  of the employee
+    public function updateCredentials($controlNo,$validated)
+    {
+        $user = Auth::user(); // User performing the update
+
+
+        $xPersonal  = DB::table('xPersonal')
+            ->where('ControlNo', $controlNo)
+            ->update([
+                'Surname' => $validated['Surname'] ?? null,
+                'Firstname' => $validated['Firstname'] ?? null,
+                'Middlename' => $validated['Middlename'] ?? null,
+                'Sex' => $validated['Sex'] ?? 'N/A',
+                'CivilStatus' => $validated['CivilStatus'] ?? null,
+                'BirthDate' => $validated['BirthDate'] ?? null,
+                'TINNo' => $validated['TINNo'] ?? null,
+                'Address' => $validated['Address'] ?? null,
+
+            ]);
+            
+        $updatedEmployee = DB::table('xPersonal')->where('ControlNo', $controlNo)->first();
+        $employeeFullname = $updatedEmployee->Firstname . ' ' . $updatedEmployee->Surname;
+
+        $xtempreg = DB::table('tempRegAppointmentReorg')
+            ->where('ControlNo', $controlNo)
+            ->orderByDesc('ID')
+            ->first();
+
+        if ($xtempreg) {
+            DB::table('tempRegAppointmentReorg')
+                ->where('ID', $xtempreg->ID)
+                ->update([
+                    'sepdate' => $validated['sepdate'] ?? null,
+                    'sepcause' => $validated['sepcause'] ?? null,
+                    'vicename' => $validated['vicename'] ?? null,
+                    'vicecause' => $validated['vicecause'] ?? null,
+
+                ]);
+        }
+
+        $tempregExt = DB::table('tempRegAppointmentReorgExt')
+            ->where('ControlNo', $controlNo)
+            ->orderByDesc('ID')
+            ->first();
+
+        $data = [
+            'ControlNo' => $controlNo,
+            'PresAppro'        => $validated['PresAppro'] ?? null,
+            'PrevAppro'        => $validated['PrevAppro'] ?? null,
+            'SalAuthorized'    => $validated['SalAuthorized'] ?? null,
+            'OtherComp'        => $validated['OtherComp'] ?? null,
+            'SupPosition'      => $validated['SupPosition'] ?? null,
+            'HSupPosition'     => $validated['HSupPosition'] ?? null,
+            'Tool'             => $validated['Tool'] ?? null,
+
+            'Contact1'         => $validated['Contact1'] ?? null,
+            'Contact2'         => $validated['Contact2'] ?? null,
+            'Contact3'         => $validated['Contact3'] ?? null,
+            'Contact4'         => $validated['Contact4'] ?? null,
+            'Contact5'         => $validated['Contact5'] ?? null,
+            'Contact6'         => $validated['Contact6'] ?? null,
+            'ContactOthers'    => $validated['ContactOthers'] ?? null,
+
+            'Working1'         => $validated['Working1'] ?? null,
+            'Working2'         => $validated['Working2'] ?? null,
+            'WorkingOthers'    => $validated['WorkingOthers'] ?? null,
+
+            'DescriptionSection'  => $validated['DescriptionSection'] ?? null,
+            'DescriptionFunction' => $validated['DescriptionFunction'] ?? null,
+
+            'StandardEduc'     => $validated['StandardEduc'] ?? null,
+            'StandardExp'      => $validated['StandardExp'] ?? null,
+            'StandardTrain'    => $validated['StandardTrain'] ?? null,
+            'StandardElig'     => $validated['StandardElig'] ?? null,
+
+            'Supervisor'       => $validated['Supervisor'] ?? null,
+
+            'Core1'            => $validated['Core1'] ?? null,
+            'Core2'            => $validated['Core2'] ?? null,
+            'Core3'            => $validated['Core3'] ?? null,
+
+            'Corelevel1'       => $validated['Corelevel1'] ?? null,
+            'Corelevel2'       => $validated['Corelevel2'] ?? null,
+            'Corelevel3'       => $validated['Corelevel3'] ?? null,
+            'Corelevel4'       => $validated['Corelevel4'] ?? null,
+
+            'Leader1'          => $validated['Leader1'] ?? null,
+            'Leader2'          => $validated['Leader2'] ?? null,
+            'Leader3'          => $validated['Leader3'] ?? null,
+            'Leader4'          => $validated['Leader4'] ?? null,
+
+            'leaderlevel1'     => $validated['leaderlevel1'] ?? null,
+            'leaderlevel2'     => $validated['leaderlevel2'] ?? null,
+            'leaderlevel3'     => $validated['leaderlevel3'] ?? null,
+            'leaderlevel4'     => $validated['leaderlevel4'] ?? null,
+
+            'structureid'      => $validated['structureid'] ?? null,
+
+        ];
+
+
+        if ($tempregExt) {
+            // Update only the latest row
+            DB::table('tempRegAppointmentReorgExt')
+                ->where('ID', $tempregExt->ID)
+                ->update($data);
+        } else {
+            // Insert new row if none exists
+            DB::table('tempRegAppointmentReorgExt')->insert($data);
+        }
+
+        activity('Appointment')
+            ->causedBy($user)
+            ->withProperties(['updated_employee' => $employeeFullname, 'control_no' => $controlNo,])
+            ->log("User '{$user->name}' updated the appointment of employee '{$employeeFullname}'.");
+        return response()->json([
+            'success' => true,
+            'message' => 'Update saved successfully. Please wait for an administrator to review and approve the changes.',
+            'xPersonal' => $xPersonal,
+            'xtempreg' => $xtempreg,
+            'tempregExt' => $tempregExt
+            // 'xService' => $xService,
+        ]);
     }
 }

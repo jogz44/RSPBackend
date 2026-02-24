@@ -64,8 +64,8 @@ Route::prefix('applicant')->group(function () {
 
 Route::prefix('job-batches-rsp')->group(function () {
     Route::get('/postdate', [JobBatchesRspController::class, 'jobPostPostDate']); // fetch job post base on the  postdate
-    Route::get('/', [JobBatchesRspController::class, 'index']); // fetching all job post
-    Route::get('/list', [JobBatchesRspController::class, 'jobList']); // fetching the all job post on the admin
+    Route::get('/', [JobBatchesRspController::class, 'availableJobPost']); // fetching all job post
+    Route::get('/list', [JobBatchesRspController::class, 'jobListCriteria']); // fetching the all job post on the admin
     Route::get('/{job_post_id}', [JobBatchesRspController::class, 'jobPostView']); // update the job-batches-rsp start date and end date
 });
 
@@ -175,7 +175,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 
-    Route::post('/submissions/multiple', [ExportApplicantController::class, 'storeMultiple']); // store applicant multiple on jobpost usong export
+    Route::post('/submissions/multiple', [ExportApplicantController::class, 'exportApplicant']); // store applicant multiple on jobpost usong export
 
     Route::get('/rater/job/list', [RaterController::class, 'jobListAssigned']);
 
@@ -183,7 +183,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     //
-    Route::get('/export/applicant/{job_post_id}', [ExportApplicantController::class, 'historyApplicantAll']); // fetching all job post
+    Route::get('/export/applicant/{job_post_id}', [ExportApplicantController::class, 'fetchApplicantAppliedOldJobPost']); // fetching all job post
 
     Route::post('/hire/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
 
@@ -198,7 +198,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/active', [PlantillaController::class, 'vwActiveGet']); // fetching employee active
     Route::get('/view/criteria/{job_batches_rsp_id}', [CriteriaController::class, 'viewCriteria']); // view details of job criteria
 
-    Route::delete('/job/delete/{id}', [JobBatchesRspController::class, 'destroy']); // delete job post  with the criteria and pdf
+    Route::delete('/job/delete/{id}', [JobBatchesRspController::class, 'deleteJobPost']); // delete job post  with the criteria and pdf
     Route::get('/job-post', [JobBatchesRspController::class, 'jobPost']); // fetching all job post
     Route::get('/job-post/{postDate}/{endDate}', [JobBatchesRspController::class,'jobPostFiltered']);
 
@@ -209,21 +209,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/schedule/list', [ScheduleController::class, 'fetchSchedule']); // list of schedule
         Route::get('/schedule/details/{scheduleId}', [ScheduleController::class, 'getApplicantInterview']); // schedule of the applicant details
         Route::post('/details', [ApplicantSubmissionController::class, 'getApplicantDetails']); //  fetch the applicant detail of jon post he apply
-        Route::get('/{id}', [JobBatchesRspController::class, 'getApplicantPds']); // fetching the applicant per job post
+        Route::get('/{id}', [JobBatchesRspController::class, 'applicantPds']); // fetching the applicant per job post
         Route::get('/score/{applicantId}', [RaterController::class, 'showApplicantHistory']); // fetch the history of the applicant
 
     });
 
     Route::prefix('job-batches-rsp')->group(function () {
 
-        Route::post('/', [JobBatchesRspController::class, 'store']);   //  create a new job post
+        Route::post('/', [JobBatchesRspController::class, 'storeJobPost']);   //  create a new job post
         Route::post('/republished', [JobBatchesRspController::class, 'republished']);   // republish job-batches-rsp
-        Route::put('/jobpost/{JobPostingId}', [JobBatchesRspController::class, 'unoccupied']);   // update the  job-post status to unoccupied there is no applicant hired
+        Route::put('/jobpost/{JobPostingId}', [JobBatchesRspController::class, 'jobpostUnoccupied']);   // update the  job-post status to unoccupied there is no applicant hired
         // Route::delete('/{id}', [JobBatchesRspController::class, 'destroy']); // delete job post
         Route::get('/{PositionID}/{ItemNo}', [JobBatchesRspController::class, 'show']);
-        Route::get('/applicant/view/{id}', [JobBatchesRspController::class, 'getApplicant']); // fetching the applicant per job post
+        Route::get('/applicant/view/{id}', [JobBatchesRspController::class, 'getJobPostApplicant']); // fetching the applicant per job post
         Route::post('/applicant/evaluation/{applicantId}', [SubmissionController::class, 'evaluation']); // qualified or unqualified of the applicant
-        Route::post('/update/{job_post_id}', [JobBatchesRspController::class, 'jobPostUpdate']); // updating the job post start date and end date
+        Route::post('/update/{job_post_id}', [JobBatchesRspController::class, 'updateJobPost']); // updating the job post start date and end date
     });
 
 
