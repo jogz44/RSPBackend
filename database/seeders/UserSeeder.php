@@ -19,9 +19,9 @@ class UserSeeder extends Seeder
     {
         // Insert user
         $userId = DB::table('users')->insertGetId([
-            'name' => 'Deniel Tomenio',
+            'name' => 'Jograd Mahusay',
             'username' => 'admin',
-            'position' => 'Administrator',  // <-- REQUIRED!
+            'position' => 'INFORMATION SYSTEMS ANALYST III',  // <-- REQUIRED!
             'active' => true,
             'role_id' => 1, // Assuming role_id 2 is for admin
             'created_at' => now(),

@@ -56,8 +56,8 @@ Route::get('/role', [AuthController::class, 'getRole']); // role of user
 
 // applying route
 Route::prefix('applicant')->group(function () {
-    Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStore']); // for external applicant with zip file
-    Route::post('/employee', [ApplicantSubmissionController::class, 'employeeApplicant']); // employyee applicant applying job
+    Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication']); // for external applicant with zip file
+    Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication']); // employyee applicant applying job
     Route::post('/confirmation', [ApplicantSubmissionController::class, 'confirmDuplicateApplicant']); // confirmation for updating his excek file
 });
 
@@ -147,27 +147,28 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('criteria')->group(function () {
-        Route::post('/store', [CriteriaController::class, 'store']); // saving criteria
+        Route::post('/store', [CriteriaController::class, 'storeCriteria']); // saving criteria
         Route::get('/sg/{sg}', [CriteriaController::class, 'fetchNonCriteriaJob']); // only will be use if the job post are dont have criteria yet
-        Route::delete('/{criteria_id}', [CriteriaController::class, 'delete']);
+        Route::delete('/{criteria_id}', [CriteriaController::class, 'deleteCriteria']);
         // Route::delete('/{id}', [CriteriaController::class, 'delete']);
+
 
         // library
         Route::post('/library/store', [CriteriaController::class, 'criteriaLibStore']);
         Route::get('/library', [CriteriaController::class, 'fetchCriteriaLibrary']); //  fetch list of criteria  available
         Route::get('/library/details/{criteriaId}', [CriteriaController::class, 'fetchCriteriaDetails']); // fetch the details of  criteria
-        Route::delete('/library/delete/{criteriaId}', [CriteriaController::class, 'criteriaDelete']); // fetch the details of  criteria
+        Route::delete('/library/delete/{criteriaId}', [CriteriaController::class, 'criteriaLibDelete']); // fetch the details of  criteria
         Route::post('/library/update/{criteriaId}', [CriteriaController::class, 'criteriaLibUpdate']); // criteria update on library
     });
 
     Route::prefix('dashboard')->group(function () {
-        Route::get('/', [DashboardController::class, 'index']);
+        Route::get('/', [DashboardController::class, 'totalApplicantStatus']);
         // Route::get('/job/status', [DashboardController::class, 'job_post_status']);
     });
 
     Route::prefix('plantilla')->group(function () {
         Route::get('/ControlNo', [PlantillaController::class, 'getMaxControlNo']);
-        Route::get('/', [PlantillaController::class, 'index']);
+        Route::get('/', [PlantillaController::class, 'fetchEmployeeOnPlantilla']);
         Route::get('/office/rater', [PlantillaController::class, 'fetchOfficeRater']);
         Route::delete('/delete/all', [OnFundedPlantillaController::class, 'deleteAllPlantillas']);
         Route::get('/appointment/{ControlNo}', [PlantillaController::class, 'getAllData']);
@@ -186,7 +187,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/hire/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
 
-    Route::get('/plantilla/status', [DashboardController::class, 'plantillaNumber']);
+    Route::get('/plantilla/status', [DashboardController::class, 'getNumberOfPlantillaData']);
     Route::get('/activity_log', [LogController::class, 'activityLogs']); // logs
 
     Route::post('/xPDS', [xPDSController::class, 'getPersonalDataSheet']);  // pds of internal
@@ -247,8 +248,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('email')->group(function () {
-        Route::post('/send/interview', [EmailController::class, 'sendEmailInterview']); // send an interview schedule for applicant
-        Route::post('/send/status', [EmailController::class, 'sendEmailApplicantBatch']); // send an update of status applicant
+        Route::post('/send/interview', [EmailController::class, 'storeInterviewApplicant']); // send an interview schedule for applicant
+        Route::post('/send/status', [EmailController::class, 'applicantUnqualified']); // send an update of status applicant
     });
 
 

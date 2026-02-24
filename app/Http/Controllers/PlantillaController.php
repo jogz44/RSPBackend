@@ -10,6 +10,8 @@ use App\Models\TempRegAppointmentReorg;
 use App\Models\vwActive;
 use App\Models\vwofficearrangement;
 use App\Models\xService;
+use App\Services\PlantillaService;
+use LDAP\Result;
 
 class PlantillaController extends Controller
 {
@@ -23,67 +25,31 @@ class PlantillaController extends Controller
         return response()->json(['maxControlNo' => $maxControlNo]);
     }
 
-    public function test()
+    // public function test()
+    // {
+    //     // Fetch data for COMPUTER PROGRAMMER II, showing office and funded status
+    //     $plantilla = vwplantillastructure::select([
+    //         'vwplantillaStructure.ControlNo',
+    //         'vwplantillaStructure.ID',
+    //         'vwplantillaStructure.office',
+    //         'vwActive.BirthDate',
+    //         'vwActive.Designation',
+    //     ])
+    //         ->leftJoin('vwActive', 'vwplantillaStructure.ControlNo', '=', 'vwActive.ControlNo')
+    //         ->get();
+
+
+    //     return response()->json($plantilla);
+    // }
+
+
+    // fetch list of employee
+    // to get the structure of office and get the employee base on the office
+    public function fetchEmployeeOnPlantilla(Request $request,PlantillaService $plantillaService)
     {
-        // Fetch data for COMPUTER PROGRAMMER II, showing office and funded status
-        $plantilla = vwplantillastructure::select([
-            'vwplantillaStructure.ControlNo',
-            'vwplantillaStructure.ID',
-            'vwplantillaStructure.office',
-            'vwActive.BirthDate',
-            'vwActive.Designation',
-        ])
-            ->leftJoin('vwActive', 'vwplantillaStructure.ControlNo', '=', 'vwActive.ControlNo')
-            ->get();
+        $result = $plantillaService->fetchAllEmployeeOnplantilla($request);
 
-
-        return response()->json($plantilla);
-    }
-
-
-
-    public function index(Request $request)
-    {
-        $query = vwplantillastructure::select([
-            'vwplantillaStructure.ControlNo',
-            'vwplantillaStructure.ID',
-            'vwplantillaStructure.office',
-            'vwplantillaStructure.office2',
-            'vwplantillaStructure.group',
-            'vwplantillaStructure.division',
-            'vwplantillaStructure.section',
-            'vwplantillaStructure.unit',
-            'vwplantillaStructure.position',
-            'vwplantillaStructure.PositionID',
-            'vwplantillaStructure.PageNo',
-            'vwplantillaStructure.ItemNo',
-            'vwplantillaStructure.SG',
-            'vwplantillaStructure.Funded',
-            'vwplantillaStructure.level',
-            'vwplantillaStructure.Name1',
-            'vwplantillaStructure.Pics',
-            'vwplantillaStructure.Status as plantillaStatus',
-            'vwplantillaStructure.Name4',
-            'vwplantillaStructure.OfficeID',
-            'vwActive.BirthDate',
-            'vwActive.Designation',
-            'yDesignation.Status as designationStatus',
-            'yDesignation.PMID as designationPositionId',
-
-        ])
-            ->leftJoin('vwActive', 'vwplantillaStructure.ControlNo', '=', 'vwActive.ControlNo')
-            ->leftJoin('yDesignation', 'vwplantillaStructure.PositionID', '=', 'yDesignation.PMID')
-
-            ->distinct();
-
-// Filter by office if provided: /plantilla?office=OfficeName
-if ($office = $request->query('office')) {
-            $query->where('vwplantillaStructure.office', $office);
-        }
-
-        $plantilla = $query->get();
-
-        return response()->json($plantilla);
+        return response()->json($result);
     }
 
     // office and rater on the modal rater mdoule
@@ -178,15 +144,15 @@ if ($office = $request->query('office')) {
                 ->with([
 
                     'xPersonal' => function ($query) {
-                        $query->select(['ControlNo', 'Surname', 'TINNo', 'Address','BirthDate','Firstname','MIddlename','Sex']); // specify columns from vwplantillastructure
+                        $query->select(['ControlNo', 'Surname', 'TINNo', 'Address', 'BirthDate', 'Firstname', 'MIddlename', 'Sex']); // specify columns from vwplantillastructure
                     },
                     'active' => function ($query) {
                         $query->select(['ControlNo', 'Name4', 'Sex']); // specify columns from vwplantillastructure
                     },
 
-                'posting_date' => function ($query) {
-                    $query->select(['ControlNo', 'post_date', 'end_date']); // specify columns from vwplantillastructure
-                },
+                    'posting_date' => function ($query) {
+                        $query->select(['ControlNo', 'post_date', 'end_date']); // specify columns from vwplantillastructure
+                    },
                     'tempRegAppointments' => function ($query) {
                         $query->select([
                             'ID as tempId',
@@ -213,17 +179,43 @@ if ($office = $request->query('office')) {
                             'unitcode',
 
                             'vicecause',
-                             'vicename',
+                            'vicename',
                             'sepdate',
-                             'sepcause'
+                            'sepcause'
                         ])->orderBy('ID', 'desc'); // specify columns from TempRegAppointmentReorg
                     },
 
                     'plantilla' => function ($query) {
-                        $query->select(['ControlNo', 'office', 'office2', 'group', 'division', 'section', 'unit', 'position',
-                        'ID', 'StructureID', 'OfficeID', 'OfficeID1', 'GroupID', 'DivisionID', 'SectionID', 'UnitID', 'PositionID',
-                         'PageNo', 'ItemNo', 'SG', 'Ordr', 'Funded',
-                         'groupordr', 'divordr', 'secordr', 'unitordr', 'level', 'Status']);
+                        $query->select([
+                            'ControlNo',
+                            'office',
+                            'office2',
+                            'group',
+                            'division',
+                            'section',
+                            'unit',
+                            'position',
+                            'ID',
+                            'StructureID',
+                            'OfficeID',
+                            'OfficeID1',
+                            'GroupID',
+                            'DivisionID',
+                            'SectionID',
+                            'UnitID',
+                            'PositionID',
+                            'PageNo',
+                            'ItemNo',
+                            'SG',
+                            'Ordr',
+                            'Funded',
+                            'groupordr',
+                            'divordr',
+                            'secordr',
+                            'unitordr',
+                            'level',
+                            'Status'
+                        ]);
                     },
                     'tempRegAppointmentReorgExt' => function ($query) {
                         $query->select([

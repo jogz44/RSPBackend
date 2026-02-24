@@ -23,7 +23,7 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent()->setTimezone('Asia/Manila');
             $table->timestamp('updated_at')->useCurrent()->setTimezone('Asia/Manila');
             $table->string('password');
-              $table->foreignId('role_id')// 1 is for admin, 2 is for rater
+            $table->foreignId('role_id')// 1 is for admin, 2 is for rater
                 ->nullable() // allow nulls for existing users
                 ->after('active') // place it right after the ID
                 ->constrained()
@@ -40,6 +40,10 @@ return new class extends Migration
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
+            // $table->foreignId('user_id')
+            //     ->nullable()
+            //     ->constrained('users')
+            //     ->onDelete('cascade');
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
@@ -52,8 +56,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+ 
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('users');
+
     }
 };

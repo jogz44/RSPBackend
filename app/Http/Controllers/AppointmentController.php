@@ -11,6 +11,7 @@ use App\Models\TempRegHistory;
 use Illuminate\Support\Facades\DB;
 use App\Services\AppiontmentService;
 use App\Services\ApplicantHiringService;
+use App\Services\EmployeeService;
 
 class AppointmentController extends Controller
 {
@@ -108,104 +109,14 @@ class AppointmentController extends Controller
 
 
     // need to fix to pagination and search optimize make readable
-    public function employee(Request $request)
+    public function employee(Request $request, EmployeeService $employeeService)
     {
-        $search  = $request->input('search');
-        $perPage = $request->input('per_page', 10);
+        $result = $employeeService->listOfEmployee($request);
 
-        $query = DB::table('xPersonal')
-            ->select('ControlNo', 'Firstname', 'Surname', 'Occupation');
-
-        // 🔍 Search filter
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('ControlNo', 'like', "%{$search}%")
-                    ->orWhere('Firstname', 'like', "%{$search}%")
-                    ->orWhere('Surname', 'like', "%{$search}%")
-                    ->orWhere('Occupation', 'like', "%{$search}%")
-                     ->orWhereRaw("CONCAT(Firstname,' ',Surname) LIKE ?", ["%{$search}%"]);
-
-            });
-        }
-
-        $employees = $query->paginate($perPage);
-
-        return response()->json($employees);
+        return response()->json($result);
     }
 
-    // public function employee(Request $request)
-    // {
-    //     $search  = $request->input('search');
-    //     $perPage = $request->input('per_page', 10);
 
-
-
-    //     $query = DB::table('xPersonal')->query('ControlNo', 'Firstname', 'Surname', 'Occupation')->get();
-
-    //     // 🔍 Search
-    //     if ($search) {
-    //         $query->where(function ($q) use ($search) {
-    //             $q->where('ControlNo', 'like', "%{$search}%")
-    //                 ->orWhere('Firstname', 'like', "%{$search}%")
-    //                 ->orWhere('Surname', 'like', "%{$search}%")
-    //                 >orWhere('Occupation', 'like', "%{$search}%");
-    //         });
-    //     }
-
-    //     $employee = $query->paginate($perPage);
-
-    //     return response()->json($employee);
-
-
-    // }
-
-    // public function employee(Request $request)
-    // {
-    //     // Get page size (default 10)
-    //     $perPage = (int) $request->input('per_page', 10);
-
-    //     // Get search parameter
-    //     $search = $request->input('search', '');
-
-    //     $query = DB::table('xPersonal')
-    //         ->select('ControlNo', 'Firstname', 'Surname', 'Occupation');
-
-    //     // Add search filter if search term exists
-    //     if (!empty($search)) {
-    //         $query->where(function ($q) use ($search) {
-    //             $q->where('Firstname', 'LIKE', "%{$search}%")
-    //                 ->orWhere('Surname', 'LIKE', "%{$search}%")
-    //                 ->orWhere('ControlNo', 'LIKE', "%{$search}%");
-    //         });
-    //     }
-
-    //     $employee = $query->paginate($perPage);
-
-    //     return response()->json($employee);
-    // }
-
-    // public function employee(Request $request)
-    // {
-    //     $perPage = $request->input('per_page', 10); // default 10
-
-    //     return DB::table('xPersonal')
-    //         ->select('ControlNo', 'Firstname', 'Surname', 'Occupation')
-    //         ->paginate($perPage);
-    // }
-
-
-    // get the employee Previous appiontment on the  position
-    // public function getEmployeePreviousDesignation($position,$status){
-
-    //     $employee = DB::table('vwpartitionforseparated')->select('ControlNo','FromDate','ToDate','Designation','Status','SepDate','Sepcause')
-    //     ->where('Designation',$position)
-    //     ->where('Status',$status)
-    //     ->get();
-
-
-    //     return response()->json($employee);
-
-    // }
 
     public function getEmployeePreviousDesignation($position, $status)
     {

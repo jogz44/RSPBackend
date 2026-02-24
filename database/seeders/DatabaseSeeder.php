@@ -24,7 +24,8 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             UserSeeder::class,
             CriteriaLibraryASeeder::class,
-            CriteriaLibraryBSeeder::class
+            CriteriaLibraryBSeeder::class,
+            CriteriaLibraryCSeeder::class
             // Add other seeders here
         ]);
 
