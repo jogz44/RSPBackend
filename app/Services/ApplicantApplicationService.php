@@ -1611,6 +1611,11 @@ class ApplicantApplicationService
 
 
         ))->onQueue('emails'));
+
+        \App\Models\EmailLog::create([
+            'email' => $applicant->email_address,
+            'activity' => $subject,
+        ]);
     }
 
     // Add this method to your controller for testing
@@ -1618,7 +1623,7 @@ class ApplicantApplicationService
     // {
     //     $testData = [
     //         'children' => [
-    //             ['child_name' => 'Test Child', 'birth_date' => '2020-01-01']
+    //             ['childapplicant->email_address_name' => 'Test Child', 'birth_date' => '2020-01-01']
     //         ]
     //     ];
 

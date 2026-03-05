@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\EmailApi;
+use App\Models\EmailLog;
 use App\Models\JobBatchesRsp;
 use App\Models\Schedule;
 use App\Models\SchedulesApplicant;
@@ -106,6 +107,11 @@ class ScheduleService
             ))->onQueue('emails'));
 
             $count++;
+
+            EmailLog::create([
+                'email' => $email,
+                'activity' => 'Interview invitations',
+            ]);
         }
 
         return response()->json([
@@ -245,6 +251,11 @@ class ScheduleService
                         ]
                     )
                 )->onQueue('emails'));
+
+                EmailLog::create([
+                    'email' => $email,
+                    'activity' => 'Unqualified',
+                ]);
 
                 // Log::info("📧 Queued UNQUALIFIED email for {$fullname} ({$email}).");
 

@@ -33,7 +33,7 @@ use App\Http\Controllers\ApplicantSubmissionController;
 //     $freeMB = round(disk_free_space($storagePath) / 1024 / 1024, 2);
 //     return "Free storage space: {$freeMB} MB";
 // });
-
+Route::get('/email/tracking', [EmailController::class, 'emailTracking']); // send an update of status applicant
 
 
 
@@ -248,8 +248,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('email')->group(function () {
+
         Route::post('/send/interview', [EmailController::class, 'storeInterviewApplicant']); // send an interview schedule for applicant
         Route::post('/send/status', [EmailController::class, 'applicantUnqualified']); // send an update of status applicant
+
     });
 
 

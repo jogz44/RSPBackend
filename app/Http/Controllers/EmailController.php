@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
 use App\Mail\EmailApi;
-use App\Models\Schedule;
-use App\Models\Submission;
-use Illuminate\Http\Request;
+use App\Models\EmailLog;
+
 use App\Models\JobBatchesRsp;
+use App\Models\Schedule;
 use App\Models\SchedulesApplicant;
+use App\Models\Submission;
 use App\Services\ScheduleService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 
 class EmailController extends Controller
@@ -51,6 +53,28 @@ class EmailController extends Controller
 
 
         return $result;
+    }
+
+    // tracking email how many already sent
+    public function emailTracking()
+    {
+
+        $emailsSent = EmailLog::whereDate('created_at', today())->count();
+
+        if ($emailsSent === 0) {
+            return response()->json([
+                'message' => 'No emails sent today',
+                'emails_sent_today' => 0,
+                'emails_remaining' => 500
+            ]);
+        }
+
+        $emailsRemaining = max(500 - $emailsSent, 0);
+
+        return response()->json([
+            'emails_sent_today' => $emailsSent,
+            'emails_remaining' => $emailsRemaining
+        ]);
     }
 
 }

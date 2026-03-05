@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\EmailApi;
+use App\Models\EmailLog;
 use App\Models\JobBatchesRsp;
 use App\Models\Submission;
 use Carbon\Carbon;
@@ -180,6 +181,11 @@ class EmployeeService
 
 
         ))->onQueue('emails'));
+
+      EmailLog::create([
+        'email' => $applicant->email_address,
+        'activity' => $subject,
+      ]);
     }
 
 

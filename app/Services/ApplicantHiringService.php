@@ -19,7 +19,7 @@ class ApplicantHiringService
 
 {
      // hire an employee
-    public function hireApplicant($submissionId,Request $request)
+    public function hireApplicant($submissionId,$request)
     {
         DB::beginTransaction();
         try {

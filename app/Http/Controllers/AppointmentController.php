@@ -24,10 +24,10 @@ class AppointmentController extends Controller
         $this->appiontmentService = $appiontmentService;
     }
 
-    public function hireApplicant($submissionId)
+    public function hireApplicant($submissionId, Request $request)
     {
         // Call the service method
-        return $this->hiringService->hireApplicant($submissionId);
+        return $this->hiringService->hireApplicant($submissionId,$request);
     }
 
     public function appiontment(Request $request)
