@@ -21,7 +21,6 @@ class VerificationController extends Controller
         $this->recaptchaService = $recaptchaService;
     }
 
-
     // send code
     public function sendVerification(Request $request)
     {

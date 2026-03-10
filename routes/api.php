@@ -260,13 +260,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [ReportController::class, 'reportPlantilla']);
         Route::post('/cancel/{jobId}', [ReportController::class, 'cancelPlantilla']);
         Route::get('/status/{jobId}', [ReportController::class, 'statusplantilla']);
+        Route::post('/job-position', [ReportController::class, 'exportJobRequestPosition']);
+   
     });
 
 
 
     Route::prefix('report')->group(function () {
         Route::get('/job-post', [ReportController::class, 'getJobPost']);
-
         Route::get('/job-post/{jobpostId}', [ReportController::class, 'getApplicantJobPost']);
         Route::get('/applicant-final-score/{jobpostId}', [ReportController::class, 'reportApplicantFinalScore']); // final summary of rating qulification standard
         Route::get('/placement-list/{office}', [ReportController::class, 'placementList']);
