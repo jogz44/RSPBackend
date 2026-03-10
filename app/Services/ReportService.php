@@ -68,6 +68,7 @@ class ReportService
                 'a.MIddlename as middlename',
                 'p.SG as salarygrade',
                 'p.level',
+                'p.Funded',
                 'o.office_sort',
                 's.RateYear as rateyear', // ✅ correct RateYear
                 'eligibility.eligibility'
@@ -95,183 +96,354 @@ class ReportService
 
         $xServiceByControl = $xServices->groupBy('ControlNo');
 
+        // $result = [];
         $result = [];
+        $resultFunded = [];
+        $resultUnfunded = [];
 
-        foreach ($rows->groupBy('office') as $officeName => $officeRows) {
-            $officeSort = $officeRows->first()->office_sort;
-            $officeLevel = $officeRows->first()->level;
+        //     foreach ($rows->groupBy('office') as $officeName => $officeRows) {
+        //         $officeSort = $officeRows->first()->office_sort;
+        //         $officeLevel = $officeRows->first()->level;
 
-            $officeData = [
-                'office'      => $officeName,
-                'level'       => $officeLevel,
-                'office_sort' => $officeSort,
-                'employees'   => [],
-                'office2'     => []
-            ];
+        //         $officeData = [
+        //             'office'      => $officeName,
+        //             'level'       => $officeLevel,
+        //             'office_sort' => $officeSort,
+        //             'employees'   => [],
+        //             'office2'     => []
+        //         ];
 
-            $officeEmployees = $officeRows->filter(
-                fn($r) =>
-                is_null($r->office2) &&
-                    is_null($r->group) &&
-                    is_null($r->division) &&
-                    is_null($r->section) &&
-                    is_null($r->unit)
-            );
-            $officeData['employees'] = $officeEmployees
-                ->sortBy('ItemNo')
-                // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-                ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
+        //         $officeEmployees = $officeRows->filter(
+        //             fn($r) =>
+        //             is_null($r->office2) &&
+        //                 is_null($r->group) &&
+        //                 is_null($r->division) &&
+        //                 is_null($r->section) &&
+        //                 is_null($r->unit)
+        //         );
+        //         $officeData['employees'] = $officeEmployees
+        //             ->sortBy('ItemNo')
+        //             // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+        //             ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
 
-                ->values();
+        //             ->values();
 
-            $remainingOfficeRows = $officeRows->reject(
-                fn($r) =>
-                is_null($r->office2) &&
-                    is_null($r->group) &&
-                    is_null($r->division) &&
-                    is_null($r->section) &&
-                    is_null($r->unit)
-            );
+        //         $remainingOfficeRows = $officeRows->reject(
+        //             fn($r) =>
+        //             is_null($r->office2) &&
+        //                 is_null($r->group) &&
+        //                 is_null($r->division) &&
+        //                 is_null($r->section) &&
+        //                 is_null($r->unit)
+        //         );
 
-            foreach ($remainingOfficeRows->groupBy('office2') as $office2Name => $office2Rows) {
-                $office2Data = [
-                    'office2'   => $office2Name,
-                    'employees' => [],
-                    'groups'    => []
+        //         foreach ($remainingOfficeRows->groupBy('office2') as $office2Name => $office2Rows) {
+        //             $office2Data = [
+        //                 'office2'   => $office2Name,
+        //                 'employees' => [],
+        //                 'groups'    => []
+        //             ];
+
+        //             $office2Employees = $office2Rows->filter(
+        //                 fn($r) =>
+        //                 is_null($r->group) &&
+        //                     is_null($r->division) &&
+        //                     is_null($r->section) &&
+        //                     is_null($r->unit)
+        //             );
+        //             $office2Data['employees'] = $office2Employees
+        //                 ->sortBy('ItemNo')
+        //                 // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+        //                 ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
+
+        //                 ->values();
+
+        //             $remainingOffice2Rows = $office2Rows->reject(
+        //                 fn($r) =>
+        //                 is_null($r->group) &&
+        //                     is_null($r->division) &&
+        //                     is_null($r->section) &&
+        //                     is_null($r->unit)
+        //             );
+
+        //             foreach ($remainingOffice2Rows->groupBy('group') as $groupName => $groupRows) {
+        //                 $groupData = [
+        //                     'group'     => $groupName,
+        //                     'employees' => [],
+        //                     'divisions' => []
+        //                 ];
+
+        //                 $groupEmployees = $groupRows->filter(
+        //                     fn($r) =>
+        //                     is_null($r->division) &&
+        //                         is_null($r->section) &&
+        //                         is_null($r->unit)
+        //                 );
+        //                 $groupData['employees'] = $groupEmployees
+        //                     ->sortBy('ItemNo')
+        //                     // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+        //                     ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
+
+        //                     ->values();
+
+        //                 $remainingGroupRows = $groupRows->reject(
+        //                     fn($r) =>
+        //                     is_null($r->division) &&
+        //                         is_null($r->section) &&
+        //                         is_null($r->unit)
+        //                 );
+
+        //                 // ----- SORT HERE by divordr -----
+        //                 foreach ($remainingGroupRows->sortBy('divordr')->groupBy('division') as $divisionName => $divisionRows) {
+        //                     $divisionData = [
+        //                         'division'  => $divisionName,
+        //                         'employees' => [],
+        //                         'sections'  => []
+        //                     ];
+
+        //                     $divisionEmployees = $divisionRows->filter(
+        //                         fn($r) =>
+        //                         is_null($r->section) &&
+        //                             is_null($r->unit)
+        //                     );
+        //                     $divisionData['employees'] = $divisionEmployees
+        //                         ->sortBy('ItemNo')
+        //                         // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+        //                         ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
+
+        //                         ->values();
+
+        //                     $remainingDivisionRows = $divisionRows->reject(
+        //                         fn($r) =>
+        //                         is_null($r->section) &&
+        //                             is_null($r->unit)
+        //                     );
+
+        //                     // ----- SORT HERE by secordr -----
+        //                     foreach ($remainingDivisionRows->sortBy('secordr')->groupBy('section') as $sectionName => $sectionRows) {
+        //                         $sectionData = [
+        //                             'section'   => $sectionName,
+        //                             'employees' => [],
+        //                             'units'     => []
+        //                         ];
+
+        //                         $sectionEmployees = $sectionRows->filter(
+        //                             fn($r) =>
+        //                             is_null($r->unit)
+        //                         );
+        //                         $sectionData['employees'] = $sectionEmployees
+        //                             ->sortBy('ItemNo')
+        //                             // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+        //                             ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
+
+        //                             ->values();
+
+        //                         $remainingSectionRows = $sectionRows->reject(
+        //                             fn($r) =>
+        //                             is_null($r->unit)
+        //                         );
+
+        //                         // ----- SORT HERE by unitordr -----
+        //                         foreach ($remainingSectionRows->sortBy('unitordr')->groupBy('unit') as $unitName => $unitRows) {
+        //                             $sectionData['units'][] = [
+        //                                 'unit'      => $unitName,
+        //                                 'employees' => $unitRows
+        //                                     ->sortBy('ItemNo')
+        //                                     // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
+        //                                     ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
+
+        //                                     ->values()
+        //                             ];
+        //                         }
+
+        //                         $divisionData['sections'][] = $sectionData;
+        //                     }
+
+        //                     $groupData['divisions'][] = $divisionData;
+        //                 }
+
+        //                 $office2Data['groups'][] = $groupData;
+        //             }
+
+        //             $officeData['office2'][] = $office2Data;
+        //         }
+
+        //         $result[] = $officeData;
+        //     }
+
+        //     $result = collect($result)->sortBy('office_sort')->values()->all();
+
+        //     return response()->json($result);
+        // }
+
+        // Helper closure to build the nested office structure
+        $buildStructure = function ($filteredRows) use ($xServiceByControl) {
+            $output = [];
+
+            foreach ($filteredRows->groupBy('office') as $officeName => $officeRows) {
+                $officeSort  = $officeRows->first()->office_sort;
+                $officeLevel = $officeRows->first()->level;
+
+                $officeData = [
+                    'office'      => $officeName,
+                    'level'       => $officeLevel,
+                    'office_sort' => $officeSort,
+                    'employees'   => [],
+                    'office2'     => []
                 ];
 
-                $office2Employees = $office2Rows->filter(
+                $officeEmployees = $officeRows->filter(
                     fn($r) =>
-                    is_null($r->group) &&
+                    is_null($r->office2) &&
+                        is_null($r->group) &&
                         is_null($r->division) &&
                         is_null($r->section) &&
                         is_null($r->unit)
                 );
-                $office2Data['employees'] = $office2Employees
+                $officeData['employees'] = $officeEmployees
                     ->sortBy('ItemNo')
-                    // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
                     ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
-
                     ->values();
 
-                $remainingOffice2Rows = $office2Rows->reject(
+                $remainingOfficeRows = $officeRows->reject(
                     fn($r) =>
-                    is_null($r->group) &&
+                    is_null($r->office2) &&
+                        is_null($r->group) &&
                         is_null($r->division) &&
                         is_null($r->section) &&
                         is_null($r->unit)
                 );
 
-                foreach ($remainingOffice2Rows->groupBy('group') as $groupName => $groupRows) {
-                    $groupData = [
-                        'group'     => $groupName,
+                foreach ($remainingOfficeRows->groupBy('office2') as $office2Name => $office2Rows) {
+                    $office2Data = [
+                        'office2'   => $office2Name,
                         'employees' => [],
-                        'divisions' => []
+                        'groups'    => []
                     ];
 
-                    $groupEmployees = $groupRows->filter(
+                    $office2Employees = $office2Rows->filter(
                         fn($r) =>
-                        is_null($r->division) &&
+                        is_null($r->group) &&
+                            is_null($r->division) &&
                             is_null($r->section) &&
                             is_null($r->unit)
                     );
-                    $groupData['employees'] = $groupEmployees
+                    $office2Data['employees'] = $office2Employees
                         ->sortBy('ItemNo')
-                        // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
                         ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
-
                         ->values();
 
-                    $remainingGroupRows = $groupRows->reject(
+                    $remainingOffice2Rows = $office2Rows->reject(
                         fn($r) =>
-                        is_null($r->division) &&
+                        is_null($r->group) &&
+                            is_null($r->division) &&
                             is_null($r->section) &&
                             is_null($r->unit)
                     );
 
-                    // ----- SORT HERE by divordr -----
-                    foreach ($remainingGroupRows->sortBy('divordr')->groupBy('division') as $divisionName => $divisionRows) {
-                        $divisionData = [
-                            'division'  => $divisionName,
+                    foreach ($remainingOffice2Rows->groupBy('group') as $groupName => $groupRows) {
+                        $groupData = [
+                            'group'     => $groupName,
                             'employees' => [],
-                            'sections'  => []
+                            'divisions' => []
                         ];
 
-                        $divisionEmployees = $divisionRows->filter(
+                        $groupEmployees = $groupRows->filter(
                             fn($r) =>
-                            is_null($r->section) &&
+                            is_null($r->division) &&
+                                is_null($r->section) &&
                                 is_null($r->unit)
                         );
-                        $divisionData['employees'] = $divisionEmployees
+                        $groupData['employees'] = $groupEmployees
                             ->sortBy('ItemNo')
-                            // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
                             ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
-
                             ->values();
 
-                        $remainingDivisionRows = $divisionRows->reject(
+                        $remainingGroupRows = $groupRows->reject(
                             fn($r) =>
-                            is_null($r->section) &&
+                            is_null($r->division) &&
+                                is_null($r->section) &&
                                 is_null($r->unit)
                         );
 
-                        // ----- SORT HERE by secordr -----
-                        foreach ($remainingDivisionRows->sortBy('secordr')->groupBy('section') as $sectionName => $sectionRows) {
-                            $sectionData = [
-                                'section'   => $sectionName,
+                        foreach ($remainingGroupRows->sortBy('divordr')->groupBy('division') as $divisionName => $divisionRows) {
+                            $divisionData = [
+                                'division'  => $divisionName,
                                 'employees' => [],
-                                'units'     => []
+                                'sections'  => []
                             ];
 
-                            $sectionEmployees = $sectionRows->filter(
+                            $divisionEmployees = $divisionRows->filter(
                                 fn($r) =>
-                                is_null($r->unit)
+                                is_null($r->section) &&
+                                    is_null($r->unit)
                             );
-                            $sectionData['employees'] = $sectionEmployees
+                            $divisionData['employees'] = $divisionEmployees
                                 ->sortBy('ItemNo')
-                                // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
                                 ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
-
                                 ->values();
 
-                            $remainingSectionRows = $sectionRows->reject(
+                            $remainingDivisionRows = $divisionRows->reject(
                                 fn($r) =>
-                                is_null($r->unit)
+                                is_null($r->section) &&
+                                    is_null($r->unit)
                             );
 
-                            // ----- SORT HERE by unitordr -----
-                            foreach ($remainingSectionRows->sortBy('unitordr')->groupBy('unit') as $unitName => $unitRows) {
-                                $sectionData['units'][] = [
-                                    'unit'      => $unitName,
-                                    'employees' => $unitRows
-                                        ->sortBy('ItemNo')
-                                        // ->map(fn($r) => $this->mapEmployee($r, $xServiceByControl))
-                                        ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
-
-                                        ->values()
+                            foreach ($remainingDivisionRows->sortBy('secordr')->groupBy('section') as $sectionName => $sectionRows) {
+                                $sectionData = [
+                                    'section'   => $sectionName,
+                                    'employees' => [],
+                                    'units'     => []
                                 ];
+
+                                $sectionEmployees = $sectionRows->filter(fn($r) => is_null($r->unit));
+                                $sectionData['employees'] = $sectionEmployees
+                                    ->sortBy('ItemNo')
+                                    ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
+                                    ->values();
+
+                                $remainingSectionRows = $sectionRows->reject(fn($r) => is_null($r->unit));
+
+                                foreach ($remainingSectionRows->sortBy('unitordr')->groupBy('unit') as $unitName => $unitRows) {
+                                    $sectionData['units'][] = [
+                                        'unit'      => $unitName,
+                                        'employees' => $unitRows
+                                            ->sortBy('ItemNo')
+                                            ->map(fn($r) => $this->mapEmployeeDbm($r, $xServiceByControl))
+                                            ->values()
+                                    ];
+                                }
+
+                                $divisionData['sections'][] = $sectionData;
                             }
 
-                            $divisionData['sections'][] = $sectionData;
+                            $groupData['divisions'][] = $divisionData;
                         }
 
-                        $groupData['divisions'][] = $divisionData;
+                        $office2Data['groups'][] = $groupData;
                     }
 
-                    $office2Data['groups'][] = $groupData;
+                    $officeData['office2'][] = $office2Data;
                 }
 
-                $officeData['office2'][] = $office2Data;
+                $output[] = $officeData;
             }
 
-            $result[] = $officeData;
-        }
+            return collect($output)->sortBy('office_sort')->values()->all();
+        };
 
-        $result = collect($result)->sortBy('office_sort')->values()->all();
+        // ✅ Split rows by Funded flag
+        $fundedRows   = $rows->filter(fn($r) => (int) $r->Funded === 1);
+        $unfundedRows = $rows->filter(fn($r) => (int) $r->Funded === 0);
 
-        return response()->json($result);
-    }
+        $resultFunded   = $buildStructure($fundedRows);
+        $resultUnfunded = $buildStructure($unfundedRows);
 
+        return response()->json([
+            'funded'   => $resultFunded,
+            'unfunded' => $resultUnfunded,
+        ]);
+}
     // Update the mapEmployeeDbm function call
     private function mapEmployeeDbm($row, $xServiceByControl)
     {
@@ -361,6 +533,7 @@ class ReportService
                 'dateOriginalAppointed' => null,
                 'dateLastPromotion'     => null,
                 'status'      => 'VACANT',
+                'funded'      => $row->Funded,
             ];
         }
 
@@ -417,6 +590,7 @@ class ReportService
             'dateLastPromotion'     => $dateLastPromotion ?? null,
             'eligibility' => $row->eligibility,
             'status'      => $row->status,
+            'funded'      => $row->Funded,
         ];
     }
 

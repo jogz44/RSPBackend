@@ -46,7 +46,7 @@ class ReportController extends Controller
         return $result;
     }
 
-    // generate report plantilla
+    // generate report plantilla structure
     public function reportPlantilla()
     {
 
@@ -184,6 +184,69 @@ class ReportController extends Controller
     }
 
 
+    // //  export job request vacant position
+    // public function exportJobRequestPosition(Request $request)
+    // {
+    //     $validated = $request->validate([
+    //         'ids' => 'required|array'
+    //     ]);
+
+    //     $ids = $validated['ids'];
+    //     $templatePath = storage_path('app/template/publicationVacant.xlsm');
+
+    //     $spreadsheet = IOFactory::load($templatePath);
+    //     $sheet = $spreadsheet->getActiveSheet();
+
+    //     $jobs = DB::table('vwplantillaStructure')
+    //         ->whereIn('ID', $ids)
+    //         ->get();
+
+    //     // Insert extra rows if more than 5 jobs (template has rows 18–22 pre-filled)
+    //     $extraRows = count($jobs) - 5;
+    //     if ($extraRows > 0) {
+    //         $sheet->insertNewRowBefore(23, $extraRows);
+    //     }
+
+    //     $row = 18;
+    //     $no = 1;
+
+    //     foreach ($jobs as $job) {
+    //         $qs = DB::table('yDesignationQS2')
+    //             ->where('PositionID', $job->PositionID)
+    //             ->first();
+
+    //         $salary = DB::table('tblSalarySchedule')
+    //             ->where('Grade', $job->SG)
+    //             ->where('Steps', 1)  // double-check your column name: 'Steps' or 'Step'
+    //             ->first();
+
+
+    //         $sheet->setCellValue("A{$row}", $no);
+    //         $sheet->setCellValue("B{$row}", $job->position ?? '');
+    //         $sheet->setCellValue("C{$row}", $job->ItemNo ?? '');
+    //         $sheet->setCellValue("D{$row}", $job->SG ?? '');
+    //         $sheet->setCellValue("E{$row}", $salary->Salary ?? '');
+    //         $sheet->setCellValue("F{$row}", $qs->Education ?? '');
+    //         $sheet->setCellValue("G{$row}", $qs->Training ?? '');
+    //         $sheet->setCellValue("H{$row}", $qs->Experience ?? '');
+    //         $sheet->setCellValue("I{$row}", $qs->Eligibility ?? '');
+
+    //         $row++;
+    //         $no++;
+    //     }
+
+    //     $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+
+    //     return new StreamedResponse(function () use ($writer) {
+    //         $writer->save('php://output');
+    //     }, 200, [
+    //         'Content-Type'        => 'application/vnd.ms-excel.sheet.macroEnabled.12',
+    //         'Content-Disposition' => 'attachment; filename="Request for Publication of Vacant Positions.xlsm"',
+    //         'Cache-Control'       => 'max-age=0',
+    //     ]);
+
+    // }
+
     //  export job request vacant position
     public function exportJobRequestPosition(Request $request)
     {
@@ -192,9 +255,18 @@ class ReportController extends Controller
         ]);
 
         $ids = $validated['ids'];
-        $templatePath = storage_path('app/template/JobPositions.xlsm');
+        $templatePath = storage_path('app/template/publicationVacant.xlsm');
 
-        $spreadsheet = IOFactory::load($templatePath);
+        $reader = IOFactory::createReader('Xlsx');
+        $reader->setIncludeCharts(true);
+
+        $spreadsheet = $reader->load($templatePath);
+
+        // VERY IMPORTANT → preserve macros
+        if ($spreadsheet->hasMacros()) {
+            $spreadsheet->setMacrosCode($spreadsheet->getMacrosCode());
+        }
+
         $sheet = $spreadsheet->getActiveSheet();
 
         $jobs = DB::table('vwplantillaStructure')
@@ -234,20 +306,17 @@ class ReportController extends Controller
             $row++;
             $no++;
         }
-
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->setIncludeCharts(true);
 
         return new StreamedResponse(function () use ($writer) {
             $writer->save('php://output');
         }, 200, [
-            'Content-Type'        => 'application/vnd.ms-excel.sheet.macroEnabled.12',
+            'Content-Type' => 'application/vnd.ms-excel.sheet.macroEnabled.12',
             'Content-Disposition' => 'attachment; filename="Request for Publication of Vacant Positions.xlsm"',
-            'Cache-Control'       => 'max-age=0',
         ]);
 
     }
-
-
 
 
 

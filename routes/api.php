@@ -261,7 +261,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/cancel/{jobId}', [ReportController::class, 'cancelPlantilla']);
         Route::get('/status/{jobId}', [ReportController::class, 'statusplantilla']);
         Route::post('/job-position', [ReportController::class, 'exportJobRequestPosition']);
-   
+
     });
 
 
@@ -275,7 +275,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/ranking/applicant/{date}', [ReportController::class, 'topFiveApplicants']);  //get top 5 ranking applicant publication
         Route::get('/applicant/qualified/{date}', [ReportController::class, 'listQualifiedApplicantsPublication']); // list of qualified applicants  for job post publication
         Route::get('/applicant/unqualified/{date}', [ReportController::class, 'listUnQualifiedApplicantsPublication']); // list of Unqualified applicants  for job post publication
-        Route::get('/dbm', [ReportController::class, 'dbmReport']); // generate the plantilla report
+        Route::get('/dbm', [ReportController::class, 'reportDbm']); // generate the plantilla report
 
         // Route::get('/applicant/{jobpostId}',[ReportController::class, 'getApplicantHaveSchedules']);
         // Route::post('/send/status', [EmailController::class, 'sendEmailApplicantBatch']); // send an update of status applicant
