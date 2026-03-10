@@ -273,6 +273,13 @@ class ReportController extends Controller
             ->whereIn('ID', $ids)
             ->get();
 
+        $competency = DB::table('vwplantillalevel')
+            ->whereIn('ID', $ids)
+            ->select('ID', 'SG', 'Level')
+            ->get()
+            ->keyBy('ID');
+
+
         // Insert extra rows if more than 5 jobs (template has rows 18–22 pre-filled)
         $extraRows = count($jobs) - 5;
         if ($extraRows > 0) {
@@ -291,7 +298,7 @@ class ReportController extends Controller
                 ->where('Grade', $job->SG)
                 ->where('Steps', 1)  // double-check your column name: 'Steps' or 'Step'
                 ->first();
-
+            $levelData = $competency[$job->ID] ?? null;
 
             $sheet->setCellValue("A{$row}", $no);
             $sheet->setCellValue("B{$row}", $job->position ?? '');
@@ -302,6 +309,26 @@ class ReportController extends Controller
             $sheet->setCellValue("G{$row}", $qs->Training ?? '');
             $sheet->setCellValue("H{$row}", $qs->Experience ?? '');
             $sheet->setCellValue("I{$row}", $qs->Eligibility ?? '');
+            // $sheet->setCellValue("J{$row}", $competency->competency()?? '');
+            $sheet->setCellValue(
+                "J{$row}",
+                $levelData
+                    ? $this->competency($levelData->SG, $levelData->Level)
+                    : ''
+            );
+
+            $sheet->setCellValue(
+                "K{$row}",
+                implode(' - ', array_filter([
+                    $job->office ?? '',
+                    $job->office2 ?? '',
+                    $job->group ?? '',
+                    $job->division ?? '',
+                    $job->section ?? '',
+                ]))
+            );
+            // $sheet->setCellValue("K{$row}", $job-> ?? '');
+            // $sheet->setCellValue("K{$row}", $job->office ?? '');
 
             $row++;
             $no++;
@@ -319,6 +346,312 @@ class ReportController extends Controller
     }
 
 
+    private function competency($sg, $level)
+    {
+        $data = $this->competencyRules();
 
+        $descriptions = $data['descriptions'];
+        $secondLevel = $data['secondLevel'];
+        $firstLevel = $data['firstLevel'];
 
+        $competencies = [];
+
+        // choose which level rule
+        if ($level == 2) {
+            $rules = $this->matchRange($sg, $secondLevel);
+        } else {
+            $rules = $this->matchRange($sg, $firstLevel);
+        }
+
+        if (!$rules) {
+            return '';
+        }
+
+        foreach ($rules as $code => $rating) {
+
+            if ($rating == '-') {
+                continue;
+            }
+
+            $name = $descriptions['core'][$code]
+                ?? $descriptions['technical'][$code]
+                ?? $descriptions['leadership'][$code]
+                ?? $code;
+
+            $competencies[] = "{$name} ({$rating})";
+        }
+
+        return implode(", ", $competencies);
+    }
+
+    private function matchRange($sg, $rules)
+    {
+        foreach ($rules as $range => $value) {
+
+            if (str_contains($range, '-')) {
+
+                [$min, $max] = explode('-', $range);
+
+                if ($sg >= $min && $sg <= $max) {
+                    return $value;
+                }
+            } else {
+
+                if ($sg == $range) {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function competencyRules()
+    {
+        $descriptions = [
+            'core' => [
+                'DSE' => 'Delivering Service Excellence',
+                'EI'  => 'Exemplifying Integrity',
+                'IS'  => 'Interpersonal Skills',
+            ],
+            'technical' => [
+                'P&O' => 'Planning and Organizing',
+                'M&E' => 'Monitoring and Evaluation',
+                'RM'  => 'Records Management',
+                'P&N' => 'Partnering and Networking',
+                'PM'  => 'Process Management',
+                'AD'  => 'Attention to Details',
+            ],
+            'leadership' => [
+                'TSC'   => 'Thinking Strategically and Creatively',
+                'PSDM'  => 'Problem Solving and Decision Making',
+                'BCIWR' => 'Building Collaborative and Inclusive Working Relationships',
+                'MPCR'  => 'Managing Performance and Coaching for Results',
+            ],
+        ];
+
+        // LEVEL
+        $secondLevel = [
+
+        // SG
+            '23-25' => [
+                'DSE' => 'Superior',
+                'EI' => 'Superior',
+                'IS' => 'Superior',
+                'P&O' => 'Superior',
+                'M&E' => 'Superior',
+                'RM' => 'Superior',
+                'P&N' => 'Superior',
+                'PM' => 'Superior',
+                'AD' => 'Superior',
+                'TSC' => 'Superior',
+                'PSDM' => 'Superior',
+                'BCIWR' => 'Superior',
+                'MPCR' => 'Superior',
+            ],
+            '20-22' => [
+                'DSE' => 'Superior',
+                'EI' => 'Superior',
+                'IS' => 'Superior',
+                'P&O' => 'Superior',
+                'M&E' => 'Superior',
+                'RM' => 'Superior',
+                'P&N' => 'Superior',
+                'PM' => 'Superior',
+                'AD' => 'Superior',
+                'TSC' => 'Superior',
+                'PSDM' => 'Superior',
+                'BCIWR' => 'Superior',
+                'MPCR' => 'Advanced',
+            ],
+            '18-19' => [
+                'DSE' => 'Superior',
+                'EI' => 'Superior',
+                'IS' => 'Superior',
+                'P&O' => 'Superior',
+                'M&E' => 'Superior',
+                'RM' => 'Superior',
+                'P&N' => 'Superior',
+                'PM' => 'Superior',
+                'AD' => 'Superior',
+                'TSC' => 'Advanced',
+                'PSDM' => 'Advanced',
+                'BCIWR' => 'Advanced',
+                'MPCR' => 'Advanced',
+            ],
+            '15-17' => [
+                'DSE' => 'Superior',
+                'EI' => 'Superior',
+                'IS' => 'Superior',
+                'P&O' => 'Advanced',
+                'M&E' => 'Advanced',
+                'RM' => 'Advanced',
+                'P&N' => 'Advanced',
+                'PM' => 'Advanced',
+                'AD' => 'Advanced',
+                'TSC' => 'Intermediate',
+                'PSDM' => 'Intermediate',
+                'BCIWR' => 'Intermediate',
+                'MPCR' => '-',
+            ],
+            '14' => [
+                'DSE' => 'Advanced',
+                'EI' => 'Advanced',
+                'IS' => 'Advanced',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Advanced',
+                'P&N' => '-',
+                'PM' => 'Advanced',
+                'AD' => 'Advanced',
+                'TSC' => 'Intermediate',
+                'PSDM' => 'Intermediate',
+                'BCIWR' => 'Intermediate',
+                'MPCR' => '-',
+            ],
+            '12-13' => [
+                'DSE' => 'Advanced',
+                'EI' => 'Advanced',
+                'IS' => 'Advanced',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Advanced',
+                'P&N' => '-',
+                'PM' => 'Advanced',
+                'AD' => 'Advanced',
+                'TSC' => 'Basic',
+                'PSDM' => 'Basic',
+                'BCIWR' => 'Basic',
+                'MPCR' => '-',
+            ],
+            '9-11' => [
+                'DSE' => 'Advanced',
+                'EI' => 'Advanced',
+                'IS' => 'Advanced',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Intermediate',
+                'P&N' => '-',
+                'PM' => 'Intermediate',
+                'AD' => 'Intermediate',
+                'TSC' => 'Basic',
+                'PSDM' => 'Basic',
+                'BCIWR' => 'Basic',
+                'MPCR' => '-',
+            ],
+        ];
+
+        // Level
+        $firstLevel = [
+
+        // sg
+            '18' => [
+                'DSE' => 'Superior',
+                'EI' => 'Superior',
+                'IS' => 'Superior',
+                'P&O' => 'Superior',
+                'M&E' => 'Superior',
+                'RM' => 'Superior',
+                'P&N' => 'Superior',
+                'PM' => 'Superior',
+                'AD' => 'Superior',
+                'TSC' => 'Advanced',
+                'PSDM' => 'Advanced',
+                'BCIWR' => 'Advanced',
+                'MPCR' => 'Advanced',
+            ],
+            '14' => [
+                'DSE' => 'Advanced',
+                'EI' => 'Advanced',
+                'IS' => 'Advanced',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Advanced',
+                'P&N' => '-',
+                'PM' => 'Advanced',
+                'AD' => 'Advanced',
+                'TSC' => 'Intermediate',
+                'PSDM' => 'Intermediate',
+                'BCIWR' => 'Intermediate',
+                'MPCR' => '-',
+            ],
+            '13' => [
+                'DSE' => 'Advanced',
+                'EI' => 'Advanced',
+                'IS' => 'Advanced',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Advanced',
+                'P&N' => '-',
+                'PM' => 'Advanced',
+                'AD' => 'Advanced',
+                'TSC' => 'Basic',
+                'PSDM' => 'Basic',
+                'BCIWR' => 'Basic',
+                'MPCR' => '-',
+            ],
+            '11-12' => [
+                'DSE' => 'Advanced',
+                'EI' => 'Advanced',
+                'IS' => 'Advanced',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Intermediate',
+                'P&N' => '-',
+                'PM' => 'Intermediate',
+                'AD' => 'Intermediate',
+                'TSC' => 'Basic',
+                'PSDM' => 'Basic',
+                'BCIWR' => 'Basic',
+                'MPCR' => '-',
+            ],
+            '10' => [
+                'DSE' => 'Intermediate',
+                'EI' => 'Intermediate',
+                'IS' => 'Intermediate',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Intermediate',
+                'P&N' => '-',
+                'PM' => 'Intermediate',
+                'AD' => 'Intermediate',
+                'TSC' => '-',
+                'PSDM' => '-',
+                'BCIWR' => '-',
+                'MPCR' => '-',
+            ],
+            '8-9' => [
+                'DSE' => 'Intermediate',
+                'EI' => 'Intermediate',
+                'IS' => 'Intermediate',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Basic',
+                'P&N' => '-',
+                'PM' => 'Basic',
+                'AD' => 'Basic',
+                'TSC' => '-',
+                'PSDM' => '-',
+                'BCIWR' => '-',
+                'MPCR' => '-',
+            ],
+            '3-7' => [
+                'DSE' => 'Basic',
+                'EI' => 'Basic',
+                'IS' => 'Basic',
+                'P&O' => '-',
+                'M&E' => '-',
+                'RM' => 'Basic',
+                'P&N' => '-',
+                'PM' => 'Basic',
+                'AD' => 'Basic',
+                'TSC' => '-',
+                'PSDM' => '-',
+                'BCIWR' => '-',
+                'MPCR' => '-',
+            ],
+        ];
+
+        return compact('descriptions', 'secondLevel', 'firstLevel');
+    }
 }
