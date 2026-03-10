@@ -482,12 +482,12 @@ class ReportService
     {
 
         // ✅ Check if queue worker is running BEFORE dispatching
-        if (!$this->isQueueWorkerRunning()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Queue worker is not running. Please contact Deniel Tomenio for this issue.'
-            ], 503);
-        }
+        // if (!$this->isQueueWorkerRunning()) {
+        //     return response()->json([
+        //         'status' => 'error',
+        //         'message' => 'Queue worker is not running. Please contact Deniel Tomenio for this issue.'
+        //     ], 503);
+        // }
 
 
         $jobId = Str::uuid()->toString();
@@ -508,58 +508,58 @@ class ReportService
     }
 
 
-    private function isQueueWorkerRunning()
-    {
-        try {
-            // Method 1: Check if we can connect to queue
-            $connection = config('queue.default');
-            $queueName = config("queue.connections.{$connection}.queue", 'default');
+    // private function isQueueWorkerRunning()
+    // {
+    //     try {
+    //         // Method 1: Check if we can connect to queue
+    //         $connection = config('queue.default');
+    //         $queueName = config("queue.connections.{$connection}.queue", 'default');
 
-            // Try to get queue size (this will fail if Redis/database is not available)
-            Queue::size($queueName);
+    //         // Try to get queue size (this will fail if Redis/database is not available)
+    //         Queue::size($queueName);
 
-            // Method 2: Check for active workers by trying to dispatch a test
-            // This is optional but more reliable
-            return $this->checkForActiveWorkers();
-        } catch (\Exception $e) {
-            Log::error('Queue check failed: ' . $e->getMessage());
-            return false;
-        }
-    }
+    //         // Method 2: Check for active workers by trying to dispatch a test
+    //         // This is optional but more reliable
+    //         return $this->checkForActiveWorkers();
+    //     } catch (\Exception $e) {
+    //         Log::error('Queue check failed: ' . $e->getMessage());
+    //         return false;
+    //     }
+    // }
 
 
     /**
      * Check if there are active queue workers by looking at recent job processing
      */
-    private function checkForActiveWorkers()
-    {
-        // Create a test marker
-        $testKey = 'queue_worker_test_' . now()->timestamp;
-        Cache::put($testKey, 'waiting', 10); // 10 seconds TTL
+    // private function checkForActiveWorkers()
+    // {
+    //     // Create a test marker
+    //     $testKey = 'queue_worker_test_' . now()->timestamp;
+    //     Cache::put($testKey, 'waiting', 10); // 10 seconds TTL
 
-        // Dispatch a test job
-        QueueWorkerTestJob::dispatch($testKey)->onQueue('reports');
+    //     // Dispatch a test job
+    //     QueueWorkerTestJob::dispatch($testKey)->onQueue('reports');
 
-        // Wait a moment and check if job was processed
-        sleep(2);
+    //     // Wait a moment and check if job was processed
+    //     sleep(2);
 
-        $result = Cache::get($testKey);
+    //     $result = Cache::get($testKey);
 
-        // If the test job ran, it would have changed this value
-        return $result === 'processed';
-    }
+    //     // If the test job ran, it would have changed this value
+    //     return $result === 'processed';
+    // }
 
-    public function checkQueueWorkerStatus()
-    {
-        $isRunning = $this->isQueueWorkerRunning();
+    // public function checkQueueWorkerStatus()
+    // {
+    //     $isRunning = $this->isQueueWorkerRunning();
 
-        return response()->json([
-            'is_running' => $isRunning,
-            'message' => $isRunning
-                ? 'Queue worker is running'
-                : 'Queue worker is not running'
-        ]);
-    }
+    //     return response()->json([
+    //         'is_running' => $isRunning,
+    //         'message' => $isRunning
+    //             ? 'Queue worker is running'
+    //             : 'Queue worker is not running'
+    //     ]);
+    // }
 
     // plantilla status
     public function status($jobId)

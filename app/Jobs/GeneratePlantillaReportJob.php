@@ -26,46 +26,6 @@ class GeneratePlantillaReportJob implements ShouldQueue
     }
 
 
-    // public function handle()
-    // {
-    //     try {
-    //          // ✅ Check if job was cancelled before starting
-    //         if ($this->isCancelled()) {
-    //             Log::info("Job {$this->jobId} was cancelled before execution");
-    //             return;
-    //         }
-
-
-    //         $this->updateProgress(5, 'Starting report generation...');
-
-    //         $result = $this->generateReport();
-
-    //         // ✅ Check again before saving result
-    //         if ($this->isCancelled()) {
-    //             Log::info("Job {$this->jobId} was cancelled during execution");
-    //             return;
-    //         }
-
-    //         $this->updateProgress(95, 'Finalizing report...');
-
-    //         Cache::put("plantilla_job_{$this->jobId}", [
-    //             'status' => 'completed',
-    //             'progress' => 100,
-    //             'message' => 'Report generated successfully',
-    //             'data' => $result
-    //         ], 600);
-    //     } catch (\Exception $e) {
-    //         Log::error('Plantilla generation failed: ' . $e->getMessage());
-
-    //         Cache::put("plantilla_job_{$this->jobId}", [
-    //             'status' => 'failed',
-    //             'progress' => 0,
-    //             'error' => $e->getMessage()
-    //         ], 600);
-    //     }
-    // }
-
-
     public function handle()
     {
         try {
