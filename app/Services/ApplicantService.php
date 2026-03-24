@@ -255,33 +255,63 @@ class ApplicantService
                 $imageUrl = $baseUrl . '/storage/' . $info['image_path'];
             }
         }
-        $trainingImages = [];
-        $educationImages = [];
+        // $trainingImages = [];
+        // $educationImages = [];
+        // $eligibilityImages = [];
+        // $experienceImages = [];
+
+        // if ($info && isset($info['id'])) {
+        //     $baseFolder = storage_path('app/public/applicant_files/' . $submission->nPersonalInfo_id);
+
+        //     $folders = [
+        //         'training' => $baseFolder . '/training',
+        //         'education' => $baseFolder . '/education',
+        //         'eligibility' => $baseFolder . '/eligibility',
+        //         'experience' => $baseFolder . '/experience',
+        //     ];
+
+        //     foreach ($folders as $type => $path) {
+        //         if (is_dir($path)) {
+        //             $files = collect(scandir($path))
+        //                 ->filter(fn($file) => !in_array($file, ['.', '..']))
+        //                 ->map(fn($file) => asset('storage/applicant_files/' . $info['id']. $type . '/' . $file))
+        //                 ->values()
+        //                 ->toArray();
+
+        //             if ($type === 'training') $trainingImages = $files;
+        //             if ($type === 'education') $educationImages = $files;
+        //             if ($type === 'eligibility') $eligibilityImages = $files;
+        //             if ($type === 'experience') $experienceImages = $files;
+        //         }
+        //     }
+
+        $trainingImages    = [];
+        $educationImages   = [];
         $eligibilityImages = [];
-        $experienceImages = [];
+        $experienceImages  = [];
 
         if ($info && isset($info['id'])) {
             $baseFolder = storage_path('app/public/applicant_files/' . $submission->nPersonalInfo_id);
 
             $folders = [
-                'training' => $baseFolder . '/document/training',
-                'education' => $baseFolder . '/document/education',
-                'eligibility' => $baseFolder . '/document/eligibility',
-                'experience' => $baseFolder . '/document/experience',
+                'training'    => $baseFolder . '/training',
+                'education'   => $baseFolder . '/education',
+                'eligibility' => $baseFolder . '/eligibility',
+                'experience'  => $baseFolder . '/experience',
             ];
 
             foreach ($folders as $type => $path) {
                 if (is_dir($path)) {
                     $files = collect(scandir($path))
                         ->filter(fn($file) => !in_array($file, ['.', '..']))
-                        ->map(fn($file) => asset('storage/applicant_files/' . $info['id'] . '/document/' . $type . '/' . $file))
+                        ->map(fn($file) => asset('storage/applicant_files/' . $info['id'] . '/' . $type . '/' . $file)) // ✅ added slash
                         ->values()
                         ->toArray();
 
-                    if ($type === 'training') $trainingImages = $files;
-                    if ($type === 'education') $educationImages = $files;
+                    if ($type === 'training')    $trainingImages    = $files;
+                    if ($type === 'education')   $educationImages   = $files;
                     if ($type === 'eligibility') $eligibilityImages = $files;
-                    if ($type === 'experience') $experienceImages = $files;
+                    if ($type === 'experience')  $experienceImages  = $files;
                 }
             }
         }

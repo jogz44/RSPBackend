@@ -1645,78 +1645,135 @@ class ApplicantApplicationService
     // }
 
     // validation for zip file that check the folder structure
+    // private function validateZipStructure(string $zipPath)
+    // {
+    //     // $requiredRoot = 'document';
+    //     $requiredFolders = [
+    //         'education',
+    //         'training',
+    //         'experience',
+    //         'eligibility'
+    //     ];
+
+    //     $zip = new \ZipArchive;
+    //     $fullPath = storage_path('app/public/' . $zipPath);
+
+    //     if ($zip->open($fullPath) !== true) {
+    //         throw new \Exception('Unable to open ZIP file.');
+    //     }
+
+    //     $foundRoots = [];
+    //     $foundSecondLevel = [];
+
+    //     for ($i = 0; $i < $zip->numFiles; $i++) {
+    //         $entry = trim($zip->getNameIndex($i), '/');
+
+    //         if ($entry === '') {
+    //             continue;
+    //         }
+
+    //         $parts = explode('/', $entry);
+
+    //         // Normalize (case-insensitive)
+    //         $root = strtolower($parts[0]);
+    //         $foundRoots[] = $root;
+
+    //         if (count($parts) >= 2) {
+    //             $foundSecondLevel[] = strtolower($parts[1]);
+    //         }
+    //     }
+
+    //     // 1️⃣ Validate ROOT folder
+    //     $uniqueRoots = array_unique($foundRoots);
+
+    //     if (count($uniqueRoots) !== 1 || $uniqueRoots[0] !== $requiredRoot) {
+    //         $zip->close();
+    //         throw new \Exception('ZIP root folder must be named "Document".');
+    //     }
+
+    //     // 2️⃣ Validate required folders
+    //     $foundSecondLevel = array_unique($foundSecondLevel);
+
+    //     $missing = array_diff($requiredFolders, $foundSecondLevel);
+    //     if (!empty($missing)) {
+    //         $zip->close();
+    //         throw new \Exception(
+    //             'Please check your ZIP file. The folder is missing or the folder name is incorrect.' .
+    //                 PHP_EOL . 'Missing required folders: ' . implode(', ', $missing)
+
+    //         );
+    //     }
+
+    //     // 3️⃣ Validate extra folders
+    //     $extra = array_diff($foundSecondLevel, $requiredFolders);
+    //     if (!empty($extra)) {
+    //         $zip->close();
+    //         throw new \Exception(
+    //             'Invalid folder(s) found: ' . implode(', ', $extra)
+    //         );
+    //     }
+
+    //     $zip->close();
+    //     return true;
+    // }
+
     private function validateZipStructure(string $zipPath)
     {
-        $requiredRoot = 'document';
-        $requiredFolders = [
-            'education',
-            'training',
-            'experience',
-            'eligibility'
-        ];
+        $requiredFolders = ['education', 'training', 'experience', 'eligibility'];
 
-        $zip = new \ZipArchive;
+        $zip      = new \ZipArchive;
         $fullPath = storage_path('app/public/' . $zipPath);
 
         if ($zip->open($fullPath) !== true) {
             throw new \Exception('Unable to open ZIP file.');
         }
 
-        $foundRoots = [];
-        $foundSecondLevel = [];
+        $foundFolders = [];
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $entry = trim($zip->getNameIndex($i), '/');
 
-            if ($entry === '') {
-                continue;
-            }
+            if ($entry === '') continue;
 
             $parts = explode('/', $entry);
 
-            // Normalize (case-insensitive)
-            $root = strtolower($parts[0]);
-            $foundRoots[] = $root;
+            // ✅ Skip macOS/system hidden files
+            if (str_starts_with($parts[0], '__') || str_starts_with($parts[0], '.')) {
+                continue;
+            }
 
-            if (count($parts) >= 2) {
-                $foundSecondLevel[] = strtolower($parts[1]);
+            // ✅ Collect root-level folders
+            if ($parts[0] !== '') {
+                $foundFolders[] = strtolower($parts[0]);
             }
         }
 
-        // 1️⃣ Validate ROOT folder
-        $uniqueRoots = array_unique($foundRoots);
+        // 1️⃣ Check required folders exist
+        $uniqueFolders = array_unique(array_filter($foundFolders));
+        $missing       = array_diff($requiredFolders, $uniqueFolders);
 
-        if (count($uniqueRoots) !== 1 || $uniqueRoots[0] !== $requiredRoot) {
-            $zip->close();
-            throw new \Exception('ZIP root folder must be named "Document".');
-        }
-
-        // 2️⃣ Validate required folders
-        $foundSecondLevel = array_unique($foundSecondLevel);
-
-        $missing = array_diff($requiredFolders, $foundSecondLevel);
         if (!empty($missing)) {
             $zip->close();
             throw new \Exception(
-                'Please check your ZIP file. The folder is missing or the folder name is incorrect.' .
-                    PHP_EOL . 'Missing required folders: ' . implode(', ', $missing)
-
+                'Missing required folder(s): ' . implode(', ', $missing) . '. ' .
+                    'Your ZIP must contain: ' . implode(', ', $requiredFolders) . '.'
             );
         }
 
-        // 3️⃣ Validate extra folders
-        $extra = array_diff($foundSecondLevel, $requiredFolders);
+        // 2️⃣ Check no extra folders
+        $extra = array_diff($uniqueFolders, $requiredFolders);
+
         if (!empty($extra)) {
             $zip->close();
             throw new \Exception(
-                'Invalid folder(s) found: ' . implode(', ', $extra)
+                'Invalid folder(s) found: "' . implode('", "', $extra) . '". ' .
+                    'Only these folders are allowed: ' . implode(', ', $requiredFolders) . '.'
             );
         }
 
         $zip->close();
         return true;
     }
-
 
 
     private function deleteDirectory($dir, $deleteRoot = true)
