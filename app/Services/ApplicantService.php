@@ -493,16 +493,90 @@ class ApplicantService
     }
 
     // applicant score details over all
-    public function applicantScoreDetials($applicantId) // applicant rating score
+    // public function applicantScoreDetials($applicantId) // applicant rating score
+    // {
+    //     // Fetch history for applicant (using nPersonalInfo_id or ControlNo fallback)
+    //     $historyRecords = rating_score::select(
+    //         'rating_score.id',
+    //         'rating_score.user_id as rater_id',
+    //         // 'rating_score.rater_name',
+    //         'rater.name as rater_name',
+    //         'rating_score.nPersonalInfo_id',
+    //         'rating_score.ControlNo',
+    //         'rating_score.education_score as education',
+    //         'rating_score.experience_score as experience',
+    //         'rating_score.training_score as training',
+    //         'rating_score.performance_score as performance',
+    //         'rating_score.behavioral_score as bei',
+    //         'rating_score.total_qs',
+    //         'rating_score.grand_total',
+    //         'rating_score.ranking',
+    //         'rating_score.job_batches_rsp_id', // ✅ needed for the join
+
+    //         'nPersonalInfo.firstname',
+    //         'nPersonalInfo.lastname',
+    //         'nPersonalInfo.image_path',
+
+    //         'submission.id as submission_id' // ✅ add this
+
+    //     )
+    //         ->leftJoin('users as rater', 'rater.id', '=', 'rating_score.user_id')
+    //         ->leftJoin('nPersonalInfo', 'nPersonalInfo.id', '=', 'rating_score.nPersonalInfo_id')
+    //         ->leftJoin('submission', function ($join) {
+    //             $join->on('submission.nPersonalInfo_id', '=', 'rating_score.nPersonalInfo_id')
+    //                 ->on('submission.job_batches_rsp_id', '=', 'rating_score.job_batches_rsp_id');
+    //         })
+    //         ->where(function ($q) use ($applicantId) {
+    //             $q->where('rating_score.nPersonalInfo_id', $applicantId)
+    //                 ->orWhere('rating_score.ControlNo', $applicantId);
+    //         })
+    //         ->get();
+
+    //     if ($historyRecords->isEmpty()) {
+    //         return response()->json(['message' => 'No applicant history found'], 404);
+    //     }
+
+    //     // Applicant info from first matching row
+    //     $first = $historyRecords->first();
+
+    //     $imageUrl = $first->image_path
+    //         ? config('app.url') . '/storage/' . $first->image_path
+    //         : null;
+
+    //     return response()->json([
+    //         'applicant' => [
+    //             'submission_id'    => $first->submission_id, // ✅ now available
+    //             'nPersonalInfo_id' => (int)$first->nPersonalInfo_id,
+    //             'ControlNo'        => $first->ControlNo,
+    //             'firstname'        => $first->firstname,
+    //             'lastname'         => $first->lastname,
+    //             'image_url'        => $imageUrl
+    //         ],
+    //         'history' => $historyRecords->map(fn($row) => [
+    //             'id'          => $row->id,
+    //             'rater_id'    => $row->rater_id,
+    //             'rater_name'  => $row->rater_name,
+    //             'education'   => $row->education,
+    //             'experience'  => $row->experience,
+    //             'training'    => $row->training,
+    //             'performance' => $row->performance,
+    //             'bei'         => $row->bei,
+    //             'total_qs'    => $row->total_qs,
+    //             'grand_total' => $row->grand_total,
+    //             'ranking'     => $row->ranking,
+    //         ])
+    //     ]);
+    // }
+
+    public function applicantScoreDetials($applicantId)
     {
-        // Fetch history for applicant (using nPersonalInfo_id or ControlNo fallback)
         $historyRecords = rating_score::select(
             'rating_score.id',
             'rating_score.user_id as rater_id',
-            // 'rating_score.rater_name',
             'rater.name as rater_name',
             'rating_score.nPersonalInfo_id',
             'rating_score.ControlNo',
+            'rating_score.job_batches_rsp_id',
             'rating_score.education_score as education',
             'rating_score.experience_score as experience',
             'rating_score.training_score as training',
@@ -511,12 +585,37 @@ class ApplicantService
             'rating_score.total_qs',
             'rating_score.grand_total',
             'rating_score.ranking',
-            'nPersonalInfo.firstname',
-            'nPersonalInfo.lastname',
-            'nPersonalInfo.image_path'
+
+            // ✅ Internal applicant fields
+            'nPersonalInfo.firstname as internal_firstname',
+            'nPersonalInfo.lastname as internal_lastname',
+            'nPersonalInfo.image_path as internal_image',
+
+            // ✅ External applicant fields
+            'xPersonal.Firstname as external_firstname',
+            'xPersonal.Surname as external_lastname',
+
+
+            'submission.id as submission_id'
         )
             ->leftJoin('users as rater', 'rater.id', '=', 'rating_score.user_id')
+
+            // ✅ Internal applicant join
             ->leftJoin('nPersonalInfo', 'nPersonalInfo.id', '=', 'rating_score.nPersonalInfo_id')
+
+            // ✅ External applicant joins
+            ->leftJoin('xPersonal', 'xPersonal.ControlNo', '=', 'rating_score.ControlNo')
+            ->leftJoin('xPersonalAddt', 'xPersonalAddt.ControlNo', '=', 'rating_score.ControlNo')
+
+            // ✅ Submission join — handles both internal and external
+            ->leftJoin('submission', function ($join) {
+                $join->on('submission.job_batches_rsp_id', '=', 'rating_score.job_batches_rsp_id')
+                    ->where(function ($q) {
+                        $q->on('submission.nPersonalInfo_id', '=', 'rating_score.nPersonalInfo_id')
+                            ->orOn('submission.ControlNo', '=', 'rating_score.ControlNo');
+                    });
+            })
+
             ->where(function ($q) use ($applicantId) {
                 $q->where('rating_score.nPersonalInfo_id', $applicantId)
                     ->orWhere('rating_score.ControlNo', $applicantId);
@@ -527,21 +626,25 @@ class ApplicantService
             return response()->json(['message' => 'No applicant history found'], 404);
         }
 
-        // Applicant info from first matching row
         $first = $historyRecords->first();
 
-        $imageUrl = $first->image_path
-            ? config('app.url') . '/storage/' . $first->image_path
+        // ✅ Use internal or fallback to external
+        $firstname = $first->internal_firstname ?? $first->external_firstname;
+        $lastname  = $first->internal_lastname  ?? $first->external_lastname;
+        $imagePath = $first->internal_image     ?? $first->external_image;
+
+        $imageUrl = $imagePath
+            ? config('app.url') . '/storage/' . $imagePath
             : null;
 
         return response()->json([
             'applicant' => [
-
+                'submission_id'    => (int)$first->submission_id,
                 'nPersonalInfo_id' => (int)$first->nPersonalInfo_id,
                 'ControlNo'        => $first->ControlNo,
-                'firstname'        => $first->firstname,
-                'lastname'         => $first->lastname,
-                'image_url'        => $imageUrl
+                'firstname'        => $firstname,
+                'lastname'         => $lastname,
+                'image_url'        => $imageUrl,
             ],
             'history' => $historyRecords->map(fn($row) => [
                 'id'          => $row->id,

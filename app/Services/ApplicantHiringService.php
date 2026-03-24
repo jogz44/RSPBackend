@@ -21,18 +21,18 @@ class ApplicantHiringService
      // hire an employee
     public function hireApplicant($submissionId,$request)
     {
-        $submissionId = (int) $submissionId;
-        Log::info('hireApplicant called', [
-            'submissionId' => $submissionId,
-            'type' => gettype($submissionId),
-            'request_all' => $request->all(),
-        ]);
-        if ($submissionId <= 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid submission ID.',
-            ], 400);
-        }
+        // $submissionId = (int) $submissionId;
+        // Log::info('hireApplicant called', [
+        //     'submissionId' => $submissionId,
+        //     'type' => gettype($submissionId),
+        //     'request_all' => $request->all(),
+        // ]);
+        // if ($submissionId <= 0) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Invalid submission ID.',
+        //     ], 400);
+        // }
 
         DB::beginTransaction();
         try {
@@ -49,6 +49,11 @@ class ApplicantHiringService
                 'vicename' => 'nullable|string|max:255',
                 'vicecause' => 'nullable|string|max:255',
             ]);
+
+            // Then pass them explicitly
+            $SepDate_service  = $request->input('SepDate');
+            $SepCause_service = $request->input('SepCause');
+
 
             $sepdate = $request->input('sepdate');
             $sepcause = $request->input('sepcause');
@@ -82,7 +87,7 @@ class ApplicantHiringService
                 }
 
                 $family = $applicant->family;
-                
+
                 $personal_declarations = $applicant->personal_declarations->first();
 
                 $existingControlNo = $applicant->control_no ?? $applicant->controlno ?? $applicant->ControlNo ?? $submission->ControlNo ?? null;
@@ -118,7 +123,9 @@ class ApplicantHiringService
             $submission->update(['status' => 'Hired']);
 
             // Update plantilla structure
-            $this->updatePlantillaStructure($jobPost, $finalControlNo, $sepdate, $sepcause, $vicename, $vicecause);
+            // $SepDate_service  = $request->input('SepDate');
+            // $SepCause_service = $request->input('SepCause');
+            $this->updatePlantillaStructure($jobPost, $finalControlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause);
 
             // ✅ Send email notification to the hired applicant
             $externalApplicant = DB::table('xPersonalAddt')
@@ -400,7 +407,7 @@ class ApplicantHiringService
         }
     }
 
-    private function updatePlantillaStructure($jobPost, $controlNo, $sepdate, $sepcause, $vicename, $vicecause)
+    private function updatePlantillaStructure($jobPost, $controlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause)
     {
 
         $tblStructureDetails_ID = $jobPost->tblStructureDetails_ID;
@@ -413,20 +420,29 @@ class ApplicantHiringService
             ->orderBy('PMID', 'DESC')
             ->first();
 
+        // ✅ Temporarily log to see what's coming in
+        // Log::info('updatePlantillaStructure called', [
+        //     'controlNo'        => $controlNo,
+        //     'SepDate_service'  => $SepDate_service,
+        //     'SepCause_service' => $SepCause_service,
+        //     'activeService'    => $activeService,
+        // ]);
+
         // 2. If employee has active service, SepDate and SepCause are required
         if ($activeService) {
 
-            if (empty($job->SepDate) || empty($job->SepCause)) {
-                throw new \Exception("SepDate and SepCause are required when re-appointing an active employee.");
-            }
+            // if (empty($SepDate_service) || empty($SepCause_service)) {
+            //     throw new \Exception("SepDate and SepCause are required when re-appointing an active employee.");
+            // }
 
             DB::table('xService')
                 ->where('PMID', $activeService->PMID)
                 ->update([
-                    'SepDate'  => Carbon::parse($job->SepDate)->format('Y-m-d'),
-                    'SepCause' => $job->SepCause,
+                    'SepDate'  => Carbon::parse($SepDate_service)->format('Y-m-d'),
+                    'SepCause' =>  $SepCause_service,
                 ]);
         }
+
 
 
         // Move old records to history, then delete old records<|fim_middle|><|fim_middle|><|fim_middle|>
@@ -437,6 +453,9 @@ class ApplicantHiringService
         }
 
         DB::table('tempRegAppointmentReorg')->where('ControlNo', $controlNo)->delete();
+
+
+
 
         $designation = DB::table('yDesignation')
             ->select('Codes', 'Descriptions', 'Status')
@@ -560,6 +579,7 @@ class ApplicantHiringService
 
         ]);
 
+       
         DB::table('posting_date')->insert([
             'ControlNo'     => $controlNo, //1
             'post_date' =>$jobPost->post_date,
