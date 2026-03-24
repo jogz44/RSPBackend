@@ -612,26 +612,28 @@ class ApplicantApplicationService
     private function parseEducation($sheet)
     {
         $education = [];
-        $startRow = 3;
+        $startRow = 5;
         $highestRow = $sheet->getHighestRow();
+
 
         for ($rowIndex = $startRow; $rowIndex <= $highestRow; $rowIndex++) {
             $level = $sheet->getCell("A{$rowIndex}")->getValue();
+
 
             // Skip empty rows
             if (empty($level)) {
                 continue;
             }
 
-            // Skip header rows
-            $schoolName = $sheet->getCell("B{$rowIndex}")->getValue();
-            if ($this->isHeaderRow([$level, $schoolName])) {
-                continue;
-            }
+            // // Skip header rows
+            // $schoolName = $sheet->getCell("B{$rowIndex}")->getValue();
+            // if ($this->isHeaderRow([$level, $schoolName])) {
+            //     continue;
+            // }
 
             $education[] = [
                 'level' => $level,
-                'school_name' => $schoolName,
+                'school_name'    => $sheet->getCell("B{$rowIndex}")->getValue(),
                 'degree' => $sheet->getCell("C{$rowIndex}")->getValue(),
                 // 'attendance_from' => $this->parseExcelDate($sheet->getCell("D{$rowIndex}")->getValue()),
                 // 'attendance_to' => $this->parseExcelDate($sheet->getCell("E{$rowIndex}")->getValue()),
