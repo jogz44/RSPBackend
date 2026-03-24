@@ -143,4 +143,18 @@ class ApplicantSubmissionController extends Controller
 
         return $result;
     }
+
+    // applicant application zipfile and excel file
+    public function updatingApplicantApplication(Request $request)
+    {
+
+        $validated = $request->validate([
+            'confirmation_token' => 'required|string',
+            'confirm_update' => 'required|boolean',
+        ]);
+
+        $result = $this->applicantApplicationService->confirmDuplicateApplicant($validated);
+
+        return $result;
+    }
 }

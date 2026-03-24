@@ -257,12 +257,12 @@ class ApplicantApplicationService
     /**
      * Handle user confirmation (YES or NO)
      */
-    public function confirmDuplicateApplicant(Request $request)
+    public function confirmDuplicateApplicant($validated)
     {
-        $validated = $request->validate([
-            'confirmation_token' => 'required|string',
-            'confirm_update' => 'required|boolean',
-        ]);
+        // $validated = $request->validate([
+        //     'confirmation_token' => 'required|string',
+        //     'confirm_update' => 'required|boolean',
+        // ]);
 
         // Retrieve cached data
         $cachedData = Cache::get("applicant_confirmation_{$validated['confirmation_token']}");

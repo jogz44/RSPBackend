@@ -54,11 +54,13 @@ Route::post('/login', [AuthController::class, 'adminLogin']); //  login for admi
 Route::get('/role', [AuthController::class, 'getRole']); // role of user
 
 
+Route::get('employee/{ControlNo}', [EmployeeController::class, 'appliedEmployee']);
+
 // applying route
 Route::prefix('applicant')->group(function () {
     Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication']); // for external applicant with zip file
     Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication']); // employyee applicant applying job
-    Route::post('/confirmation', [ApplicantSubmissionController::class, 'confirmDuplicateApplicant']); // confirmation for updating his excek file
+    Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication']); // confirmation for updating his excek file
 });
 
 
@@ -243,7 +245,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::post('/confirmation', [EmployeeController::class, 'approveUpdate']); //  updating the  employee appoitment
 
         // Route::get('/request', [EmployeeController::class, 'fetchApprovingTable']);
-        Route::get('/{ControlNo}', [EmployeeController::class, 'appliedEmployee']);
+        // Route::get('/{ControlNo}', [EmployeeController::class, 'appliedEmployee']);
         // Route::get('/old/credentail/{pendingId}/{type}', [EmployeeController::class, 'fetchOldAndNew']);
     });
 

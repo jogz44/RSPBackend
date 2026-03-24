@@ -415,33 +415,41 @@ class ApplicantService
         foreach ($scoresByApplicant as $applicantKey => $scoreRows) {
             $firstRow = $scoreRows->first();
 
-            // Build image URL if exists
-            // $imageUrl = $firstRow->image_path ? config('app.url') . '/storage/' . $firstRow->image_path : null;
+            // Fetch firstname/lastname from nPersonalInfo or fallback to employee DB
+            $firstname = $firstRow->firstname;
+            $lastname = $firstRow->lastname;
 
-            // Compute final score
+            // Fallback: if no nPersonalInfo, fetch from employee DB via ControlNo
+            if ((!$firstname || !$lastname) && $firstRow->ControlNo) {
+                $xPDS = new \App\Http\Controllers\xPDSController();
+                $employeeData = $xPDS->getPersonalDataSheet(new \Illuminate\Http\Request([
+                    'controlno' => $firstRow->ControlNo
+                ]));
+
+                $employeeJson = $employeeData->getData(true);
+                $firstname = $employeeJson['User'][0]['Firstname'] ?? '';
+                $lastname  = $employeeJson['User'][0]['Surname'] ?? '';
+            }
+
             $scoresArray = $scoreRows->map(fn($row) => [
                 'education'   => (float)$row->education,
                 'experience'  => (float)$row->experience,
                 'training'    => (float)$row->training,
                 'performance' => (float)$row->performance,
-                // 'bei'         => (float)$row->bei,
-                'bei' => $row->bei,
-
+                'bei'         => $row->bei,
             ])->toArray();
 
             $computed = RatingService::computeFinalScore($scoresArray);
 
             $applicants[$applicantKey] = [
-                'applicant_id' => $firstRow->id,
-                // 'submission_id'     => (string)$firstRow->submission_id,
-                'nPersonalInfo_id'  => (string)$firstRow->nPersonalInfo_id,
-                'ControlNo'         => $firstRow->ControlNo,
-                'firstname'         => $firstRow->firstname,
-                'lastname'          => $firstRow->lastname,
-                // 'image_url'         => $imageUrl,
-                // 'job_batches_rsp_id' => (string)$firstRow->job_batches_rsp_id,
-            ] + $computed; // include only aggregate/final score, no history
+                'applicant_id'     => $firstRow->id,
+                'nPersonalInfo_id' => (string)$firstRow->nPersonalInfo_id,
+                'ControlNo'        => $firstRow->ControlNo,
+                'firstname'        => $firstname,  // ✅ now with fallback
+                'lastname'         => $lastname,   // ✅ now with fallback
+            ] + $computed;
         }
+
 
         // Rank applicants by grand_total
         $rankedApplicants = RatingService::addRanking(array_values($applicants));
@@ -463,7 +471,6 @@ class ApplicantService
             'rating_score.user_id as rater_id',
             // 'rating_score.rater_name',
             'rater.name as rater_name',
-
             'rating_score.nPersonalInfo_id',
             'rating_score.ControlNo',
             'rating_score.education_score as education',
@@ -500,7 +507,7 @@ class ApplicantService
         return response()->json([
             'applicant' => [
 
-                'nPersonalInfo_id' => (string)$first->nPersonalInfo_id,
+                'nPersonalInfo_id' => (int)$first->nPersonalInfo_id,
                 'ControlNo'        => $first->ControlNo,
                 'firstname'        => $first->firstname,
                 'lastname'         => $first->lastname,

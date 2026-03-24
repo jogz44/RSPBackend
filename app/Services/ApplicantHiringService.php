@@ -21,6 +21,19 @@ class ApplicantHiringService
      // hire an employee
     public function hireApplicant($submissionId,$request)
     {
+        $submissionId = (int) $submissionId;
+        Log::info('hireApplicant called', [
+            'submissionId' => $submissionId,
+            'type' => gettype($submissionId),
+            'request_all' => $request->all(),
+        ]);
+        if ($submissionId <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid submission ID.',
+            ], 400);
+        }
+
         DB::beginTransaction();
         try {
             // These methods exist on Illuminate\Http\Request
@@ -69,7 +82,9 @@ class ApplicantHiringService
                 }
 
                 $family = $applicant->family;
+                
                 $personal_declarations = $applicant->personal_declarations->first();
+
                 $existingControlNo = $applicant->control_no ?? $applicant->controlno ?? $applicant->ControlNo ?? $submission->ControlNo ?? null;
 
                 $finalControlNo = $existingControlNo ?? $this->generateControlNo();

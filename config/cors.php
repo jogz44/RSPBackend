@@ -21,6 +21,7 @@ return [
     'allowed_origins' => [
         // '*'
         'http://192.168.8.182:9000', // 👈 Add this
+        'http://192.168.8.80:9002', // 👈 Add this
         'http://localhost:9000',
         'http://localhost:1000',
         'http://localhost:8000',

@@ -26,7 +26,9 @@ class AppointmentController extends Controller
 
     public function hireApplicant($submissionId, Request $request)
     {
+
         // Call the service method
+
         return $this->hiringService->hireApplicant($submissionId,$request);
     }
 
