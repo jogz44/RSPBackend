@@ -172,22 +172,11 @@ class ApplicantApplicationService
                 } catch (\Exception $e) {
                     Storage::delete($zipPath);
 
-                    // return response()->json([
-                    //     'success' => false,
-                    //     // 'message' => 'Your ZIP file didn’t meet the required structure. Please try again.',
-                    //     'message' => $e->getMessage()
-                    // ], 422);
 
-                    return [
-                            'status'=> 422,
-                        'data ' => [
-                            'success' => false,
-
-                            'message' => $e->getMessage()
-                        ]
-
-
-                        ];
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage()
+                    ], 422);
                 }
 
                 $this->extractApplicantZip($zipPath, $applicant->id);
