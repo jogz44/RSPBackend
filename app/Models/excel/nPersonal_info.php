@@ -64,7 +64,12 @@ class nPersonal_info extends Model
         'email_address',
         'agency_employee_no',
         'umId',
-        'philSys'
+        'philSys',
+        'pwd',
+        'gender_prefer',
+        'other_specify',
+        'Ppurok',
+        'Rpurok',
     ];
 
     // protected $casts = [

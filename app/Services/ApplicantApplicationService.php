@@ -168,7 +168,7 @@ class ApplicantApplicationService
                 $zipPath = $zipFile->storeAs('zips', $zipFileName);
 
                 try {
-                    $this->validateZipStructure($zipPath);
+                    $this->validateAndNormalizeZipStructure($zipPath);
                 } catch (\Exception $e) {
                     Storage::delete($zipPath);
 
@@ -441,6 +441,9 @@ class ApplicantApplicationService
         $isMale = $sheet->getCell('D16')->getValue();
         $isFemale = $sheet->getCell('E16')->getValue();
 
+        $isPwd = $sheet->getCell('D35')->getValue();
+        $isnotPwd = $sheet->getCell('E35')->getValue();
+
         $filipino = $sheet->getCell('J13')->getValue();
         $by_birth = $sheet->getCell('J14')->getValue();
         $dual_citizenship = $sheet->getCell('L13')->getValue();
@@ -461,6 +464,17 @@ class ApplicantApplicationService
         } else {
             $sex = 'prefer not to say';
         }
+
+        // // Determine pwd or not
+        // $pwd = null;
+        // if ($isPwd === true || $isPwd === 'TRUE') {
+        //     $pwd = 'Yes';
+        // } elseif ($isnotPwd === true || $isnotPwd === 'TRUE') {
+        //     $pwd = 'No';
+        // } else {
+        //     $pwd = 'No';
+        // }
+
 
         // Determine citizenship
         $citizenship_status = $this->determineCitizenshipStatus($filipino, $by_birth, $dual_citizenship, $by_naturalization);
@@ -521,6 +535,11 @@ class ApplicantApplicationService
             'email_address' => $sheet->getCell('I33')->getValue(),
 
             'agency_employee_no' => $sheet->getCell('D33')->getValue(),
+
+
+            'gender_prefer' => $sheet->getCell('I35')->getValue(),
+            'other_specify' => $sheet->getCell('M35')->getValue(),
+            'purok' => $sheet->getCell('K17')->getValue(),
         ];
     }
 
@@ -866,7 +885,7 @@ class ApplicantApplicationService
     {
         $references = [];
         $startRow = 43; // References start at row 43 based on your Personal_declarations_sheet
-        $endRow = 50;   // References end at row 50
+        $endRow = 55;   // References end at row 50
 
 
 
@@ -1635,10 +1654,10 @@ class ApplicantApplicationService
     //     ]);
     // }
 
-    // validation for zip file that check the folder structure
-    // private function validateZipStructure(string $zipPath)
+    //validation for zip file that check the folder structure
+    // private function secondvalidateZipStructure(string $zipPath)
     // {
-    //     // $requiredRoot = 'document';
+    //     $requiredRoot = 'document';
     //     $requiredFolders = [
     //         'education',
     //         'training',
@@ -1708,18 +1727,77 @@ class ApplicantApplicationService
     //     return true;
     // }
 
-    private function validateZipStructure(string $zipPath)
+    // private function validateZipStructure(string $zipPath)
+    // {
+    //     $requiredFolders = ['education', 'training', 'experience', 'eligibility'];
+
+    //     $zip      = new \ZipArchive;
+    //     $fullPath = storage_path('app/public/' . $zipPath);
+
+    //     if ($zip->open($fullPath) !== true) {
+    //         throw new \Exception('Unable to open ZIP file.');
+    //     }
+
+    //     $foundFolders = [];
+
+    //     for ($i = 0; $i < $zip->numFiles; $i++) {
+    //         $entry = trim($zip->getNameIndex($i), '/');
+
+    //         if ($entry === '') continue;
+
+    //         $parts = explode('/', $entry);
+
+    //         // ✅ Skip macOS/system hidden files
+    //         if (str_starts_with($parts[0], '__') || str_starts_with($parts[0], '.')) {
+    //             continue;
+    //         }
+
+    //         // ✅ Collect root-level folders
+    //         if ($parts[0] !== '') {
+    //             $foundFolders[] = strtolower($parts[0]);
+    //         }
+    //     }
+
+    //     // 1️⃣ Check required folders exist
+    //     $uniqueFolders = array_unique(array_filter($foundFolders));
+    //     $missing       = array_diff($requiredFolders, $uniqueFolders);
+
+    //     if (!empty($missing)) {
+    //         $zip->close();
+    //         throw new \Exception(
+    //             'Missing required folder(s): ' . implode(', ', $missing) . '. ' .
+    //                 'Your ZIP must contain: ' . implode(', ', $requiredFolders) . '.'
+    //         );
+    //     }
+
+    //     // 2️⃣ Check no extra folders
+    //     $extra = array_diff($uniqueFolders, $requiredFolders);
+
+    //     if (!empty($extra)) {
+    //         $zip->close();
+    //         throw new \Exception(
+    //             'Invalid folder(s) found: "' . implode('", "', $extra) . '". ' .
+    //                 'Only these folders are allowed: ' . implode(', ', $requiredFolders) . '.'
+    //         );
+    //     }
+
+    //     $zip->close();
+    //     return true;
+    // }
+
+    private function validateAndNormalizeZipStructure(string $zipPath): string
     {
         $requiredFolders = ['education', 'training', 'experience', 'eligibility'];
-
-        $zip      = new \ZipArchive;
         $fullPath = storage_path('app/public/' . $zipPath);
 
+        $zip = new \ZipArchive;
         if ($zip->open($fullPath) !== true) {
             throw new \Exception('Unable to open ZIP file.');
         }
 
         $foundFolders = [];
+        $hasDocumentRoot = false;
+        $entries = [];
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $entry = trim($zip->getNameIndex($i), '/');
@@ -1728,42 +1806,105 @@ class ApplicantApplicationService
 
             $parts = explode('/', $entry);
 
-            // ✅ Skip macOS/system hidden files
+            // Skip macOS/system hidden files
             if (str_starts_with($parts[0], '__') || str_starts_with($parts[0], '.')) {
                 continue;
             }
 
-            // ✅ Collect root-level folders
-            if ($parts[0] !== '') {
-                $foundFolders[] = strtolower($parts[0]);
+            $entries[] = $entry;
+
+            $rootFolder = strtolower($parts[0]);
+
+            // Detect if root is "document"
+            if ($rootFolder === 'document') {
+                $hasDocumentRoot = true;
+                if (isset($parts[1]) && $parts[1] !== '') {
+                    $foundFolders[] = strtolower($parts[1]);
+                }
+            } else {
+                $foundFolders[] = $rootFolder;
             }
         }
 
-        // 1️⃣ Check required folders exist
+        $zip->close();
+
+        // Validate required folders
         $uniqueFolders = array_unique(array_filter($foundFolders));
-        $missing       = array_diff($requiredFolders, $uniqueFolders);
+        $missing = array_diff($requiredFolders, $uniqueFolders);
 
         if (!empty($missing)) {
-            $zip->close();
             throw new \Exception(
                 'Missing required folder(s): ' . implode(', ', $missing) . '. ' .
                     'Your ZIP must contain: ' . implode(', ', $requiredFolders) . '.'
             );
         }
 
-        // 2️⃣ Check no extra folders
+        // Validate no extra folders
         $extra = array_diff($uniqueFolders, $requiredFolders);
-
         if (!empty($extra)) {
-            $zip->close();
             throw new \Exception(
                 'Invalid folder(s) found: "' . implode('", "', $extra) . '". ' .
                     'Only these folders are allowed: ' . implode(', ', $requiredFolders) . '.'
             );
         }
 
+        // If has document/ root, strip it and rebuild the ZIP
+        if ($hasDocumentRoot) {
+            $zipPath = $this->stripDocumentRootFromZip($fullPath, $entries);
+        }
+
+        return $zipPath;
+    }
+
+    private function stripDocumentRootFromZip(string $fullPath, array $entries): string
+    {
+        $zip = new \ZipArchive;
+        if ($zip->open($fullPath) !== true) {
+            throw new \Exception('Unable to open ZIP file for normalization.');
+        }
+
+        // Create a new temp ZIP
+        $tempPath = storage_path('app/public/temp_' . uniqid() . '.zip');
+        $newZip = new \ZipArchive;
+        if ($newZip->open($tempPath, \ZipArchive::CREATE) !== true) {
+            throw new \Exception('Unable to create normalized ZIP file.');
+        }
+
+        foreach ($entries as $entry) {
+            $parts = explode('/', $entry);
+
+            // Skip macOS/system hidden files
+            if (str_starts_with($parts[0], '__') || str_starts_with($parts[0], '.')) {
+                continue;
+            }
+
+            // Strip the "document/" root
+            if (strtolower($parts[0]) === 'document') {
+                array_shift($parts); // remove "document"
+                if (empty($parts) || implode('', $parts) === '') continue;
+            }
+
+            $newEntryName = implode('/', $parts);
+
+            // Check if it's a folder or file
+            if (str_ends_with($zip->getNameIndex(array_search($entry, $entries)), '/')) {
+                $newZip->addEmptyDir($newEntryName);
+            } else {
+                $fileContent = $zip->getFromName($entry);
+                if ($fileContent !== false) {
+                    $newZip->addFromString($newEntryName, $fileContent);
+                }
+            }
+        }
+
         $zip->close();
-        return true;
+        $newZip->close();
+
+        // Replace original file with normalized one
+        unlink($fullPath);
+        rename($tempPath, $fullPath);
+
+        return $fullPath;
     }
 
 

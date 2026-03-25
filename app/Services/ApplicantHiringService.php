@@ -96,6 +96,7 @@ class ApplicantHiringService
 
                 if (!$existingControlNo) {
                     $this->insertPersonalInfo($applicant, $family,  $personal_declarations, $finalControlNo);
+                    $this->insertxPersonalAddt($applicant,$family, $personal_declarations, $finalControlNo);
                     $this->insertChildren($applicant->children, $finalControlNo);
                     $this->insertWorkExperience($applicant->work_experience, $finalControlNo);
                     $this->insertEligibility($applicant->eligibity, $finalControlNo);
@@ -225,6 +226,7 @@ class ApplicantHiringService
             'BirthDate'    => $applicant->date_of_birth,
             'BirthPlace'   => $applicant->place_of_birth ?? null,
             'Address'      => trim(($applicant->residential_house ?? null) . ' ' .
+                             ($applicant->Rpurok ?? null) . ' ' .
                             ($applicant->residential_street ?? null) . ' ' .
                             ($applicant->residential_barangay ?? null) . ' ' .
                             ($applicant->residential_city ?? null) . ' ' .
@@ -271,6 +273,81 @@ class ApplicantHiringService
             'R11' => $personal_declarations->{'question_40b'} ?? null,
             'Q11' =>  $personal_declarations->{'response_40b'}?? null,
             'Q22' =>  $personal_declarations->{'question_40c'} ?? null,
+        ]);
+    }
+
+    private function insertxPersonalAddt($applicant,$family,$personal_declarations, $controlNo)
+    {
+        DB::table('xPersonalAddt')->insert([
+            'ControlNo'    => $controlNo,
+
+            'EmailAdd'    => $applicant->email_address,
+            'CellphoneNo'    => $applicant->cellphone_number,
+
+            'SpouseFirstname'    => $family->spouse_firstname,
+            'SpouseMiddlename'   => $family->spouse_middlename,
+            'SpouseEmployer'    => $family->spouse_employer,
+            'SpouseEmpAddress'    => $family->spouse_employer_address,
+            'SpouseEmpTel'    => $family->spouse_employer_telephone,
+
+            'FatherFirstname'   => $family->father_firstname,
+            'FatherMiddlename'   => $family->father_middlename,
+
+            'MotherFirstname'    => $family->mother_firstname,
+            'MotherMiddlename'     => $family->mother_middlename,
+
+
+            // 'question_40a', IP
+            // 'response_40a', IPR
+            'IP'      => $personal_declarations->{'question_40a'} ?? 'NO',
+            'IPR'      => $personal_declarations->{'response_40a'}  ?? null,
+
+            // 'question_40b', PWD
+            // 'response_40b', PWDR
+            'PWD'      => $personal_declarations->{'question_40b'} ?? 'NO',
+            'PWDR'      => $personal_declarations->{'response_40b'} ?? null,
+
+
+            // 'question_40c', SOLO
+            // 'response_40c',  SOLOPR
+            'SoloP'      => $personal_declarations->{'question_40c'} ?? 'NO',
+            'SoloPR'      => $personal_declarations->{'response_40c'} ?? null,
+
+            'Rhouse' => $applicant->residential_house?? '',
+            'Rstreet'      =>  $applicant->residential_street ?? '',
+            'Rpurok'      => $applicant->Rpurok ?? '',
+            'Rsubdivision'      =>  $applicant->residential_subdivision ?? '',
+            'Rbarangay'      =>  $applicant->residential_barangay ?? '',
+            'Rprovince'      =>  $applicant->residential_province ?? '',
+            'Rregion'      =>  $applicant->residential_region ?? '',
+            'Rcity'      =>  $applicant->residential_city ?? '',
+            'Rzip'      =>  $applicant->residential_zip ?? '',
+
+            'Pregion'      => $applicant->permanent_region ?? '',
+            'Phouse'      => $applicant->permanent_house ?? '',
+            'Ppurok'      => $applicant->Ppurok ?? '',
+            'Pstreet'      => $applicant->permanent_street ?? '',
+            'Psubdivision'      => $$applicant->permanent_subdivision ?? '',
+            'Pbarangay'      => $applicant->permanent_barangay ?? '',
+            'Pcity'      => $applicant->permanent_city ?? '',
+            'Pprovince'      => $applicant->permanent_province ?? '',
+            'Pzip'      => $applicant->permanent_zip ?? '',
+
+            'local'      => 0,
+
+            'localdetails'      => '',
+            'country'      => 0,
+
+            'countrydetails'      => '',
+            'datefiled'      => '',
+            'gender'      => $applicant->gender_prefer,
+            'citizenshipStatus'      => $applicant->citizenship_status,
+            'birthcountry'      => '',
+
+
+
+
+
         ]);
     }
 
@@ -579,7 +656,7 @@ class ApplicantHiringService
 
         ]);
 
-       
+
         DB::table('posting_date')->insert([
             'ControlNo'     => $controlNo, //1
             'post_date' =>$jobPost->post_date,
