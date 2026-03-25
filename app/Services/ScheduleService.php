@@ -162,7 +162,7 @@ class ScheduleService
             $externalApplicant = DB::table('xPersonalAddt')
                 ->join('xPersonal', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
                 ->where('xPersonalAddt.ControlNo', $submission->ControlNo)
-                ->select('xPersonalAddt.*', 'xPersonal.Firstname', 'xPersonal.Surname', 'xPersonalAddt.EmailAdd', 'xPersonalAddt.Rstreet', 'xPersonalAddt.Rbarangay', 'xPersonalAddt.Rcity', 'xPersonalAddt.Rprovince')
+                ->select('xPersonalAddt.*', 'xPersonal.Firstname', 'xPersonal.Surname', 'xPersonalAddt.EmailAdd', 'xPersonalAddt.Rpurok', 'xPersonalAddt.Rstreet', 'xPersonalAddt.Rbarangay', 'xPersonalAddt.Rcity', 'xPersonalAddt.Rprovince')
                 ->first();
 
             $activeApplicant = $applicant ?? $externalApplicant;
@@ -221,11 +221,12 @@ class ScheduleService
                         $template,
                         [
                             'fullname' => $fullname,
-                            'lastname' => $applicant->lastname ?? $externalApplicant->Surname ?? 'N/A',
-                            'street' => $applicant->residential_street ?? $externalApplicant->Rstreet ?? 'N/A',
-                            'barangay' => $applicant->residential_barangay ?? $externalApplicant->Rbarangay ?? 'N/A',
-                            'city' => $applicant->residential_city ?? $externalApplicant->Rcity ?? 'N/A',
-                            'province' => $applicant->residential_province ?? $externalApplicant->Rprovince ?? 'N/A',
+                            'lastname' => $applicant->lastname ?? $externalApplicant->Surname ?? '',
+                            'Rpurok' => $applicant->Rpurok ?? $externalApplicant->Rpurok ?? '',
+                            'street' => $applicant->residential_street ?? $externalApplicant->Rstreet ?? '',
+                            'barangay' => $applicant->residential_barangay ?? $externalApplicant->Rbarangay ?? '',
+                            'city' => $applicant->residential_city ?? $externalApplicant->Rcity ?? '',
+                            'province' => $applicant->residential_province ?? $externalApplicant->Rprovince ?? '',
                             'position' => $position,
                             'office' => $office,
 

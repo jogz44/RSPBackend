@@ -117,19 +117,20 @@
             height: auto;
             display: block;
         }
+         .header-image{
+            width: 100%;
+            height: 110px;
+         }
     </style>
 </head>
 
 <body>
     <div class="container">
         <!-- Letterhead -->
-        <div class="letterhead">
-            <img src="{{ $message->embed(public_path('images/logo.png')) }}" alt="Logo">
-            <div class="letterhead-text">
-                <div>REPUBLIC OF THE PHILIPPINES</div>
-                <div>PROVINCE OF DAVAO DEL NORTE</div>
-                <div>CITY OF TAGUM</div>
-            </div>
+        <div class="header">
+
+              <img src="{{ $message->embed(public_path('images/header2.jpg')) }}" alt="Logo" class="header-image">
+
         </div>
 
         <!-- Date -->
@@ -141,9 +142,10 @@
         <div class="recipient">
             <p>
                 <strong>Mr/Ms. {{ $fullname }}</strong>
-                {{ ucfirst(strtolower($street)) }},
+                {{ ucfirst(strtolower($Rpurok)) }}
+                {{ ucwords(strtolower($street)) }}
                 {{ ucwords(strtolower($barangay)) }}<br>
-                {{ ucwords(strtolower($city)) }},
+                {{ ucwords(strtolower($city)) }}
                 {{ ucwords(strtolower($province)) }}
             </p>
         </div>
@@ -212,7 +214,12 @@
 
         <!-- Signature -->
         <div class="signature-section">
-            <img src="{{ $message->embed(public_path('images/signature1.png')) }}" alt="Signature" class="signatureImage">
+            {{-- <img src="{{ $message->embed(public_path('images/signature1.png')) }}" alt="Signature" class="signatureImage"> --}}
+            <p>Verytruly yours,</p>
+            <p><strong>EDGARD C. DE GUZMAN</strong></p>
+            <p>City Administrator</p>
+            <p>Authorized Representative of the City Mayor</p>
+            <p>Chairperson</p>
         </div>
 
     </div>

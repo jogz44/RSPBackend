@@ -96,20 +96,10 @@
 <body>
     <div class="container">
     <!-- Letterhead -->
-        <div class="letterhead">
-         <img src="{{ $message->embed(public_path('images/logo.png')) }}" alt="Logo" >
-            {{-- <img src="{{ asset('images/logo.png') }}" alt="Logo" > --}}
+        <div class="header">
 
-                  <div class="letterhead-text">
-                <div>REPUBLIC OF THE PHILIPPINES</div>
-                <div>PROVINCE OF DAVAO DEL NORTE</div>
-                <div>CITY OF TAGUM</div>
-            </div>
-               <div style="background-color: #008000; color: white; padding: 10px 20px; margin-top: 5px; margin-bottom: 30px;">
-            <div style="font-weight: bold; text-transform: uppercase; font-size: 13pt; text-align: center;">
-                HUMAN RESOURCE MERIT PROMOTION AND SELECTION
-            </div>
-        </div>
+            <img src="{{ $message->embed(public_path('images/header2.png')) }}" alt="Logo">
+
         </div>
 
 
@@ -123,7 +113,7 @@
             </p>
 
             <p>
-                Please be informed that you are scheduled for a <strong>face-to-face interview</strong>
+                Please be informed that you are scheduled for a <strong>face-to-face behovioral interview</strong>
                 with the members of the <strong> Human Resource Merit Promotion and Selection Board (HRMPSB).</strong>
                 Kindly refer to the details below:
             </p>

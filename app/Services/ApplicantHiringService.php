@@ -107,6 +107,7 @@ class ApplicantHiringService
                     $this->insertNonAcademic($applicant->skills, $finalControlNo);
                     $this->insertOrganization($applicant->skills, $finalControlNo);
                     $this->insertReferences($applicant->references, $finalControlNo);
+                    $this->insertPWD($personal_declarations, $finalControlNo);
                 }
             }
 
@@ -249,32 +250,69 @@ class ApplicantHiringService
             'SpouseName'   => $family->spouse_name ?? null,
             'Occupation'   => $family->spouse_occupation ?? null,
            // need to fix identify the  what is the q-r
-            'Q1' =>  $personal_declarations->{'question_34a'} ?? null,
-            'R1' =>  $personal_declarations->{'response_34'} ?? null,
+            // 34
+            'Q1' =>  $personal_declarations->{'question_34a'} ?? 'No',
+            'R11' => $personal_declarations->{'question_34b'} ?? 'No',
+            'Q11' =>  $personal_declarations->{'response_34'} ?? null,
 
-            'Q2' =>  $personal_declarations->{'question_34b'}  ?? null,
-            'R2' =>  $personal_declarations->{'response_34'} ?? null,
 
-            'Q3' =>  $personal_declarations->{'question_35a'} ?? null,
-            'R3' =>  $personal_declarations->{'response_35a'} ?? null,
+            //35
+            'Q4' =>  $personal_declarations->{'question_35a'}  ?? 'No',
+            'R4' =>  $personal_declarations->{'response_35a'}  ?? null,
 
-            'Q4' =>  $personal_declarations->{'question_36'}  ?? null,
-            'R4' =>  $personal_declarations->{'response_36'}  ?? null,
+            'Q7' =>  $personal_declarations->{'question_35b'} ?? 'No',
+            'R7' =>  $personal_declarations->{'response_35b_status'}  ?? null,
 
-            'Q5' =>  $personal_declarations->{'question_37'}  ?? null,
+
+
+            // 36
+            'Q3' =>  $personal_declarations->{'question_36'} ?? 'No',
+            'R3' =>  $personal_declarations->{'response_36'} ?? null,
+
+
+            //37
+
+            'Q5' =>  $personal_declarations->{'question_37'}  ?? 'No',
             'R5' =>  $personal_declarations->{'response_37'}  ?? null,
 
-            'Q6' =>  $personal_declarations->{'question_39'} ?? null,
-            'R6' =>  $personal_declarations->{'response_39'}   ?? null,
 
-            'Q7' =>  $personal_declarations->{'question_40a'} ?? null,
-            'R7' =>  $personal_declarations->{'response_40a'}  ?? null,
+            //38
 
-            'R11' => $personal_declarations->{'question_40b'} ?? null,
-            'Q11' =>  $personal_declarations->{'response_40b'}?? null,
-            'Q22' =>  $personal_declarations->{'question_40c'} ?? null,
+            'Q6' =>  $personal_declarations->{'question_38a'} ?? 'No',
+            'R6' =>  $personal_declarations->{'response_38a'}   ?? null,
+
+
+
+
+
+
+
+            // 'R1' =>  $personal_declarations->{'response_34'} ?? null,
+
+            // 'Q2' =>  $personal_declarations->{'question_34b'}  ?? null,
+            // 'R2' =>  $personal_declarations->{'response_34'} ?? null,
+            // 'Q22' =>  $personal_declarations->{'question_40c'} ?? null,
         ]);
     }
+
+    private function insertPWD( $personal_declarations, $controlNo)
+    {
+        DB::table('xPWD')->insert([
+            'Controlno'    => $controlNo,
+            'chronic'    => $personal_declarations->chronic,
+            'Psychosocial'    => $personal_declarations->Psychosocial,
+            'Orthopedic'    => $personal_declarations->Orthopedic,
+            'Communication'    => $personal_declarations->Communication,
+            'Learning'    => $personal_declarations->Learning,
+            'Mental'    => $personal_declarations->Mental,
+            'Visual'    => $personal_declarations->Visual,
+
+
+
+
+        ]);
+    }
+
 
     private function insertxPersonalAddt($applicant,$family,$personal_declarations, $controlNo)
     {
@@ -296,6 +334,19 @@ class ApplicantHiringService
             'MotherFirstname'    => $family->mother_firstname,
             'MotherMiddlename'     => $family->mother_middlename,
 
+            'datefiled' =>  $personal_declarations->{'response_35b_date'}  ?? null,
+
+            //38
+            'local' =>  $personal_declarations->{'question_38b'} ?? null,
+            'localdetails' =>  $personal_declarations->{'response_38b'}   ?? null,
+
+
+            //39
+
+            'country' =>  $personal_declarations->{'question_39'} ?? null,
+            'countrydetails' =>  $personal_declarations->{'response_39'} ?? null,
+
+
 
             // 'question_40a', IP
             // 'response_40a', IPR
@@ -312,6 +363,8 @@ class ApplicantHiringService
             // 'response_40c',  SOLOPR
             'SoloP'      => $personal_declarations->{'question_40c'} ?? 'NO',
             'SoloPR'      => $personal_declarations->{'response_40c'} ?? null,
+
+
 
             'Rhouse' => $applicant->residential_house?? '',
             'Rstreet'      =>  $applicant->residential_street ?? '',
@@ -343,9 +396,6 @@ class ApplicantHiringService
             'gender'      => $applicant->gender_prefer,
             'citizenshipStatus'      => $applicant->citizenship_status,
             'birthcountry'      => '',
-
-
-
 
 
         ]);

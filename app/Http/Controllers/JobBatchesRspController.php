@@ -256,8 +256,8 @@ class JobBatchesRspController extends Controller
     }
 
 
-
-    public function jobPostPostDate()    // fetch job post based on the post date
+    // fetch job post based on the post date all position
+    public function jobPostPostDate()
     {
         $dates = JobBatchesRsp::select('post_date')
             ->whereIn('status', ['Republished', 'rated', 'Unoccupied','assessed'])

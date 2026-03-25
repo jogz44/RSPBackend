@@ -441,8 +441,8 @@ class ApplicantApplicationService
         $isMale = $sheet->getCell('D16')->getValue();
         $isFemale = $sheet->getCell('E16')->getValue();
 
-        $isPwd = $sheet->getCell('D35')->getValue();
-        $isnotPwd = $sheet->getCell('E35')->getValue();
+        // $isPwd = $sheet->getCell('D35')->getValue();
+        // $isnotPwd = $sheet->getCell('E35')->getValue();
 
         $filipino = $sheet->getCell('J13')->getValue();
         $by_birth = $sheet->getCell('J14')->getValue();
@@ -463,8 +463,24 @@ class ApplicantApplicationService
             $sex = 'Female';
         } else {
             $sex = 'prefer not to say';
+
+
         }
 
+
+        $citizen = null;
+        if ($filipino === true || $filipino === 'TRUE') {
+            $citizen = 'Filipino';
+        } elseif ($by_birth === true || $by_birth === 'TRUE') {
+            $citizen = 'by birth';
+        } elseif ($dual_citizenship === true || $dual_citizenship === 'TRUE') {
+            $citizen = 'Dual Citizenship';
+        } elseif ($by_naturalization === true || $by_naturalization === 'TRUE') {
+            $citizen = 'by naturalization';
+
+        } else {
+            $citizen = null;
+        }
         // // Determine pwd or not
         // $pwd = null;
         // if ($isPwd === true || $isPwd === 'TRUE') {
@@ -477,7 +493,7 @@ class ApplicantApplicationService
 
 
         // Determine citizenship
-        $citizenship_status = $this->determineCitizenshipStatus($filipino, $by_birth, $dual_citizenship, $by_naturalization);
+        // $citizenship_status = $this->determineCitizenshipStatus($filipino, $by_birth, $dual_citizenship, $by_naturalization);
 
         // Determine civil status
         $civil_status = $this->determineCivilStatus($single, $married, $separated, $widowed, $others);
@@ -500,7 +516,7 @@ class ApplicantApplicationService
             'name_extension' => $sheet->getCell('L11')->getValue(),
             'sex' => $sex,
             'civil_status' => $civil_status,
-            'citizenship' => $citizenship_status,
+            'citizenship' => $citizen,
             'date_of_birth' => $date_of_birth,
             'place_of_birth' => $sheet->getCell('D15')->getValue(),
             'height' => $sheet->getCell('D21')->getValue(),
@@ -517,14 +533,17 @@ class ApplicantApplicationService
             'tin_no' => $sheet->getCell('D32')->getValue(),
             'image_path' => $imagePath,
             'residential_house' => $sheet->getCell('I17')->getValue(),
-            'residential_street' => $sheet->getCell('L17')->getValue(),
+            'Rpurok' => $sheet->getCell('K17')->getValue(),
+            'residential_street' => $sheet->getCell('M17')->getValue(),
             'residential_subdivision' => $sheet->getCell('I19')->getValue(),
             'residential_barangay' => $sheet->getCell('L19')->getValue(),
             'residential_city' => $sheet->getCell('I21')->getValue(),
             'residential_province' => $sheet->getCell('L21')->getValue(),
             'residential_zip' => $sheet->getCell('I23')->getValue(),
+
+            'Ppurok' => $sheet->getCell('K24')->getValue(),
             'permanent_house' => $sheet->getCell('I24')->getValue(),
-            'permanent_street' => $sheet->getCell('L24')->getValue(),
+            'permanent_street' => $sheet->getCell('M24')->getValue(),
             'permanent_subdivision' => $sheet->getCell('I26')->getValue(),
             'permanent_barangay' => $sheet->getCell('L26')->getValue(),
             'permanent_city' => $sheet->getCell('I28')->getValue(),
@@ -537,9 +556,9 @@ class ApplicantApplicationService
             'agency_employee_no' => $sheet->getCell('D33')->getValue(),
 
 
-            'gender_prefer' => $sheet->getCell('I35')->getValue(),
-            'other_specify' => $sheet->getCell('M35')->getValue(),
-            'purok' => $sheet->getCell('K17')->getValue(),
+            'gender_prefer' => $sheet->getCell('D35')->getValue(),
+            'other_specify' => $sheet->getCell('I35')->getValue(),
+            // 'purok' => $sheet->getCell('K17')->getValue(),
         ];
     }
 
@@ -885,14 +904,14 @@ class ApplicantApplicationService
     {
         $references = [];
         $startRow = 43; // References start at row 43 based on your Personal_declarations_sheet
-        $endRow = 55;   // References end at row 50
+        $endRow = 50;   // References end at row 50
 
 
 
         for ($row = $startRow; $row <= $endRow; $row++) {
             $full_name = $sheet->getCell('A' . $row)->getValue();
-            $address = $sheet->getCell('F' . $row)->getValue();
-            $contact_number = $sheet->getCell('I' . $row)->getValue();
+            $address = $sheet->getCell('G' . $row)->getValue();
+            $contact_number = $sheet->getCell('M' . $row)->getValue();
 
 
             // Skip empty rows
@@ -931,13 +950,26 @@ class ApplicantApplicationService
                 $result = 'NO';
             }
 
-            Log::debug('isChecked function', [
-                'yes' => $yes,
-                'no' => $no,
-                'result' => $result
-            ]);
+            // Log::debug('isChecked function', [
+            //     'yes' => $yes,
+            //     'no' => $no,
+            //     'result' => $result
+            // ]);
 
             return $result;
+        };
+
+
+        //Helper function for check values 1 - 0
+        $isPWD = function ($value) {
+            // Cast explicitly to handle bool, string "TRUE"/"FALSE", 1/0
+            if ($value === true || $value === 1 || strtoupper((string)$value) === 'TRUE') {
+                return '1';
+            } elseif ($value === false || $value === 0 || strtoupper((string)$value) === 'FALSE') {
+                return '0';
+            }
+
+            return null; // cell is empty or unrecognized
         };
 
         // Helper function to sanitize response values
@@ -1021,6 +1053,17 @@ class ApplicantApplicationService
                 $sheet->getCell('G36')->getValue(),
                 $sheet->getCell('I36')->getValue()
             ),
+
+
+            'chronic' => $isPWD($sheet->getCell('J37')->getValue()),
+            'Psychosocial' => $isPWD($sheet->getCell('I37')->getValue()),
+            'Orthopedic' => $isPWD($sheet->getCell('N37')->getValue()),
+            'Communication' => $isPWD($sheet->getCell('O37')->getValue()),
+            'Learning' => $isPWD($sheet->getCell('K37')->getValue()),
+            'Mental' => $isPWD($sheet->getCell('L37')->getValue()),
+            'Visual' => $isPWD($sheet->getCell('M37')->getValue()),
+
+
             'response_40b' => $sanitizeResponse($sheet->getCell('I37')->getValue()),
             'question_40c' => $isChecked(
                 $sheet->getCell('G38')->getValue(),
@@ -1125,19 +1168,19 @@ class ApplicantApplicationService
     /**
      * Helper: Determine citizenship status
      */
-    private function determineCitizenshipStatus($filipino, $by_birth, $dual_citizenship, $by_naturalization)
-    {
-        if ($filipino && $by_birth) {
-            return 'Filipino by Birth';
-        } elseif ($filipino && $by_naturalization) {
-            return 'Filipino by Naturalization';
-        } elseif ($dual_citizenship && $by_birth) {
-            return 'Dual Citizenship by Birth';
-        } elseif ($dual_citizenship && $by_naturalization) {
-            return 'Dual Citizenship by Naturalization';
-        }
-        return null;
-    }
+    // private function determineCitizenshipStatus($filipino, $by_birth, $dual_citizenship, $by_naturalization)
+    // {
+    //     if ($filipino && $by_birth) {
+    //         return 'Filipino by Birth';
+    //     } elseif ($filipino && $by_naturalization) {
+    //         return 'Filipino by Naturalization';
+    //     } elseif ($dual_citizenship && $by_birth) {
+    //         return 'Dual Citizenship by Birth';
+    //     } elseif ($dual_citizenship && $by_naturalization) {
+    //         return 'Dual Citizenship by Naturalization';
+    //     }
+    //     return null;
+    // }
 
     /**
      * Helper: Determine civil status

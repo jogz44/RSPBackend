@@ -17,7 +17,7 @@ class Personal_declarations extends Model
         'question_34a',
 
         'question_34b',
-        'response_34', //reason
+        'response_34',// resoon
 
         // Q35
         'question_35a',
@@ -55,6 +55,20 @@ class Personal_declarations extends Model
 
         'question_40c',
         'response_40c', //reason
+
+
+
+        'chronic',
+        'Psychosocial',
+        'Orthopedic',
+        'Communication' ,
+        'Learning',
+        'Mental',
+        'Visual',
+
+
+
+
     ];
     // Relationship to nPersonalInfo
     public function personalInfo()
