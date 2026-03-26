@@ -42,9 +42,9 @@ class RaterController extends Controller
     }
 
     // applicant score individual
-    public function applicantScoreIndividual($applicantId) // applicant rating score
+    public function applicantScoreIndividual($applicantId,$jobpostId) // applicant rating score
     {
-        $result = $this->applicantService->applicantScoreDetials($applicantId);
+        $result = $this->applicantService->applicantScoreDetials($applicantId,$jobpostId);
 
         return $result;
     }

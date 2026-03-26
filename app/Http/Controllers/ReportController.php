@@ -2,27 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\JobPositionsExport;
-use App\Jobs\GeneratePlantillaReport;
-use App\Jobs\GeneratePlantillaReportJob;
-use App\Jobs\QueueWorkerTestJob;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
-use App\Services\RatingService;
 use App\Services\ReportService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Str;
-use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Calculation\Financial\Securities\Rates;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpParser\Node\Expr\FuncCall;
-use PHPUnit\Util\PHP\Job;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
@@ -53,7 +40,6 @@ class ReportController extends Controller
         $result = $this->reportService->plantilla();
 
         return $result;
-
     }
 
     // check plantilla status
@@ -153,9 +139,9 @@ class ReportController extends Controller
     // Palacement list
     public function placementList($office)
     {
-      $result = $this->reportService->list($office);
+        $result = $this->reportService->list($office);
 
-      return $result;
+        return $result;
     }
 
     // top 5 ranking applicant date publication
@@ -278,7 +264,6 @@ class ReportController extends Controller
             'Content-Type' => 'application/vnd.ms-excel.sheet.macroEnabled.12',
             'Content-Disposition' => 'attachment; filename="Request for Publication of Vacant Positions.xlsm"',
         ]);
-
     }
 
 
@@ -369,7 +354,7 @@ class ReportController extends Controller
         // LEVEL
         $secondLevel = [
 
-        // SG
+            // SG
             '23-25' => [
                 'DSE' => 'Superior',
                 'EI' => 'Superior',
@@ -480,7 +465,7 @@ class ReportController extends Controller
         // Level
         $firstLevel = [
 
-        // sg
+            // sg
             '18' => [
                 'DSE' => 'Superior',
                 'EI' => 'Superior',
@@ -589,5 +574,19 @@ class ReportController extends Controller
         ];
 
         return compact('descriptions', 'secondLevel', 'firstLevel');
+    }
+
+    // fetch the rating of the rater on the  specific job post
+    public function ratingFormReport(Request $request)
+    {
+
+        $validated = $request->validate([
+            'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id'
+        ]);
+
+
+    $data = $this->reportService->ratingFormQualificationStandard($validated);
+
+        return $data;
     }
 }

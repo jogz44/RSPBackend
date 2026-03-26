@@ -212,7 +212,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/schedule/details/{scheduleId}', [ScheduleController::class, 'getApplicantInterview']); // schedule of the applicant details
         Route::post('/details', [ApplicantSubmissionController::class, 'getApplicantDetails']); //  fetch the applicant detail of jon post he apply
         Route::get('/{id}', [JobBatchesRspController::class, 'applicantPds']); // fetching the applicant per job post
-        Route::get('/score/{applicantId}', [RaterController::class, 'applicantScoreIndividual']); // fetch the history of the applicant
+        Route::get('/score/{applicantId}/{jobpostId}', [RaterController::class, 'applicantScoreIndividual']); // fetch the history of the applicant
 
     });
 
@@ -282,6 +282,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Route::get('/applicant/{jobpostId}',[ReportController::class, 'getApplicantHaveSchedules']);
         // Route::post('/send/status', [EmailController::class, 'sendEmailApplicantBatch']); // send an update of status applicant
+
+        Route::post('/rating-form', [ReportController::class, 'ratingFormReport']); // generate the plantilla report
 
     });
 

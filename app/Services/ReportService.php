@@ -7,6 +7,7 @@ use App\Jobs\QueueWorkerTestJob;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -1419,5 +1420,87 @@ class ReportService
         }
 
         return implode('<br>', $formatted);
+    }
+
+
+
+    // fetch the rating of the rater on the  specific job post
+    public function ratingFormQualificationStandard($validated)
+    {
+        $jobBatch = JobBatchesRsp::with([
+            'ratingScores' => function ($query) {
+                $query->select(
+                    'id',
+                    'nPersonalInfo_id',
+                    'ControlNo',
+                    'job_batches_rsp_id',
+                    'education_score',
+                    'experience_score',
+                    'training_score',
+                    'performance_score',
+                    'behavioral_score',
+                    'exam_score',
+                    'total_qs',
+                    'grand_total',
+                    'ranking'
+                )
+                    // ✅ Eager load applicant names via nested with
+                    ->with([
+                        'internalApplicant' => fn($q) => $q->select('id', 'firstname', 'lastname', ),
+                        'externalApplicant' => fn($q) => $q->select('ControlNo', 'Firstname', 'Surname'),
+                    ]);
+            },
+            'criteriaRatings' => function ($query) {
+                $query->select('id', 'job_batches_rsp_id')
+                    ->with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals']);
+            }
+        ])
+            ->select('id', 'Office', 'Position', 'ItemNo')
+            ->where('id', $validated['job_batches_rsp_id'])
+            ->first();
+
+        if (!$jobBatch) {
+            return response()->json(['message' => 'Job batch not found'], 404);
+        }
+
+        // ✅ Flatten criteria — take first criteria_rating since it's per job batch
+        $criteria = $jobBatch->criteriaRatings->first();
+
+        return response()->json([
+            'office'   => $jobBatch->Office,
+            'position' => $jobBatch->Position,
+            'item_no'  => $jobBatch->ItemNo,
+
+            'criteria' => $criteria ? [
+                'education'   => $criteria->educations,
+                'experience'  => $criteria->experiences,
+                'training'    => $criteria->trainings,
+                'performance' => $criteria->performances,
+                'behavioral'  => $criteria->behaviorals,
+            ] : null,
+
+            'rating_scores' => $jobBatch->ratingScores->map(fn($score) => [
+                'nPersonalInfo_id' => $score->nPersonalInfo_id,
+                'ControlNo'        => $score->ControlNo,
+
+                // ✅ Resolve name — internal first, fallback to external
+                'firstname'        => $score->internalApplicant?->firstname
+                    ?? $score->externalApplicant?->Firstname
+                    ?? null,
+                'lastname'         => $score->internalApplicant?->lastname
+                    ?? $score->externalApplicant?->Surname
+                    ?? null,
+
+                'education'        => $score->education_score,
+                'experience'       => $score->experience_score,
+                'training'         => $score->training_score,
+                'performance'      => $score->performance_score,
+                'behavioral'       => $score->behavioral_score,
+                'exam'             => $score->exam_score,
+                'total_qs'         => $score->total_qs,
+                'grand_total'      => $score->grand_total,
+                'ranking'          => $score->ranking,
+            ]),
+        ]);
     }
 }

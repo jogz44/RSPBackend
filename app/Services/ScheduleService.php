@@ -52,9 +52,10 @@ class ScheduleService
             $job = JobBatchesRsp::find($app['job_batches_rsp']);
             if (!$job) continue;
 
-            $position = $job->Position ?? 'the applied position';
-            $office = $job->Office ?? 'the corresponding office';
-            $SalaryGrade = $job->SalaryGrade ?? 'the corresponding SG';
+            $position = $job->Position ?? '';
+            $office = $job->Office ?? '';
+            $SalaryGrade = $job->SalaryGrade ?? '';
+            $ItemNo = $job->ItemNo ?? '';
 
             // Get applicant info
             if ($submission->nPersonalInfo_id) {
@@ -103,6 +104,7 @@ class ScheduleService
                     'position' => $position,
                     'SalaryGrade' => $SalaryGrade,
                     'office' => $office,
+                    'ItemNo' => $ItemNo,
                 ]
             ))->onQueue('emails'));
 

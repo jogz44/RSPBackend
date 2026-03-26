@@ -30,6 +30,8 @@ class User extends Authenticatable
         'office', // Add office_id to fillable
         'must_change_password',
         'password_changed_at',
+        'representative',
+        'role'
 
     ];
 

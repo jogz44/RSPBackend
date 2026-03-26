@@ -90,20 +90,15 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-        .header-image{
-
-            width: 100%;
-            height: 140px;
-        }
     </style>
 </head>
 
 <body>
     <div class="container">
     <!-- Letterhead -->
-        <div>
+        <div class="header">
 
-            <img src="{{ $message->embed(public_path('images/emailHeader.png')) }}" alt="Logo" class="header-image">
+            <img src="{{ $message->embed(public_path('images/header2.png')) }}" alt="Logo">
 
         </div>
 
@@ -113,8 +108,9 @@
             <p>Greetings of Peace and Safety!</p>
 
             <p>
-                This pertains to your application for the <strong>{{ $position }},</strong> Item No.<strong>{{ $ItemNo }}</strong>
-              in the <strong>{{ $office }}.</strong>
+                This pertains to your application for the<strong>{{ $position }},</strong> Item No.<strong>{{ $ItemNo }}</strong>
+                 SG <strong>{{ $SalaryGrade }}</strong>
+                in the {{ $office }}.
             </p>
 
 
@@ -133,11 +129,11 @@
 
             </p>
 
-            <h3>Kindly be guided of the following reminders:</h3>
+            <h3>Reminders:</h3>
             <ul>
-                <li>Please arrive (at least <strong>30 minutes</strong> before your scheduled time of interview).</li>
+                <li>Please arrive(at least <strong>30 minutes</strong> before your scheduled examination time).</li>
                 <li>Bring a <strong>valid ID</strong> for identification purposes.</li>
-                <li>Observe proper <strong>decent dress code</strong> in coming to an interview.</li>
+                <li>Observe proper/decent dress code.</li>
                 <li>Inform us in advance if you require special assistance (e.g., wheelchair or mobility support).</li>
                 <li>Please be advised that HR personnel may take photos for documentation purposes only.
                     All data will be handled in accordance with data privacy principles.

@@ -43,6 +43,8 @@ class RaterService
             'role_id' => 2,   // 2 = Rater
             'remember_token' => Str::random(32),
             'must_change_password' => true, // ← Force password change
+            'role' => $validated['role'],
+            'representative' => $validated['representative'],
         ]);
 
         // Attach job batches
@@ -437,7 +439,7 @@ class RaterService
         // Get criteria
         $criteria = criteria_rating::with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals', 'jobBatch:id,PositionID'])
             ->where('job_batches_rsp_id', $id)
-            ->get();
+            ->get();    
 
         // Get applicants with relationships
         $submissions = Submission::where('job_batches_rsp_id', $id)
