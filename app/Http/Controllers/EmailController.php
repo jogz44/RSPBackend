@@ -55,6 +55,20 @@ class EmailController extends Controller
         return $result;
     }
 
+
+    // for the unqualified applicant that send an  the qualification and remarks
+    public function applicantQualified(Request $request, ScheduleService $scheduleService)
+    {
+        $validated = $request->validate([
+            'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id',
+        ]);
+
+        $result = $scheduleService->sendEmailApplicantBatchQualified($validated, $request);
+
+
+        return $result;
+    }
+
     // tracking email how many already sent
     public function emailTracking()
     {

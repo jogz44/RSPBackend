@@ -52,6 +52,12 @@ class CriteriaRequest extends FormRequest
             'behavioral.*.percentage' => 'required|integer',
 
 
+            'exam' => 'required|array|min:1',
+            'exam.*.weight' => 'required|string',
+            'exam.*.description' => 'required|string',
+            'exam.*.percentage' => 'required|integer',
+
+
 
         ];
     }

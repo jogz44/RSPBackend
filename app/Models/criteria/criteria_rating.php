@@ -46,4 +46,10 @@ class criteria_rating extends Model
         return $this->hasMany(c_behavioral_bei::class);
 
     }
+
+    public function exams()
+    {
+
+        return $this->hasMany(c_exam::class);
+    }
 }

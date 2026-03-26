@@ -253,6 +253,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/send/interview', [EmailController::class, 'storeInterviewApplicant']); // send an interview schedule for applicant
         Route::post('/send/status', [EmailController::class, 'applicantUnqualified']); // send an update of status applicant
+        Route::post('/send/status/qualified', [EmailController::class, 'applicantQualified']); // send an update of status applicant
 
     });
 

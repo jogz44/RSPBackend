@@ -37,6 +37,7 @@ class   CriteriaService
         $criteria->trainings()->delete();
         $criteria->performances()->delete();
         $criteria->behaviorals()->delete();
+        $criteria->exams()->delete();
 
         // INSERT new education
         foreach ($request->education as $item) {
@@ -77,6 +78,15 @@ class   CriteriaService
         // INSERT behavioral
         foreach ($request->behavioral as $item) {
             $criteria->behaviorals()->create([
+                'weight' => $item['weight'],
+                'description' => $item['description'],
+                'percentage' => $item['percentage']
+            ]);
+        }
+
+        // INSERT exam
+        foreach ($request->exam as $item) {
+            $criteria->exams()->create([
                 'weight' => $item['weight'],
                 'description' => $item['description'],
                 'percentage' => $item['percentage']
@@ -212,8 +222,10 @@ class   CriteriaService
         $criteriaRange->criteriaLibTraining()->delete();
         $criteriaRange->criteriaLibPerformance()->delete();
         $criteriaRange->criteriaLibBehavioral()->delete();
+        $criteriaRange->criteriaLibExam()->delete();
 
-     
+
+
         // INSERT new education
         foreach ($request->education as $item) {
             $criteriaRange->criteriaLibEducation()->updateOrCreate([
@@ -253,6 +265,16 @@ class   CriteriaService
         // INSERT behavioral
         foreach ($request->behavioral as $item) {
             $criteriaRange->criteriaLibBehavioral()->updateOrCreate([
+                'weight' => $item['weight'],
+                'description' => $item['description'],
+                'percentage' => $item['percentage']
+            ]);
+        }
+
+
+        // INSERT exam
+        foreach ($request->exam as $item) {
+            $criteriaRange->criteriaLibExam()->updateOrCreate([
                 'weight' => $item['weight'],
                 'description' => $item['description'],
                 'percentage' => $item['percentage']

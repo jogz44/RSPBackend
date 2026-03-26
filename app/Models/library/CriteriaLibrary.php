@@ -41,7 +41,12 @@ class CriteriaLibrary extends Model
     public function criteriaLibBehavioral()
     {
         return $this->hasMany(CriteriaLibBehavioral::class, 'criteria_library_id');
-}
+    }
+
+    public function criteriaLibExam()
+    {
+        return $this->hasMany(CriteriaLibExam::class, 'criteria_library_id');
+    }
 
 
 }
