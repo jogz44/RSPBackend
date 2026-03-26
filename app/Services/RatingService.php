@@ -9,23 +9,56 @@ class RatingService
     public $training;
     public $performance;
     public $bei;
+    public $exam;
 
-    public function __construct($education = 0, $experience = 0, $training = 0, $performance = 0, $bei = 0)
-    {
+    public function __construct(
+        $education   = 0,
+        $experience  = 0,
+        $training    = 0,
+        $performance = 0,
+        $bei         = null,
+        $exam        = null
+    ) {
         $this->education   = $education;
         $this->experience  = $experience;
         $this->training    = $training;
         $this->performance = $performance;
         $this->bei         = $bei;
+        $this->exam        = $exam;
+    }
+
+    /**
+     * Average only non-null values from a specific key in the scores array.
+     * Same logic used by BEI — 0 is valid, null is skipped.
+     */
+    private static function averageNullable(array $scores, string $key): float
+    {
+        $values = [];
+
+        foreach ($scores as $s) {
+            if (!is_null($s[$key] ?? null)) {
+                $values[] = (float)$s[$key];
+            }
+        }
+
+        return count($values) > 0
+            ? array_sum($values) / count($values)
+            : 0.0;
     }
 
     /**
      * Compute the final score for an applicant.
      *
+     * Rules:
+     * - education, experience, training, performance → always averaged across all raters
+     * - bei  → optional, null = not rated (skipped in average), same as before
+     * - exam → optional, null = not taken (skipped), averaged like education
+     * - grand_total = total_qs + bei + exam
+     *
      * @param array $scores Array of rating arrays.
      * @return array
      */
-    public static function computeFinalScore(array $scores)
+    public static function computeFinalScore(array $scores): array
     {
         $count = count($scores);
 
@@ -36,74 +69,61 @@ class RatingService
                 'training'    => "0.00",
                 'performance' => "0.00",
                 'bei'         => "0.00",
+                'exam'        => "0.00",
                 'total_qs'    => "0.00",
                 'grand_total' => "0.00",
             ];
         }
 
-        // Dynamically divide based on number of results
-        $education   = array_sum(array_column($scores, 'education')) / $count;
-        $experience  = array_sum(array_column($scores, 'experience')) / $count;
-        $training    = array_sum(array_column($scores, 'training')) / $count;
+        // Always averaged across all raters (same as before)
+        $education   = array_sum(array_column($scores, 'education'))   / $count;
+        $experience  = array_sum(array_column($scores, 'experience'))  / $count;
+        $training    = array_sum(array_column($scores, 'training'))    / $count;
         $performance = array_sum(array_column($scores, 'performance')) / $count;
-        // $bei         = array_sum(array_column($scores, 'bei')) / $count;
-        $beiValues = [];
 
-        foreach ($scores as $s) {
+        // BEI — null is skipped (same existing logic)
+        $bei  = self::averageNullable($scores, 'bei');
 
-            // IGNORE only NULL
-            if (is_null($s['bei'])) {
-                continue;
-            }
-
-            // Accept 0 - 100 as VALID score
-            $beiValues[] = (float)$s['bei'];
-        }
-
-        $bei = count($beiValues) > 0
-            ? array_sum($beiValues) / count($beiValues)
-            : 0;
+        // Exam — null is skipped (same logic as BEI)
+        $exam = self::averageNullable($scores, 'exam');
 
         $total_qs    = $education + $experience + $training + $performance;
-        $grand_total = $total_qs + $bei;
+        $grand_total = $total_qs + $bei + $exam;
 
         return [
-            'education'   => number_format($education, 2, '.', ''),
-            'experience'  => number_format($experience, 2, '.', ''),
-            'training'    => number_format($training, 2, '.', ''),
+            'education'   => number_format($education,   2, '.', ''),
+            'experience'  => number_format($experience,  2, '.', ''),
+            'training'    => number_format($training,    2, '.', ''),
             'performance' => number_format($performance, 2, '.', ''),
-            'bei'         => number_format($bei, 2, '.', ''),
-            'total_qs'    => number_format($total_qs, 2, '.', ''),
+            'bei'         => number_format($bei,         2, '.', ''),
+            'exam'        => number_format($exam,        2, '.', ''),
+            'total_qs'    => number_format($total_qs,    2, '.', ''),
             'grand_total' => number_format($grand_total, 2, '.', ''),
         ];
     }
 
-    public static function addRanking(array $applicants)
+    public static function addRanking(array $applicants): array
     {
-        // Sort applicants by grand_total (descending)
         uasort($applicants, function ($a, $b) {
             return $b['grand_total'] <=> $a['grand_total'];
         });
 
-        $rank = 1;
+        $rank          = 1;
         $previousScore = null;
         $sameRankCount = 0;
 
         foreach ($applicants as $id => &$data) {
             if ($previousScore !== null && $data['grand_total'] == $previousScore) {
-                // Same score = same rank
                 $data['rank'] = $rank;
                 $sameRankCount++;
             } else {
-                // New score, adjust rank considering ties
                 $rank += $sameRankCount;
                 $sameRankCount = 1;
-                $data['rank'] = $rank;
+                $data['rank']  = $rank;
             }
             $previousScore = $data['grand_total'];
         }
 
         return $applicants;
     }
-
 }

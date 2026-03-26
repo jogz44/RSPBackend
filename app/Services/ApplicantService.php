@@ -420,6 +420,7 @@ class ApplicantService
             'rating_score.training_score as training',
             'rating_score.performance_score as performance',
             'rating_score.behavioral_score as bei',
+            'rating_score.exam_score as exam',
             'rating_score.total_qs',
             'rating_score.grand_total',
             'rating_score.ranking',
@@ -467,6 +468,7 @@ class ApplicantService
                 'training'    => (float)$row->training,
                 'performance' => (float)$row->performance,
                 'bei'         => $row->bei,
+                'exam'         => $row->exam,
             ])->toArray();
 
             $computed = RatingService::computeFinalScore($scoresArray);
@@ -582,6 +584,7 @@ class ApplicantService
             'rating_score.training_score as training',
             'rating_score.performance_score as performance',
             'rating_score.behavioral_score as bei',
+            'rating_score.exam_score as exam',
             'rating_score.total_qs',
             'rating_score.grand_total',
             'rating_score.ranking',
@@ -655,6 +658,7 @@ class ApplicantService
                 'training'    => $row->training,
                 'performance' => $row->performance,
                 'bei'         => $row->bei,
+                'exam'         => $row->exam,
                 'total_qs'    => $row->total_qs,
                 'grand_total' => $row->grand_total,
                 'ranking'     => $row->ranking,
