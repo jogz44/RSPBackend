@@ -50,15 +50,15 @@ class CriteriaLiBStoreRequest extends FormRequest
             'performance.*.percentage' => 'required|integer',
 
 
-            'behavioral' => 'required|array|min:1',
-            'behavioral.*.weight' => 'required|string',
-            'behavioral.*.description' => 'required|string',
-            'behavioral.*.percentage' => 'required|integer',
+            'behavioral' => 'nullable|array|min:0',
+            'behavioral.*.weight' => 'nullable|string',
+            'behavioral.*.description' => 'nullable|string',
+            'behavioral.*.percentage' => 'nullable|integer',
 
-            'exam' => 'required|array|min:1',
-            'exam.*.weight' => 'required|string',
-            'exam.*.description' => 'required|string',
-            'exam.*.percentage' => 'required|integer',
+            'exam' => 'nullable|array|min:0',
+            'exam.*.weight' => 'nullable|string',
+            'exam.*.description' => 'nullable|string',
+            'exam.*.percentage' => 'nullable|integer',
         ];
     }
 }
