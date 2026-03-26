@@ -76,7 +76,7 @@ class Submission extends Model
         return $this->belongsTo(JobBatchesRsp::class, 'job_batches_rsp_id', 'id');
     }
 
-
+    // ----- interview ---- //
     public function schedules()
     {
         return $this->hasMany(Schedule::class, 'submission_id', 'id');
@@ -86,6 +86,24 @@ class Submission extends Model
     {
         return $this->hasMany(SchedulesApplicant::class, 'submission_id', 'id');
     }
+    // ----- interview ---- //
+
+
+    // ----- examination ---- //
+    public function schedulesExam()
+    {
+        return $this->hasMany(SchedulesExam::class, 'submission_id', 'id');
+    }
+
+    public function SchedulesExamApplicant()
+    {
+        return $this->hasMany(SchedulesExamApplicant::class, 'submission_id', 'id');
+    }
+    // ----- examination ---- //
+
+
+
+
 
 
 

@@ -7,6 +7,8 @@ use App\Models\EmailLog;
 use App\Models\JobBatchesRsp;
 use App\Models\Schedule;
 use App\Models\SchedulesApplicant;
+use App\Models\SchedulesExam;
+use App\Models\SchedulesExamApplicant;
 use App\Models\Submission;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -119,6 +121,105 @@ class ScheduleService
         return response()->json([
             'success' => true,
             'message' => "Interview invitations successfully sent to {$count} applicant(s).",
+        ]);
+    }
+
+    // sending schudule examination
+    public function sendEmailExamination($validated)
+    {
+
+        $date = Carbon::parse($validated['date_interview'])->format('F d, Y');
+        $timeFormatted = Carbon::parse($validated['time_interview'])->format('g:i A');
+        $time = $validated['time_interview']; // store this in DB
+
+        $venue = $validated['venue_interview'];
+        $batchName = $validated['batch_name'];
+
+        $count = 0;
+
+        /** ✅ CREATE ONE SCHEDULE ONLY */
+        $schedule = SchedulesExam::create([
+            'batch_name' => $batchName,
+            'date_interview' => $validated['date_interview'],
+            'time_interview' => $time,
+            'venue_interview' => $venue,
+        ]);
+
+        foreach ($validated['applicants'] as $app) {
+
+            $submission = Submission::with('nPersonalInfo')->find($app['submission_id']);
+            if (!$submission) continue;
+
+            $job = JobBatchesRsp::find($app['job_batches_rsp']);
+            if (!$job) continue;
+
+            $position = $job->Position ?? '';
+            $office = $job->Office ?? '';
+            $SalaryGrade = $job->SalaryGrade ?? '';
+            $ItemNo = $job->ItemNo ?? '';
+
+            // Get applicant info
+            if ($submission->nPersonalInfo_id) {
+                $firstname = $submission->nPersonalInfo->firstname;
+                $lastname  = $submission->nPersonalInfo->lastname;
+                $email     = $submission->nPersonalInfo->email_address ?? null;
+            } else if ($submission->ControlNo) {
+                $employee = DB::table('xPersonalAddt')
+                    ->join('xPersonal', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
+                    ->where('xPersonalAddt.ControlNo', $submission->ControlNo)
+                    ->select('xPersonalAddt.*', 'xPersonal.Firstname', 'xPersonal.Surname', 'xPersonalAddt.EmailAdd')
+                    ->first();
+
+                if (!$employee) continue;
+
+                $firstname = $employee->Firstname;
+                $lastname = $employee->Surname;
+                $email = $employee->EmailAdd;
+            } else {
+                continue;
+            }
+
+            $fullname = trim("$firstname $lastname");
+            // if (!$email) continue;
+            if (!$email) {
+                Log::info("Skipping applicant {$submission->id}, email not found");
+                continue;
+            }
+
+            /** link applicant to schedule */
+            SchedulesExamApplicant::create([
+                'schedule_id' => $schedule->id,
+                'submission_id' => $submission->id,
+            ]);
+
+            /** send email */
+            Mail::to($email)->queue((new EmailApi(
+                "Examination Invitation",
+                'mail-template.examination',
+                [
+
+                    'fullname' => $fullname,
+                    'date' => $date,
+                    'time' => $time,
+                    'venue' => $venue,
+                    'position' => $position,
+                    'SalaryGrade' => $SalaryGrade,
+                    'office' => $office,
+                    'ItemNo' => $ItemNo,
+                ]
+            ))->onQueue('emails'));
+
+            $count++;
+
+            EmailLog::create([
+                'email' => $email,
+                'activity' => 'Examination invitations',
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Examination invitations successfully sent to {$count} applicant(s).",
         ]);
     }
 

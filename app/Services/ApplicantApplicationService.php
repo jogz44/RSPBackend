@@ -1649,16 +1649,22 @@ class ApplicantApplicationService
 
         $template = 'mail-template.application';
 
+        $lastname = $applicant->lastname;
+        $firstname = $applicant->firstname;
+        $full_name = trim("$firstname $lastname");
+
 
         Mail::to($applicant->email_address)->queue((new EmailApi(
             $subject,
             $template,
             [
                 'mailSubject' => $subject,
-                'firstname' => $applicant->firstname,
-                'lastname' => $applicant->lastname,
-                'jobOffice' => $job->Office,
-                'jobPosition' => $job->Position,
+                // 'firstname' => $applicant->firstname,
+                // 'lastname' => $applicant->lastname,
+                'full_name' => $full_name,
+                'Office' => $job->Office,
+                'Position' => $job->Position,
+                'ItemNo' => $job->ItemNo,
                 'isUpdate' => $isUpdate,
             ]
 

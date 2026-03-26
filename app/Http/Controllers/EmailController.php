@@ -91,4 +91,24 @@ class EmailController extends Controller
         ]);
     }
 
+
+    // store and send email to appllicant interview
+    public function storeExaminationApplicant(Request $request, ScheduleService $scheduleService)
+    {
+        $validated = $request->validate([
+            'applicants' => 'required|array',
+            'applicants.*.submission_id' => 'required|exists:submission,id',
+            'applicants.*.job_batches_rsp' => 'required|exists:job_batches_rsp,id',
+            'date_interview' => 'required|date',
+            'time_interview' => 'required|string',
+            'venue_interview' => 'required|string',
+            'batch_name' => 'required|string',
+        ]);
+
+
+        $result = $scheduleService->sendEmailExamination($validated);
+
+        return $result;
+    }
+
 }

@@ -205,14 +205,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/job-post/{postDate}/{endDate}', [JobBatchesRspController::class,'jobPostFiltered']);
 
     Route::prefix('applicant')->group(function () {
+        Route::get('/schedule-exam', [ScheduleController::class, 'applicantListExam']); // applicant dont have yet schedule for examination
+        Route::get('/schedule-exam-list', [ScheduleController::class, 'fetchScheduleExamination']); // list of schedule
+        Route::get('/schedule-exam-detials/{examinationScheduleId}', [ScheduleController::class, 'getApplicantExamination']); // list of schedule
         Route::get('/submissions/index', [ApplicantSubmissionController::class, 'index']);
         Route::get('/list', [ApplicantSubmissionController::class, 'listOfApplicants']); // for employyee applicant
         Route::get('/schedule', [ScheduleController::class, 'applicantList']); // list of the applicant external and internal
-        Route::get('/schedule/list', [ScheduleController::class, 'fetchSchedule']); // list of schedule
+        Route::get('/schedule/list', [ScheduleController::class, 'fetchScheduleInterview']); // list of schedule
         Route::get('/schedule/details/{scheduleId}', [ScheduleController::class, 'getApplicantInterview']); // schedule of the applicant details
         Route::post('/details', [ApplicantSubmissionController::class, 'getApplicantDetails']); //  fetch the applicant detail of jon post he apply
         Route::get('/{id}', [JobBatchesRspController::class, 'applicantPds']); // fetching the applicant per job post
         Route::get('/score/{applicantId}/{jobpostId}', [RaterController::class, 'applicantScoreIndividual']); // fetch the history of the applicant
+
 
     });
 
@@ -250,7 +254,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('email')->group(function () {
-
+        Route::post('/send/examination', [EmailController::class, 'storeExaminationApplicant']); // send an interview schedule for applicant
         Route::post('/send/interview', [EmailController::class, 'storeInterviewApplicant']); // send an interview schedule for applicant
         Route::post('/send/status', [EmailController::class, 'applicantUnqualified']); // send an update of status applicant
         Route::post('/send/status/qualified', [EmailController::class, 'applicantQualified']); // send an update of status applicant

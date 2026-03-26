@@ -98,7 +98,7 @@
     <!-- Letterhead -->
         <div class="header">
 
-            <img src="{{ $message->embed(public_path('images/header2.png')) }}" alt="Logo">
+            <img src="{{ $message->embed(public_path('images/header2.jpg')) }}" alt="Logo">
 
         </div>
 
