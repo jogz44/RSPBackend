@@ -1427,10 +1427,13 @@ class ReportService
     // fetch the rating of the rater on the  specific job post
     public function ratingFormQualificationStandard($validated)
     {
+        $user = Auth::user();
+
         $jobBatch = JobBatchesRsp::with([
-            'ratingScores' => function ($query) {
+            'ratingScores' => function ($query) use ($user){
                 $query->select(
                     'id',
+                    'user_id',
                     'nPersonalInfo_id',
                     'ControlNo',
                     'job_batches_rsp_id',
@@ -1443,7 +1446,7 @@ class ReportService
                     'total_qs',
                     'grand_total',
                     'ranking'
-                )
+                )->where('user_id',$user->id)
                     // ✅ Eager load applicant names via nested with
                     ->with([
                         'internalApplicant' => fn($q) => $q->select('id', 'firstname', 'lastname', ),
@@ -1501,6 +1504,14 @@ class ReportService
                 'grand_total'      => $score->grand_total,
                 'ranking'          => $score->ranking,
             ]),
+            // ✅ Rater info from auth user
+            'rater_assigned' => [
+                'id'    => $user->id,
+                'name'  => $user->name,
+                'role' => $user->role ?? 'City Adminstrator' ,
+                'representative' => $user->representative ?? 'Chairperson',
+            ],
+
         ]);
     }
 }
