@@ -32,7 +32,7 @@ class RaterController extends Controller
     }
 
     // fetch applicant with score
-    public function fetchApplicant($jobpostId,) // fetch the score of the applicant
+    public function fetchApplicant($jobpostId) // fetch the score of the applicant
     {
 
         $result = $this->applicantService->score($jobpostId);

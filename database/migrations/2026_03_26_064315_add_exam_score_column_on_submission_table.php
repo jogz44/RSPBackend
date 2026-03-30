@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('submission', function (Blueprint $table) {
             //
-            $table->integer('exam_score')->nullable()->after('eligibility_qualification');
+            // $table->integer('exam_score')->nullable()->after('eligibility_qualification');
         });
     }
 
@@ -25,7 +25,7 @@ return new class extends Migration
         Schema::table('submission', function (Blueprint $table) {
             //
 
-            $table->dropColumn('exam_score');
+            // $table->dropColumn('exam_score');
         });
     }
 };

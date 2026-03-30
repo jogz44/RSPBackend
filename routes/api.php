@@ -102,7 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::middleware('password.change')->group(function () {
 
     Route::prefix('rater')->group(function () {
-        Route::get('/assigned-job-batches', [RaterController::class, 'listOfAssignedJobPost']);
+        Route::get('/assigned-job-batches', [RaterController::class, 'listOfAssignedJobPost']); // fetch the list of job post assigned on rater
         Route::get('/', [UsersController::class, 'getAuthenticatedrater']); // dashboard of rater
         Route::post('/logout', [RaterAuthController::class, 'logoutRater']);
         Route::get('/users', [AuthController::class, 'getAllUsers']);

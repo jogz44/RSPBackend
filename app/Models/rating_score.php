@@ -24,6 +24,9 @@ class rating_score extends Model
         'ranking',
         'submitted',
         'ControlNo',
+
+        'exam_score',
+        'exam_percentage'
         // 'rater_name'
     ];
 

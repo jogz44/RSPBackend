@@ -22,7 +22,10 @@ class draft_score extends Model
         'ranking',
         'ControlNo',
         'user_id',
-        'rater_name'
+        'rater_name',
+
+        'exam_score',
+        'exam_percentage',
     ];
 
 

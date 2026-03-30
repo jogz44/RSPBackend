@@ -8,6 +8,7 @@ use App\Models\draft_score;
 use App\Models\rating_score;
 use App\Models\Submission;
 use App\Models\User;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -409,12 +410,16 @@ class RaterService
 
         $user = Auth::user();
 
+        // $today = Carbon::today();
+
         $jobBatchIds = DB::table('job_batches_user')
             ->where('user_id', $user->id)
+
             ->pluck('job_batches_rsp_id');
 
         $assignedJobs = \App\Models\JobBatchesRsp::select('id', 'Office', 'Position')
             ->whereIn('id', $jobBatchIds)
+            // ->whereDate('end_date', '<=', $today) // ✅ only include job posts that are already posted
             ->get()
             ->map(function ($job) use ($user) {
                 $job->submitted = rating_score::where('user_id', $user->id)
@@ -431,7 +436,7 @@ class RaterService
     }
 
     // fetch the criteria and applicant of job post
-    public function getCriteriaOfJobpostAndApplicant($id)
+    public function getCriteriaOfJobpostAndApplicant($id) // jobpost id
     {
 
         $userId = Auth::id(); // ✅ get current logged-in rater
@@ -449,6 +454,8 @@ class RaterService
                 'nPersonalInfo.training',
                 'nPersonalInfo.eligibity',
                 'nPersonalInfo.rating_score',
+                'applicantExamScore'
+
 
             ])
             ->where('status', 'qualified')
@@ -456,6 +463,8 @@ class RaterService
 
         $applicants = $submissions->map(function ($submission) use ($userId) {
             $info = $submission->nPersonalInfo;
+
+            $examScore = $submission->applicantExamScore;
 
             if (!$info && $submission->ControlNo) {
                 $xPDS = new \App\Http\Controllers\xPDSController();
@@ -541,12 +550,22 @@ class RaterService
             });
 
             return [
+                // applicant credentials
                 'id'              => $submission->id,
                 'nPersonalInfo_id' => $submission->nPersonalInfo_id,
                 'ControlNo'       => $submission->ControlNo,
                 'exam_score'       => (int) $submission->exam_score,
                 'firstname'       => $info['firstname'] ?? '',
                 'lastname'        => $info['lastname'] ?? '',
+
+                // applicant score
+                'applicant_exam_score' => $examScore ? [
+                    'exam_score'      => $examScore->exam_score ?? null,
+                    'exam_total_score' => $examScore->exam_total_score ?? null,
+
+                ] : null,
+
+                // applicant rating score
                 'rating_score'    => [
                     'education_score'  => $ratingScore->education_score ?? null,
                     'experience_score' => $ratingScore->experience_score ?? null,
@@ -560,18 +579,21 @@ class RaterService
                     'grand_total'      => $ratingScore->grand_total ?? null,
                     'ranking'          => $ratingScore->ranking ?? null,
                 ],
+                // applicant draft score
                 'draft_score'     => [
                     'education_score'  => $draftScore->education_score ?? null,
                     'experience_score' => $draftScore->experience_score ?? null,
                     'training_score'   => $draftScore->training_score ?? null,
                     'performance_score' => $draftScore->performance_score ?? null,
                     'behavioral_score' => $draftScore->behavioral_score ?? null,
-                    // 'exam_score' => $draftScore->exam_score ?? null, // add
-                    // 'exam_percentage' => $draftScore->exam_percentage ?? null, //,
+                    'exam_score' => $draftScore->exam_score ?? null, // add
+                    'exam_percentage' => $draftScore->exam_percentage ?? null, //,
                     'total_qs'         => $draftScore->total_qs ?? null,
                     'grand_total'      => $draftScore->grand_total ?? null,
                     'ranking'          => $draftScore->ranking ?? null,
                 ],
+
+                // applicant information
                 'education'       => $educationData,
                 'work_experience' => $experienceData,
                 'training'        => $trainingData,
@@ -728,11 +750,9 @@ class RaterService
                     'training_score' => 'required|numeric|min:0|max:100',
                     'performance_score' => 'required|numeric|min:0|max:100',
                     'behavioral_score' => 'nullable|numeric|min:0|max:100',
-                    // 'exam_score' => 'nullable|numeric|min:0|max:100',
-                    // 'exam_score' => 'nullable|numeric|min:0|max:100',
-                    // 'exam_percentage' => 'nullable|numeric|min:0|max:100',
-                    // 'behavioral_score' => 'nullable|string',
-                    'total_qs' => 'required|numeric|min:0|max:75',
+                    'exam_score' => 'nullable|numeric|min:0|max:100',
+                    'exam_percentage' => 'nullable|numeric|min:0|max:100',
+                    'total_qs' => 'required|numeric|min:0|max:100',
                     'grand_total' => 'required|numeric|min:0|max:100',
                     'ranking' => 'required|integer',
 
@@ -759,9 +779,8 @@ class RaterService
                     'training_score' => $validated['training_score'],
                     'performance_score' => $validated['performance_score'],
                     'behavioral_score' => $validated['behavioral_score'],
-                    // 'exam_score' => $validated['exam_score'],
-                    // 'exam_score' => 'nullable|numeric|min:0|max:100',
-                    // 'exam_percentage' => 'nullable|numeric|min:0|max:100',
+                    'exam_score' => $validated['exam_score'],
+                    'exam_percentage' => $validated['exam_percentage'],
                     'total_qs' => $validated['total_qs'],
                     'grand_total' => $validated['grand_total'],
                     'ranking' => $validated['ranking'],
@@ -879,9 +898,9 @@ class RaterService
                     'training_score' => 'nullable|numeric|min:0|max:100',
                     'performance_score' => 'nullable|numeric|min:0|max:100',
                     'behavioral_score' => 'nullable|numeric|min:0|max:100',
-                    // 'exam_score' => 'nullable|numeric|min:0|max:100',
-                    // 'exam_percentage' => 'nullable|numeric|min:0|max:100',
-                    'total_qs' => 'nullable|numeric|min:0|max:75',
+                    'exam_score' => 'nullable|numeric|min:0|max:100',
+                    'exam_percentage' => 'nullable|numeric|min:0|max:100',
+                    'total_qs' => 'nullable|numeric|min:0|max:100',
                     'grand_total' => 'nullable|numeric|min:0|max:100',
                     'ranking' => 'nullable|integer',
 
@@ -911,8 +930,8 @@ class RaterService
                         'training_score' => $validated['training_score'],
                         'performance_score' => $validated['performance_score'],
                         'behavioral_score' => $validated['behavioral_score'],
-                        // 'exam_score' => 'nullable|numeric|min:0|max:100',
-                        // 'exam_percentage' => 'nullable|numeric|min:0|max:100',
+                        'exam_score' => $validated['exam_score'],
+                        'exam_percentage' => $validated['exam_percentage'],
                         'total_qs' => $validated['total_qs'],
                         'grand_total' => $validated['grand_total'],
                         'ranking' => $validated['ranking'],
