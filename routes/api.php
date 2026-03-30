@@ -1,31 +1,32 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\LogController;
+use App\Http\Controllers\ApplicantExamScoreController;
+use App\Http\Controllers\ApplicantSubmissionController;
+use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\xPDSController;
-use App\Http\Controllers\EmailController;
-use App\Http\Controllers\RaterController;
-use App\Http\Controllers\UsersController;
-use App\Http\Controllers\ReportController;
 use App\Http\Controllers\CriteriaController;
-use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DesignationQSController;
+use App\Http\Controllers\EmailController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ExportApplicantController;
+use App\Http\Controllers\JobBatchesRspController;
+use App\Http\Controllers\LogController;
+use App\Http\Controllers\OnCriteriaJobController;
+use App\Http\Controllers\OnFundedPlantillaController;
 use App\Http\Controllers\PlantillaController;
 use App\Http\Controllers\RaterAuthController;
-use App\Http\Controllers\SubmissionController;
-use App\Http\Controllers\ViewActiveController;
-use App\Http\Controllers\AppointmentController;
-use App\Http\Controllers\VerificationController;
-use App\Http\Controllers\DesignationQSController;
-use App\Http\Controllers\JobBatchesRspController;
-use App\Http\Controllers\OnCriteriaJobController;
-use App\Http\Controllers\ExportApplicantController;
+use App\Http\Controllers\RaterController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StructureDetailController;
-use App\Http\Controllers\OnFundedPlantillaController;
-use App\Http\Controllers\ApplicantSubmissionController;
-
+use App\Http\Controllers\SubmissionController;
+use App\Http\Controllers\UsersController;
+use App\Http\Controllers\VerificationController;
+use App\Http\Controllers\ViewActiveController;
+use App\Http\Controllers\xPDSController;
+use App\Models\ApplicantExamScore;
+use Illuminate\Support\Facades\Route;
 
 // testing route
 // Route::get('/storage-status', function () {
@@ -64,8 +65,11 @@ Route::get('employee/{ControlNo}', [EmployeeController::class, 'appliedEmployee'
 // applying route
 Route::prefix('applicant')->group(function () {
     Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication']); // for external applicant with zip file
+    Route::post('/submissions/manual', [ApplicantSubmissionController::class, 'applicantStoreApplicationManual']); // for applicant manual
     Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication']); // employyee applicant applying job
     Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication']); // confirmation for updating his excek file
+
+
 });
 
 
@@ -210,6 +214,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/job-post/{postDate}/{endDate}', [JobBatchesRspController::class,'jobPostFiltered']);
 
     Route::prefix('applicant')->group(function () {
+        Route::get('/exam/list', [ApplicantExamScoreController::class, 'applicantDontHaveExamScore']); // for external applicant with zip file
+
         Route::get('/schedule-exam', [ScheduleController::class, 'applicantListExam']); // applicant dont have yet schedule for examination
         Route::get('/schedule-exam-list', [ScheduleController::class, 'fetchScheduleExamination']); // list of schedule
         Route::get('/schedule-exam-detials/{examinationScheduleId}', [ScheduleController::class, 'getApplicantExamination']); // list of schedule

@@ -280,16 +280,18 @@ class EmployeeService
                     if (empty($images[$category])) continue;
 
                     // ✅ Now includes job_id so each job has its own folder
-                    $folderPath      = "applicant_files/{$controlNo}/job_{$jobId}/{$category}";
-                    $alreadyHasFiles = Storage::disk('public')->exists($folderPath)
-                        && count(Storage::disk('public')->files($folderPath)) > 0;
+                    // $folderPath      = "applicant_files/{$controlNo}/job_{$jobId}/{$category}";
+                    // $alreadyHasFiles = Storage::disk('public')->exists($folderPath)
+                    //     && count(Storage::disk('public')->files($folderPath)) > 0;
 
-                    if ($alreadyHasFiles) {
-                        $skippedCategories[] = $category;
-                        continue;
-                    }
+                    // if ($alreadyHasFiles) {
+                    //     $skippedCategories[] = $category;
+                    //     continue;
+                    // }
 
                     // ✅ Pass jobId to store in correct folder
+                    // $this->storeEmployeeImages([$category => $images[$category]], $controlNo, $jobId);
+                    // $updatedCategories[] = $category;
                     $this->storeEmployeeImages([$category => $images[$category]], $controlNo, $jobId);
                     $updatedCategories[] = $category;
                 }

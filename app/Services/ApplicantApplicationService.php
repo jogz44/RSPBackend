@@ -243,6 +243,180 @@ class ApplicantApplicationService
             ], 500);
         }
     }
+
+    // store applicant applicantion excel file
+    public function applicantApplicationManual($validated, $excelFile, $zipFile)
+    {
+        // args $excelfile and $zipfile
+        try {
+
+            // Step 1: Read and parse Excel WITHOUT saving to database
+            // $excelFile = $request->file('excel_file');
+            $excelData = $this->parseExcelData($excelFile);
+
+            // ➤ ADD THE MATCHING CHECK HERE
+            // $excelEmail = strtolower(trim($excelData['personal_info']['email_address']));
+            // $userEmail  = strtolower(trim($validated['email']));
+
+            // if ($excelEmail !== $userEmail) {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => "Please check your email, it doesn’t match with the email inside the PDS (Excel file).",
+            //         'email' => "  Your email use on verification:$userEmail"
+            //     ], 422);
+            //     // return [
+
+            // }
+
+            // Step 2: Check for duplicate applicant based on NAME and BIRTHDATE ONLY
+            // This allows same email to apply multiple times
+            $existingSubmission = Submission::whereHas('nPersonalInfo', function ($query) use ($excelData) {
+                $query->where('firstname', $excelData['personal_info']['firstname'])
+                    ->where('lastname', $excelData['personal_info']['lastname'])
+                    ->whereDate('date_of_birth', $excelData['personal_info']['date_of_birth']);
+            })
+                ->where('job_batches_rsp_id', $validated['job_batches_rsp_id'])
+                ->first();
+
+
+            // 1. Get current job post
+            $currentJob = JobBatchesRsp::findOrFail($validated['job_batches_rsp_id']);
+
+            // 2. Get all job posts with the SAME start & end date
+            $jobGroupIds = JobBatchesRsp::where('post_date', $currentJob->post_date)
+                ->where('end_date', $currentJob->end_date)
+                ->pluck('id');
+
+            // 3. Count how many applications the applicant submitted in this job group
+            $applicationCount = Submission::whereIn('job_batches_rsp_id', $jobGroupIds)
+                ->whereHas('nPersonalInfo', function ($q) use ($excelData) {
+                    $q->where('firstname', $excelData['personal_info']['firstname'])
+                        ->where('lastname',  $excelData['personal_info']['lastname'])
+                        ->whereDate('date_of_birth', $excelData['personal_info']['date_of_birth']);
+                })
+                ->count();
+
+            $post_date = Carbon::parse($currentJob->post_date)->format('F d, Y');
+            $end_date   = Carbon::parse($currentJob->end_date)->format('F d, Y');
+
+            // 4. Block if already applied 3 times
+            if ($applicationCount >= 3) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "You have already applied for 3 job posts with the same application period (" .
+                        $post_date . " to " .     $end_date  . ").",
+                ], 422);
+            }
+
+            if ($existingSubmission) {
+                // Store files temporarily
+                // $zipFile = $excelFile;
+                $tempZipFileName = 'temp_' . $this->generateFileName($zipFile);
+                $tempZipPath = $zipFile->storeAs('temp_zips', $tempZipFileName);
+
+                $excelFileName = $this->generateFileName($excelFile);
+                $tempExcelPath = $excelFile->storeAs('temp_excels', 'temp_' . $excelFileName);
+
+                // Generate unique token for this confirmation
+                $confirmationToken = Str::random(32);
+
+                // Store parsed data in cache with 10 minute expiration
+                Cache::put("applicant_confirmation_{$confirmationToken}", [
+                    'excel_data' => $excelData,
+                    'temp_zip_path' => $tempZipPath,
+                    'temp_excel_path' => $tempExcelPath,
+                    'job_batches_rsp_id' => $validated['job_batches_rsp_id'],
+                    'existing_submission_id' => $existingSubmission->id,
+                ], now()->addMinutes(10));
+
+                return response()->json([
+                    'success' => false,
+                    'message' => "You've already applied for this job. Do you want to update your previous application?",
+                    'confirmation_token' => $confirmationToken,
+                    'expires_in_minutes' => 10,
+                ]);
+
+            }
+
+            // Step 3: Check if email already exists for ANY job (optional warning, not blocking)
+            $emailExists = nPersonal_info::where('email_address', $excelData['personal_info']['email_address'])->exists();
+
+            if ($emailExists) {
+                Log::info('Email already exists but allowing submission', [
+                    'email' => $excelData['personal_info']['email_address'],
+                    'job_id' => $validated['job_batches_rsp_id']
+                ]);
+            }
+
+            // No duplicate based on name+birthdate - proceed with normal save
+            DB::beginTransaction();
+            try {
+                $applicant = $this->saveApplicantData($excelData, $validated['job_batches_rsp_id']);
+
+                // Process ZIP File
+                // $zipFile = $excelFile;
+                $zipFileName = $this->generateFileName($zipFile);
+                $zipPath = $zipFile->storeAs('zips', $zipFileName);
+
+                try {
+                    $this->validateAndNormalizeZipStructure($zipPath);
+                } catch (\Exception $e) {
+                    Storage::delete($zipPath);
+
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage()
+                    ], 422);
+                }
+
+                $this->extractApplicantZip($zipPath, $applicant->id);
+
+                ApplicantZip::updateOrCreate(
+                    ['nPersonalInfo_id' => $applicant->id],
+                    ['zip_path' => $zipPath]
+                );
+
+                // Store Excel file
+                $excelFileName = $this->generateFileName($excelFile);
+                $excelFile->storeAs('excels', $excelFileName);
+
+                // Send Email
+                $this->sendApplicantEmail($applicant, $validated['job_batches_rsp_id'], false);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Applicant imported successfully and confirmation email sent.',
+                    'is_update' => false,
+                    'excel_file_name' => $excelFileName,
+                    'nPersonalInfo_id' => $applicant->id,
+                ]);
+
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed during Excel import.',
+                'errors' => $e->failures(),
+            ], 422);
+        } catch (\Exception $e) {
+            // Log the full error for debugging
+            Log::error('Failed to import Excel file', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to import Excel file.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
     /**
      * Handle user confirmation (YES or NO)
      */

@@ -35,6 +35,13 @@ class Submission extends Model
         'training_qualification',
         'eligibility_qualification',
 
+        
+        'exam_details',
+        'exam_type',
+        'exam_total_score',
+        'exam_date',
+        'exam_remarks'
+
     ];
 
     protected $casts = [

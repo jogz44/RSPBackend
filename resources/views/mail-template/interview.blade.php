@@ -154,7 +154,7 @@
 
             <ul>
 
-                <li>If you have any clarifications, you may reach us through our mobile no.______</li>
+                <li>If you have any clarifications, you may reach us through our mobile no. 09973962684</li>
             </ul>
             <p>Kindly reply to this email to <strong>confirm your attendance</strong></p>
             <p>Thank you.</p>

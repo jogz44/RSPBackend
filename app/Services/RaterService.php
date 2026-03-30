@@ -28,7 +28,7 @@ class RaterService
 
 
     //create account and register rater account
-    public function create($validated,$request)
+    public function create($validated, $request)
     {
         $authUser = Auth::user(); // The currently logged-in admin (who is creating the rater)
 
@@ -43,8 +43,8 @@ class RaterService
             'role_id' => 2,   // 2 = Rater
             'remember_token' => Str::random(32),
             'must_change_password' => true, // ← Force password change
-            // 'role' => $validated['role'],
-            // 'representative' => $validated['representative'],
+            'role' => $validated['role'],
+            'representative' => $validated['representative'],
         ]);
 
         // Attach job batches
@@ -278,7 +278,7 @@ class RaterService
 
 
     // change password for the rater
-    public function updatePassword($validated,$request)
+    public function updatePassword($validated, $request)
     {
 
         if ($validated->fails()) {
@@ -328,7 +328,7 @@ class RaterService
     }
 
     // change password rater account if first time login
-    public function changePassword($validator,$request)
+    public function changePassword($validator, $request)
     {
 
         if ($validator->fails()) {

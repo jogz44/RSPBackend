@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ApplicantApplicationRequest;
-use Carbon\Carbon;
 use App\Models\Submission;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use App\Services\ApplicantApplicationService;
 use App\Services\EmployeeService;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
+use Illuminate\Http\Request; // ✅ CORRECT
 
 
 class ApplicantSubmissionController extends Controller
@@ -25,37 +25,6 @@ class ApplicantSubmissionController extends Controller
     }
 
 
-    // // list of applicant
-    // public function listOfApplicants(Request $request)
-    // {
-    //     $search = $request->input('search');
-    //     $perPage = $request->input('per_page', 10);
-
-    //     $query = Submission::query()
-    //         ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
-
-    //         ->select(
-    //             DB::raw('MIN(p.id) as nPersonal_id'),   // ✅ pick the first/lowest id
-    //             'p.firstname',
-    //             'p.lastname',
-    //             'p.date_of_birth',
-    //             DB::raw('COUNT(submission.id) as jobpost')
-    //         )
-    //         // ✅ Group by name + DOB instead of id — deduplicates same person
-    //         ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
-
-    //     if ($search) {
-    //         $query->where(function ($q) use ($search) {
-    //             $q->where('p.firstname', 'like', "%{$search}%")
-    //                 ->orWhere('p.lastname', 'like', "%{$search}%")
-    //                 ->orWhereRaw("CONCAT(p.firstname,' ',p.lastname) LIKE ?", ["%{$search}%"]);
-    //         });
-    //     }
-
-    //     $schedule = $query->paginate($perPage);
-
-    //     return response()->json($schedule);
-    // }
 
     // list of applicant applied internal - external
     public function listOfApplicants(Request $request)
@@ -293,6 +262,22 @@ class ApplicantSubmissionController extends Controller
     }
 
     // applicant application zipfile and excel file
+    public function applicantStoreApplicationManual(Request $request)
+    {
+
+        $validated = $request->validate([
+            'excel_file' => 'required|file|mimes:xlsx,xls,csv,xlsm',
+            'zip_file' => 'required|file|mimes:zip',
+            'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id',
+
+        ]);
+
+        $result = $this->applicantApplicationService->applicantApplicationManual($validated, $request->file('excel_file'), $request->file('zip_file'));
+
+        return $result;
+    }
+
+    // applicant application zipfile and excel file
     public function updatingApplicantApplication(Request $request)
     {
 
@@ -306,20 +291,20 @@ class ApplicantSubmissionController extends Controller
         return $result;
     }
 
-    // internal employee applicant application image 
+    // internal employee applicant application image
     public function employeeStoreApplicantApplication(Request $request)
     {
         $validated = $request->validate([
             'ControlNo'           => 'required|string',
             'job_batches_rsp_id'  => 'required|exists:job_batches_rsp,id',
             'images'              => 'nullable|array',
-            'images.education'    => 'required|array|min:1',
+            'images.education'    => 'nullable|array|min:1',
             'images.education.*'  => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'images.training'     => 'required|array|min:1',
+            'images.training'     => 'nullable|array|min:1',
             'images.training.*'   => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'images.experience'   => 'required|array',
+            'images.experience'   => 'nullable|array',
             'images.experience.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'images.eligibility'   => 'required|array',
+            'images.eligibility'   => 'nullable|array',
             'images.eligibility.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
