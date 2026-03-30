@@ -27,7 +27,7 @@ class VerificationController extends Controller
         $request->validate([
             'email' => 'required|email',
             // Comment out reCAPTCHA validation for now
-            // 'recaptchaResponse' => 'required',
+            'recaptchaResponse' => 'required',
         ]);
 
         $result = $this->recaptchaService->code($request);

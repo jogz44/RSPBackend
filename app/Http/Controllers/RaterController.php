@@ -9,7 +9,7 @@ use App\Models\rating_score;
 use App\Services\ApplicantService;
 use App\Services\RaterService;
 use Illuminate\Http\Request;
-
+use PhpParser\Node\Expr\FuncCall;
 
 class RaterController extends Controller
 {
@@ -142,6 +142,8 @@ class RaterController extends Controller
     }
 
 
+    // get the score of the applicant on the rating_score
+    // rater score of applicant can get the score of the applicant on the rating_score
 
 
 }
