@@ -152,7 +152,7 @@ class ApplicantService
     }
 
 
-    // get the pdf of employee
+    // get the pds of applicant base on the submission id
     public function getApplicantPds($id)
     {
         // 🔹 Fetch the submission by its ID
@@ -248,50 +248,78 @@ class ApplicantService
             ->first();
 
         // Generate image URL
-        $imageUrl = null;
-        if ($info && isset($info['image_path']) && $info['image_path']) {
-            if (Storage::disk('public')->exists($info['image_path'])) {
-                $baseUrl = config('app.url');
-                $imageUrl = $baseUrl . '/storage/' . $info['image_path'];
+        // $imageUrl = null;
+        // if ($info && isset($info['image_path']) && $info['image_path']) {
+        //     if (Storage::disk('public')->exists($info['image_path'])) {
+        //         $baseUrl = config('app.url');
+        //         $imageUrl = $baseUrl . '/storage/' . $info['image_path'];
+        //     }
+        // }
+
+        // Generate image URL
+            $imageUrl = null;
+            $rawImagePath = $info['image_path'] ?? null;
+
+            if ($rawImagePath) {
+                // Case 1: Already a full URL (from external DB)
+                if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
+                    $imageUrl = $rawImagePath;
+                }
+                // Case 2: Local storage path
+                elseif (Storage::disk('public')->exists($rawImagePath)) {
+                    $baseUrl = config('app.url');
+                    $imageUrl = $baseUrl . '/storage/' . $rawImagePath;
+                }
             }
-        }
-        // $trainingImages = [];
-        // $educationImages = [];
+
+
+        // $trainingImages    = [];
+        // $educationImages   = [];
         // $eligibilityImages = [];
-        // $experienceImages = [];
+        // $experienceImages  = [];
 
         // if ($info && isset($info['id'])) {
         //     $baseFolder = storage_path('app/public/applicant_files/' . $submission->nPersonalInfo_id);
 
         //     $folders = [
-        //         'training' => $baseFolder . '/training',
-        //         'education' => $baseFolder . '/education',
+        //         'training'    => $baseFolder . '/training',
+        //         'education'   => $baseFolder . '/education',
         //         'eligibility' => $baseFolder . '/eligibility',
-        //         'experience' => $baseFolder . '/experience',
+        //         'experience'  => $baseFolder . '/experience',
         //     ];
 
         //     foreach ($folders as $type => $path) {
         //         if (is_dir($path)) {
         //             $files = collect(scandir($path))
         //                 ->filter(fn($file) => !in_array($file, ['.', '..']))
-        //                 ->map(fn($file) => asset('storage/applicant_files/' . $info['id']. $type . '/' . $file))
+        //                 ->map(fn($file) => asset('storage/applicant_files/' . $info['id'] . '/' . $type . '/' . $file)) // ✅ added slash
         //                 ->values()
         //                 ->toArray();
 
-        //             if ($type === 'training') $trainingImages = $files;
-        //             if ($type === 'education') $educationImages = $files;
+        //             if ($type === 'training')    $trainingImages    = $files;
+        //             if ($type === 'education')   $educationImages   = $files;
         //             if ($type === 'eligibility') $eligibilityImages = $files;
-        //             if ($type === 'experience') $experienceImages = $files;
+        //             if ($type === 'experience')  $experienceImages  = $files;
         //         }
         //     }
+        // }
 
         $trainingImages    = [];
         $educationImages   = [];
         $eligibilityImages = [];
         $experienceImages  = [];
 
-        if ($info && isset($info['id'])) {
-            $baseFolder = storage_path('app/public/applicant_files/' . $submission->nPersonalInfo_id);
+        // ✅ Use ControlNo folder for internal employees, nPersonalInfo_id for external
+        // ✅ Use ControlNo folder for internal employees, nPersonalInfo_id for external
+        $folderKey = $submission->ControlNo ?? ($info['id'] ?? $submission->nPersonalInfo_id ?? null);
+
+        if ($folderKey) {
+            // ✅ Include job_{id} in path for external applicants (ControlNo-based)
+            $jobFolder = $submission->ControlNo
+                ? "job_{$submission->job_batches_rsp_id}"
+                : null;
+
+            $baseFolder = storage_path('app/public/applicant_files/' . $folderKey . ($jobFolder ? '/' . $jobFolder : ''));
 
             $folders = [
                 'training'    => $baseFolder . '/training',
@@ -304,7 +332,11 @@ class ApplicantService
                 if (is_dir($path)) {
                     $files = collect(scandir($path))
                         ->filter(fn($file) => !in_array($file, ['.', '..']))
-                        ->map(fn($file) => asset('storage/applicant_files/' . $info['id'] . '/' . $type . '/' . $file)) // ✅ added slash
+                        ->map(fn($file) => asset(
+                            'storage/applicant_files/' . $folderKey .
+                                ($jobFolder ? '/' . $jobFolder : '') .
+                                '/' . $type . '/' . $file
+                        ))
                         ->values()
                         ->toArray();
 
@@ -315,6 +347,34 @@ class ApplicantService
                 }
             }
         }
+        // $folderKey = $submission->ControlNo ?? ($info['id'] ?? $submission->nPersonalInfo_id ?? null);
+
+        // if ($folderKey) {
+        //     $baseFolder = storage_path('app/public/applicant_files/' . $folderKey);
+
+        //     $folders = [
+        //         'training'    => $baseFolder . '/training',
+        //         'education'   => $baseFolder . '/education',
+        //         'eligibility' => $baseFolder . '/eligibility',
+        //         'experience'  => $baseFolder . '/experience',
+        //     ];
+
+        //     foreach ($folders as $type => $path) {
+        //         if (is_dir($path)) {
+        //             $files = collect(scandir($path))
+        //                 ->filter(fn($file) => !in_array($file, ['.', '..']))
+        //                 ->map(fn($file) => asset('storage/applicant_files/' . $folderKey . '/' . $type . '/' . $file))
+        //                 ->values()
+        //                 ->toArray();
+
+        //             if ($type === 'training')    $trainingImages    = $files;
+        //             if ($type === 'education')   $educationImages   = $files;
+        //             if ($type === 'eligibility') $eligibilityImages = $files;
+        //             if ($type === 'experience')  $experienceImages  = $files;
+        //         }
+        //     }
+        // }
+
         return response()->json([
             // 'applicant_id' => $submission->id,
             'applicant_id' => $submission->id,
@@ -477,8 +537,10 @@ class ApplicantService
                 'applicant_id'     => $firstRow->id,
                 'nPersonalInfo_id' => (string)$firstRow->nPersonalInfo_id,
                 'ControlNo'        => $firstRow->ControlNo,
+                'jobpostId'     => (int) $firstRow->job_batches_rsp_id,
                 'firstname'        => $firstname,  // ✅ now with fallback
                 'lastname'         => $lastname,   // ✅ now with fallback
+
             ] + $computed;
         }
 
@@ -666,7 +728,7 @@ class ApplicantService
     //         ]);
     //     }
 
-
+    // fetching the score details of the applicant base on the job batch id and applicant id
     public function applicantScoreDetials($applicantId, $jobBatchId)
     {
         $historyRecords = rating_score::select(
@@ -734,6 +796,7 @@ class ApplicantService
                         'submission_id'    => (int)$first->submission_id,
                         'nPersonalInfo_id' => (int)$first->nPersonalInfo_id,
                         'ControlNo'        => $first->ControlNo,
+
                         'firstname'        => $firstname,
                         'lastname'         => $lastname,
                         'image_url'        => $imageUrl,

@@ -22,11 +22,13 @@ return [
         // '*'
         'http://192.168.8.182:9000', // 👈 Add this
         'http://192.168.8.80:9002', // 👈 Add this
+        'http://192.168.8.80:9003', // 👈 Add this
         'http://localhost:9000',
         'http://localhost:1000',
         'http://localhost:8000',
         'http://localhost:9001',
         'http://localhost:9002',
+        'http://localhost:9003',
         // 'http://localhost:8000',
         // 'http://192.168.100.105:9000',
         'http://192.168.8.80:9000',
@@ -35,6 +37,7 @@ return [
         'http://10.0.1.35:9000',
         'http://192.168.8.182:7000',
         'http://192.168.8.182:1000',
+        'http://192.168.100.174:8000',
     ],
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],

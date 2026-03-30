@@ -439,7 +439,7 @@ class RaterService
         // Get criteria
         $criteria = criteria_rating::with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals', 'jobBatch:id,PositionID'])
             ->where('job_batches_rsp_id', $id)
-            ->get();    
+            ->get();
 
         // Get applicants with relationships
         $submissions = Submission::where('job_batches_rsp_id', $id)
@@ -449,7 +449,7 @@ class RaterService
                 'nPersonalInfo.training',
                 'nPersonalInfo.eligibity',
                 'nPersonalInfo.rating_score',
-                // ⚠️ Don’t eager-load all draft scores (they belong to multiple raters)
+
             ])
             ->where('status', 'qualified')
             ->get();
@@ -544,6 +544,7 @@ class RaterService
                 'id'              => $submission->id,
                 'nPersonalInfo_id' => $submission->nPersonalInfo_id,
                 'ControlNo'       => $submission->ControlNo,
+                'exam_score'       => (int) $submission->exam_score,
                 'firstname'       => $info['firstname'] ?? '',
                 'lastname'        => $info['lastname'] ?? '',
                 'rating_score'    => [
@@ -551,6 +552,9 @@ class RaterService
                     'experience_score' => $ratingScore->experience_score ?? null,
                     'training_score'   => $ratingScore->training_score ?? null,
                     'performance_score' => $ratingScore->performance_score ?? null,
+                    'behavioral_score' => $ratingScore->behavioral_score ?? null,
+                    'exam_score' => $ratingScore->exam_score ?? null, // add
+                    'exam_percentage' => $ratingScore->exam_percentage ?? null, //,
                     'behavioral_score' => $ratingScore->behavioral_score ?? null,
                     'total_qs'         => $ratingScore->total_qs ?? null,
                     'grand_total'      => $ratingScore->grand_total ?? null,
@@ -562,6 +566,8 @@ class RaterService
                     'training_score'   => $draftScore->training_score ?? null,
                     'performance_score' => $draftScore->performance_score ?? null,
                     'behavioral_score' => $draftScore->behavioral_score ?? null,
+                    // 'exam_score' => $draftScore->exam_score ?? null, // add
+                    // 'exam_percentage' => $draftScore->exam_percentage ?? null, //,
                     'total_qs'         => $draftScore->total_qs ?? null,
                     'grand_total'      => $draftScore->grand_total ?? null,
                     'ranking'          => $draftScore->ranking ?? null,
@@ -722,7 +728,9 @@ class RaterService
                     'training_score' => 'required|numeric|min:0|max:100',
                     'performance_score' => 'required|numeric|min:0|max:100',
                     'behavioral_score' => 'nullable|numeric|min:0|max:100',
-                    'exam_score' => 'nullable|numeric|min:0|max:100',
+                    // 'exam_score' => 'nullable|numeric|min:0|max:100',
+                    // 'exam_score' => 'nullable|numeric|min:0|max:100',
+                    // 'exam_percentage' => 'nullable|numeric|min:0|max:100',
                     // 'behavioral_score' => 'nullable|string',
                     'total_qs' => 'required|numeric|min:0|max:75',
                     'grand_total' => 'required|numeric|min:0|max:100',
@@ -751,7 +759,9 @@ class RaterService
                     'training_score' => $validated['training_score'],
                     'performance_score' => $validated['performance_score'],
                     'behavioral_score' => $validated['behavioral_score'],
-                    'exam_score' => $validated['exam_score'],
+                    // 'exam_score' => $validated['exam_score'],
+                    // 'exam_score' => 'nullable|numeric|min:0|max:100',
+                    // 'exam_percentage' => 'nullable|numeric|min:0|max:100',
                     'total_qs' => $validated['total_qs'],
                     'grand_total' => $validated['grand_total'],
                     'ranking' => $validated['ranking'],
@@ -869,7 +879,8 @@ class RaterService
                     'training_score' => 'nullable|numeric|min:0|max:100',
                     'performance_score' => 'nullable|numeric|min:0|max:100',
                     'behavioral_score' => 'nullable|numeric|min:0|max:100',
-                    'exam_score' => 'nullable|numeric|min:0|max:100',
+                    // 'exam_score' => 'nullable|numeric|min:0|max:100',
+                    // 'exam_percentage' => 'nullable|numeric|min:0|max:100',
                     'total_qs' => 'nullable|numeric|min:0|max:75',
                     'grand_total' => 'nullable|numeric|min:0|max:100',
                     'ranking' => 'nullable|integer',
@@ -900,7 +911,8 @@ class RaterService
                         'training_score' => $validated['training_score'],
                         'performance_score' => $validated['performance_score'],
                         'behavioral_score' => $validated['behavioral_score'],
-                        'exam_score' => $validated['exam_score'],
+                        // 'exam_score' => 'nullable|numeric|min:0|max:100',
+                        // 'exam_percentage' => 'nullable|numeric|min:0|max:100',
                         'total_qs' => $validated['total_qs'],
                         'grand_total' => $validated['grand_total'],
                         'ranking' => $validated['ranking'],

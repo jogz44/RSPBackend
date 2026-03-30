@@ -25,90 +25,251 @@ class ApplicantSubmissionController extends Controller
     }
 
 
-    // list of applicant
+    // // list of applicant
+    // public function listOfApplicants(Request $request)
+    // {
+    //     $search = $request->input('search');
+    //     $perPage = $request->input('per_page', 10);
+
+    //     $query = Submission::query()
+    //         ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
+
+    //         ->select(
+    //             DB::raw('MIN(p.id) as nPersonal_id'),   // ✅ pick the first/lowest id
+    //             'p.firstname',
+    //             'p.lastname',
+    //             'p.date_of_birth',
+    //             DB::raw('COUNT(submission.id) as jobpost')
+    //         )
+    //         // ✅ Group by name + DOB instead of id — deduplicates same person
+    //         ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
+
+    //     if ($search) {
+    //         $query->where(function ($q) use ($search) {
+    //             $q->where('p.firstname', 'like', "%{$search}%")
+    //                 ->orWhere('p.lastname', 'like', "%{$search}%")
+    //                 ->orWhereRaw("CONCAT(p.firstname,' ',p.lastname) LIKE ?", ["%{$search}%"]);
+    //         });
+    //     }
+
+    //     $schedule = $query->paginate($perPage);
+
+    //     return response()->json($schedule);
+    // }
+
+    // list of applicant applied internal - external
     public function listOfApplicants(Request $request)
     {
         $search = $request->input('search');
         $perPage = $request->input('per_page', 10);
 
-        $query = Submission::query()
+        // External applicants — linked to nPersonalInfo
+        $external = Submission::query()
             ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
             ->select(
-                'p.id as nPersonal_id',
+                DB::raw('MIN(p.id) as nPersonal_id'),
                 'p.firstname',
                 'p.lastname',
                 'p.date_of_birth',
-                DB::raw('COUNT(submission.id) as jobpost')
+                DB::raw('COUNT(submission.id) as jobpost'),
+                DB::raw("'external' as applicant_type"),
+                DB::raw('NULL as ControlNo')
             )
-            ->groupBy('p.id', 'p.firstname', 'p.lastname', 'p.date_of_birth');
+            ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
 
-        // 🔍 Global search (works across ALL pages)
         if ($search) {
-            $query->where(function ($q) use ($search) {
+            $external->where(function ($q) use ($search) {
                 $q->where('p.firstname', 'like', "%{$search}%")
                     ->orWhere('p.lastname', 'like', "%{$search}%")
                     ->orWhereRaw("CONCAT(p.firstname,' ',p.lastname) LIKE ?", ["%{$search}%"]);
             });
         }
 
-        $schedule = $query->paginate($perPage);
+        // Internal applicants — joined to xPersonal via ControlNo
+        $internal = Submission::query()
+            ->whereNull('submission.nPersonalInfo_id')
+            ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
+            ->select(
+                DB::raw('NULL as nPersonal_id'),
+                'xp.Firstname',
+                'xp.Surname',
+                'xp.BirthDate',
+                DB::raw('COUNT(submission.id) as jobpost'),
+                DB::raw("'internal' as applicant_type"),
+                'submission.ControlNo'
+            )
+            ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo');
 
-        //  'batch_name',
-        // 'date_interview',
-        // 'time_interview',
-        // 'venue_interview'
+        if ($search) {
+            $internal->where(function ($q) use ($search) {
+                $q->where('xp.Firstname', 'like', "%{$search}%")
+                    ->orWhere('xp.Surname', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(xp.Firstname,' ',xp.Surname) LIKE ?", ["%{$search}%"])
+                    ->orWhere('submission.ControlNo', 'like', "%{$search}%");
+            });
+        }
+
+        // Combine both using UNION ALL, then paginate
+        $query = $external->unionAll($internal);
+
+        $schedule = DB::table(DB::raw("({$query->toSql()}) as combined"))
+            ->mergeBindings($query->getQuery())
+            ->paginate($perPage);
 
         return response()->json($schedule);
     }
 
+    //
+    // public function getApplicantDetails(Request $request) // applicant details
+    // {
+    //     $validated = $request->validate([
+    //         'firstname' => 'required|string',
+    //         'lastname' => 'required|string',
+    //         'date_of_birth' => 'required|date',
+    //     ]);
 
-    public function getApplicantDetails(Request $request) // applicant details
+    //     // normalize input
+    //     $firstname = trim(strtolower($validated['firstname']));
+    //     $lastname = trim(strtolower($validated['lastname']));
+    //     // ensure a Y-m-d string for whereDate
+    //     $date_of_birth = \Carbon\Carbon::parse($validated['date_of_birth'])->toDateString();
+
+    //     $applicants = Submission::select('id', 'nPersonalInfo_id', 'job_batches_rsp_id', 'status')
+    //         ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
+    //             $query->whereDate('date_of_birth', $date_of_birth)
+    //                 ->where(function ($q) use ($firstname, $lastname) {
+    //                     // normal order: firstname = input.firstname AND lastname = input.lastname
+    //                     $q->whereRaw('LOWER(TRIM(firstname)) = ?', [$firstname])
+    //                         ->whereRaw('LOWER(TRIM(lastname)) = ?', [$lastname]);
+    //                     // OR swapped order: firstname = input.lastname AND lastname = input.firstname
+    //                     $q->orWhereRaw('(LOWER(TRIM(firstname)) = ? AND LOWER(TRIM(lastname)) = ?)', [$lastname, $firstname]);
+    //                 });
+    //         })
+    //         ->with([
+    //             'nPersonalInfo:id,firstname,lastname,date_of_birth',
+    //             'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status'
+    //         ])
+    //         ->get();
+
+    //     if ($applicants->isEmpty()) {
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'No applicant found with the provided details.',
+    //             'input' => [
+    //                 'firstname' => $validated['firstname'],
+    //                 'lastname' => $validated['lastname'],
+    //                 'date_of_birth' => $date_of_birth,
+    //             ]
+    //         ], 404);
+    //     }
+
+    //     return response()->json([
+    //         'message' => 'Applicants retrieved successfully.',
+    //         'count' => $applicants->count(),
+    //         'data' => $applicants
+    //     ]);
+    // }
+
+    // fetch the applicant details he applied
+    public function getApplicantDetails(Request $request)
     {
         $validated = $request->validate([
-            'firstname' => 'required|string',
-            'lastname' => 'required|string',
+            'firstname'     => 'required|string',
+            'lastname'      => 'required|string',
             'date_of_birth' => 'required|date',
         ]);
 
-        // normalize input
-        $firstname = trim(strtolower($validated['firstname']));
-        $lastname = trim(strtolower($validated['lastname']));
-        // ensure a Y-m-d string for whereDate
+        $firstname     = trim(strtolower($validated['firstname']));
+        $lastname      = trim(strtolower($validated['lastname']));
         $date_of_birth = \Carbon\Carbon::parse($validated['date_of_birth'])->toDateString();
 
-        $applicants = Submission::select('id', 'nPersonalInfo_id', 'job_batches_rsp_id', 'status')
+        // ── External applicants (nPersonalInfo_id is NOT NULL) ──────────────────
+        $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
+            ->whereNotNull('nPersonalInfo_id')
             ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
                 $query->whereDate('date_of_birth', $date_of_birth)
                     ->where(function ($q) use ($firstname, $lastname) {
-                        // normal order: firstname = input.firstname AND lastname = input.lastname
-                        $q->whereRaw('LOWER(TRIM(firstname)) = ?', [$firstname])
-                            ->whereRaw('LOWER(TRIM(lastname)) = ?', [$lastname]);
-                        // OR swapped order: firstname = input.lastname AND lastname = input.firstname
-                        $q->orWhereRaw('(LOWER(TRIM(firstname)) = ? AND LOWER(TRIM(lastname)) = ?)', [$lastname, $firstname]);
+                        $q->where(function ($q2) use ($firstname, $lastname) {
+                            $q2->whereRaw('LOWER(TRIM(firstname)) = ?', [$firstname])
+                                ->whereRaw('LOWER(TRIM(lastname)) = ?', [$lastname]);
+                        })->orWhere(function ($q2) use ($firstname, $lastname) {
+                            $q2->whereRaw('LOWER(TRIM(firstname)) = ?', [$lastname])
+                                ->whereRaw('LOWER(TRIM(lastname)) = ?', [$firstname]);
+                        });
                     });
             })
             ->with([
                 'nPersonalInfo:id,firstname,lastname,date_of_birth',
-                'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status'
+                'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
             ])
-            ->get();
+            ->get()
+            ->map(function ($item) {
+                $item->applicant_type = 'external';
+                $item->personal_info  = $item->nPersonalInfo;
+                return $item;
+            });
+
+        // ── Internal applicants (nPersonalInfo_id IS NULL, name from xPersonal) ─
+        $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
+            ->whereNull('nPersonalInfo_id')
+            ->whereHas('xPersonal', function ($query) use ($firstname, $lastname, $date_of_birth) {
+                $query->whereDate('BirthDate', $date_of_birth)
+                    ->where(function ($q) use ($firstname, $lastname) {
+                        $q->where(function ($q2) use ($firstname, $lastname) {
+                            $q2->whereRaw('LOWER(TRIM(Firstname)) = ?', [$firstname])
+                                ->whereRaw('LOWER(TRIM(Surname)) = ?', [$lastname]);
+                        })->orWhere(function ($q2) use ($firstname, $lastname) {
+                            $q2->whereRaw('LOWER(TRIM(Firstname)) = ?', [$lastname])
+                                ->whereRaw('LOWER(TRIM(Surname)) = ?', [$firstname]);
+                        });
+                    });
+            })
+            ->with([
+                'xPersonal',
+                'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
+            ])
+            ->get()
+            ->map(function ($item) {
+                $item->applicant_type = 'internal';
+                $item->personal_info  = $item->xPersonal
+                    ? [
+                        'firstname'     => $item->xPersonal->Firstname,
+                        'lastname'      => $item->xPersonal->Surname,
+                        'date_of_birth' => \Carbon\Carbon::parse($item->xPersonal->BirthDate)->format('m/d/Y'),
+                    ]
+                    : null;
+                $item->n_personal_info = $item->xPersonal  // ← mirrors external's n_personal_info
+                    ? [
+                        'firstname'     => $item->xPersonal->Firstname,
+                        'lastname'      => $item->xPersonal->Surname,
+                        'date_of_birth' => \Carbon\Carbon::parse($item->xPersonal->BirthDate)->format('m/d/Y'),
+                    ]
+                    : null;
+                unset($item->xPersonal);
+                unset($item->x_personal);
+                return $item;
+            });
+
+        // ── Merge both result sets ───────────────────────────────────────────────
+        $applicants = $external->merge($internal);
 
         if ($applicants->isEmpty()) {
             return response()->json([
-                'success' => true,
+                'success' => false,
                 'message' => 'No applicant found with the provided details.',
-                'input' => [
-                    'firstname' => $validated['firstname'],
-                    'lastname' => $validated['lastname'],
+                'input'   => [
+                    'firstname'     => $validated['firstname'],
+                    'lastname'      => $validated['lastname'],
                     'date_of_birth' => $date_of_birth,
-                ]
+                ],
             ], 404);
         }
 
         return response()->json([
+            'success' => true,
             'message' => 'Applicants retrieved successfully.',
-            'count' => $applicants->count(),
-            'data' => $applicants
+            'count'   => $applicants->count(),
+            'data'    => $applicants,
         ]);
     }
 
@@ -154,6 +315,29 @@ class ApplicantSubmissionController extends Controller
         ]);
 
         $result = $this->applicantApplicationService->confirmDuplicateApplicant($validated);
+
+        return $result;
+    }
+
+    public function employeeStoreApplicantApplicationv2(Request $request)
+    {
+        $validated = $request->validate([
+            'ControlNo'           => 'required|string',
+            'job_batches_rsp_id'  => 'required|exists:job_batches_rsp,id',
+            'images'              => 'nullable|array',
+            'images.education'    => 'required|array|min:1',
+            'images.education.*'  => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'images.training'     => 'required|array|min:1',
+            'images.training.*'   => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'images.experience'   => 'required|array',
+            'images.experience.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'images.eligibility'   => 'required|array',
+            'images.eligibility.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $images = $request->file('images') ?? []; // ['education' => [...], 'training' => [...]]
+
+        $result = $this->employeeService->employeeApplicantv2($validated, $images);
 
         return $result;
     }

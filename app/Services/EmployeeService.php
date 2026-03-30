@@ -10,6 +10,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class EmployeeService
 {
@@ -313,4 +315,360 @@ class EmployeeService
             // 'xService' => $xService,
         ]);
     }
+
+    // public function employeeApplicantv2(array $validated, array $images = [])
+    // {
+    //     $controlNo = $validated['ControlNo'];
+    //     $jobId     = $validated['job_batches_rsp_id'];
+
+    //     // ✅ Fetch applicant info
+    //     $applicant = DB::table('xPersonal')
+    //         ->join('xPersonalAddt', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
+    //         ->select(
+    //             'xPersonal.Firstname',
+    //             'xPersonal.Surname',
+    //             'xPersonal.BirthDate',
+    //             'xPersonalAddt.EmailAdd'
+    //         )
+    //         ->where('xPersonal.ControlNo', $controlNo)
+    //         ->first();
+
+    //     if (!$applicant) {
+    //         return response()->json(['message' => 'Applicant not found.'], 404);
+    //     }
+
+    //     $firstname = $applicant->Firstname;
+    //     $lastname  = $applicant->Surname;
+    //     $birthdate = $applicant->BirthDate;
+
+    //     $currentJob  = JobBatchesRsp::findOrFail($jobId);
+    //     $jobGroupIds = JobBatchesRsp::where('post_date', $currentJob->post_date)
+    //         ->where('end_date', $currentJob->end_date)
+    //         ->pluck('id');
+
+    //     $applicationCount = DB::table('submission')
+    //         ->join('xPersonal', 'xPersonal.ControlNo', '=', 'submission.ControlNo')
+    //         ->whereIn('submission.job_batches_rsp_id', $jobGroupIds)
+    //         ->where('xPersonal.Firstname', $firstname)
+    //         ->where('xPersonal.Surname',   $lastname)
+    //         ->where('xPersonal.BirthDate', $birthdate)
+    //         ->count();
+
+    //     $post_date = Carbon::parse($currentJob->post_date)->format('F d, Y');
+    //     $end_date  = Carbon::parse($currentJob->end_date)->format('F d, Y');
+
+    //     if ($applicationCount >= 3) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => "$firstname $lastname, You have already applied for 3 job posts with the same application period ($post_date to $end_date)."
+    //         ], 422);
+    //     }
+
+    //     // ✅ Check if already applied for this specific job
+    //     $existing = DB::table('submission')
+    //         ->join('xPersonal', 'xPersonal.ControlNo', '=', 'submission.ControlNo')
+    //         ->where('submission.job_batches_rsp_id', $jobId)
+    //         ->where('xPersonal.Firstname', $firstname)
+    //         ->where('xPersonal.Surname',   $lastname)
+    //         ->where('xPersonal.BirthDate', $birthdate)
+    //         ->first();
+
+    //     // ✅ Already applied — allow updating missing documents
+    //     if ($existing) {
+    //         $updatedCategories = [];
+    //         $skippedCategories = [];
+
+    //         if (!empty($images)) {
+    //             $allowedCategories = ['education', 'training', 'experience', 'eligibility']; // Define allowed categories
+
+    //             foreach ($allowedCategories as $category) {
+    //                 if (empty($images[$category])) continue;
+
+    //                 // ✅ Check if this category folder already has files
+    //                 // $folderPath    = env('DESKTOP_STORAGE_PATH') . DIRECTORY_SEPARATOR
+    //                 //     . "applicant_files" . DIRECTORY_SEPARATOR
+    //                 //     . $controlNo . DIRECTORY_SEPARATOR
+    //                 //     . $category;
+
+    //                 // $alreadyHasFiles = file_exists($folderPath) && count(glob($folderPath . DIRECTORY_SEPARATOR . '*')) > 0;
+
+    //                 // ✅ New (use this)
+    //                 $folderPath      = "applicant_files/{$controlNo}/{$category}";
+    //                 $alreadyHasFiles = Storage::disk('public')->exists($folderPath)
+    //                     && count(Storage::disk('public')->files($folderPath)) > 0;
+
+    //                 if ($alreadyHasFiles) {
+    //                     // ✅ Skip — this category already has uploaded files
+    //                     $skippedCategories[] = $category;
+    //                     continue;
+    //                 }
+
+    //                 // ✅ Save only missing categories
+    //                 $this->storeEmployeeImages([$category => $images[$category]], $controlNo);
+    //                 $updatedCategories[] = $category;
+    //             }
+    //         }
+
+    //         // ✅ Build response message
+    //         $updatedMsg  = !empty($updatedCategories)
+    //             ? ' Documents added for: ' . implode(', ', $updatedCategories) . '.'
+    //             : '';
+
+    //         $skippedMsg  = !empty($skippedCategories)
+    //             ? ' Already uploaded (skipped): ' . implode(', ', $skippedCategories) . '.'
+    //             : '';
+
+    //         $noChangeMsg = empty($updatedCategories) && empty($skippedCategories)
+    //             ? ' No new documents were provided.'
+    //             : '';
+
+    //         return response()->json([
+    //             'success'            => true,
+    //             'message'            => "$firstname $lastname, you have already applied for this job.{$updatedMsg}{$skippedMsg}{$noChangeMsg}",
+    //             'submission_id'      => $existing->id ?? null,
+    //             'updated_categories' => $updatedCategories,
+    //             'skipped_categories' => $skippedCategories,
+    //         ], 200);
+    //     }
+
+    //     // ✅ CREATE NEW SUBMISSION
+    //     $submit = Submission::create([
+    //         'ControlNo'          => $controlNo,
+    //         'status'             => 'pending',
+    //         'job_batches_rsp_id' => $jobId,
+    //         'nPersonalInfo_id'   => null,
+    //     ]);
+
+    //     // ✅ STORE IMAGES grouped by category
+    //     if (!empty($images)) {
+    //         $this->storeEmployeeImages($images, $controlNo);
+    //     }
+
+    //     // ✅ SEND EMAIL
+    //     if (!empty($applicant->EmailAdd)) {
+    //         $emailApplicant = (object) [
+    //             'email_address' => $applicant->EmailAdd,
+    //             'firstname'     => $firstname,
+    //             'lastname'      => $lastname,
+    //         ];
+    //         $this->sendApplicantEmail($emailApplicant, $jobId, false);
+    //     }
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Submission created successfully and email sent.',
+    //         'data'    => $submit,
+    //     ], 201);
+    // }
+
+    // /// ✅ Private function to handle storing of employee images by category
+    // private function storeEmployeeImages(array $images, string $controlNo): array
+    // {
+    //     $allowedCategories = ['education', 'training', 'experience', 'eligibility'];
+    //     $storedPaths       = [];
+
+    //     foreach ($allowedCategories as $category) {
+    //         $files = $images[$category] ?? [];
+    //         if (empty($files)) continue;
+
+    //         if (!is_array($files)) {
+    //             $files = [$files];
+    //         }
+
+    //         $storedPaths[$category] = [];
+
+    //         foreach ($files as $file) {
+    //             if (!$file instanceof \Illuminate\Http\UploadedFile) continue;
+
+    //             $fileName     = $this->generateFileName($file);
+    //             $relativePath = "applicant_files/{$controlNo}/{$category}";
+
+    //             $file->storeAs($relativePath, $fileName, 'public'); // public can be change your desire disk
+
+    //             $storedPaths[$category][] = "{$relativePath}/{$fileName}";
+    //         }
+    //     }
+
+    //     return $storedPaths;
+    // }
+
+    public function employeeApplicantv2(array $validated, array $images = [])
+    {
+        $controlNo = $validated['ControlNo'];
+        $jobId     = $validated['job_batches_rsp_id'];
+
+        // ✅ Fetch applicant info
+        $applicant = DB::table('xPersonal')
+            ->join('xPersonalAddt', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
+            ->select(
+                'xPersonal.Firstname',
+                'xPersonal.Surname',
+                'xPersonal.BirthDate',
+                'xPersonalAddt.EmailAdd'
+            )
+            ->where('xPersonal.ControlNo', $controlNo)
+            ->first();
+
+        if (!$applicant) {
+            return response()->json(['message' => 'Applicant not found.'], 404);
+        }
+
+        $firstname = $applicant->Firstname;
+        $lastname  = $applicant->Surname;
+        $birthdate = $applicant->BirthDate;
+
+        $currentJob  = JobBatchesRsp::findOrFail($jobId);
+        $jobGroupIds = JobBatchesRsp::where('post_date', $currentJob->post_date)
+            ->where('end_date', $currentJob->end_date)
+            ->pluck('id');
+
+        $applicationCount = DB::table('submission')
+            ->join('xPersonal', 'xPersonal.ControlNo', '=', 'submission.ControlNo')
+            ->whereIn('submission.job_batches_rsp_id', $jobGroupIds)
+            ->where('xPersonal.Firstname', $firstname)
+            ->where('xPersonal.Surname',   $lastname)
+            ->where('xPersonal.BirthDate', $birthdate)
+            ->count();
+
+        $post_date = Carbon::parse($currentJob->post_date)->format('F d, Y');
+        $end_date  = Carbon::parse($currentJob->end_date)->format('F d, Y');
+
+        if ($applicationCount >= 3) {
+            return response()->json([
+                'success' => false,
+                'message' => "$firstname $lastname, You have already applied for 3 job posts with the same application period ($post_date to $end_date)."
+            ], 422);
+        }
+
+        // ✅ Check if already applied for this specific job
+        $existing = DB::table('submission')
+            ->join('xPersonal', 'xPersonal.ControlNo', '=', 'submission.ControlNo')
+            ->where('submission.job_batches_rsp_id', $jobId)
+            ->where('xPersonal.Firstname', $firstname)
+            ->where('xPersonal.Surname',   $lastname)
+            ->where('xPersonal.BirthDate', $birthdate)
+            ->first();
+
+        // ✅ Already applied — allow updating missing documents
+        if ($existing) {
+            $updatedCategories = [];
+            $skippedCategories = [];
+
+            if (!empty($images)) {
+                $allowedCategories = ['education', 'training', 'experience', 'eligibility'];
+
+                foreach ($allowedCategories as $category) {
+                    if (empty($images[$category])) continue;
+
+                    // ✅ Now includes job_id so each job has its own folder
+                    $folderPath      = "applicant_files/{$controlNo}/job_{$jobId}/{$category}";
+                    $alreadyHasFiles = Storage::disk('public')->exists($folderPath)
+                        && count(Storage::disk('public')->files($folderPath)) > 0;
+
+                    if ($alreadyHasFiles) {
+                        $skippedCategories[] = $category;
+                        continue;
+                    }
+
+                    // ✅ Pass jobId to store in correct folder
+                    $this->storeEmployeeImages([$category => $images[$category]], $controlNo, $jobId);
+                    $updatedCategories[] = $category;
+                }
+            }
+
+            $updatedMsg  = !empty($updatedCategories)
+                ? ' Documents added for: ' . implode(', ', $updatedCategories) . '.'
+                : '';
+            $skippedMsg  = !empty($skippedCategories)
+                ? ' Already uploaded (skipped): ' . implode(', ', $skippedCategories) . '.'
+                : '';
+            $noChangeMsg = empty($updatedCategories) && empty($skippedCategories)
+                ? ' No new documents were provided.'
+                : '';
+
+            return response()->json([
+                'success'            => true,
+                'message'            => "$firstname $lastname, you have already applied for this job.{$updatedMsg}{$skippedMsg}{$noChangeMsg}",
+                'submission_id'      => $existing->id ?? null,
+                'updated_categories' => $updatedCategories,
+                'skipped_categories' => $skippedCategories,
+            ], 200);
+        }
+
+        // ✅ CREATE NEW SUBMISSION
+        $submit = Submission::create([
+            'ControlNo'          => $controlNo,
+            'status'             => 'pending',
+            'job_batches_rsp_id' => $jobId,
+            'nPersonalInfo_id'   => null,
+        ]);
+
+        // ✅ STORE IMAGES — pass jobId for correct folder
+        if (!empty($images)) {
+            $this->storeEmployeeImages($images, $controlNo, $jobId);
+        }
+
+        // ✅ SEND EMAIL
+        if (!empty($applicant->EmailAdd)) {
+            $emailApplicant = (object) [
+                'email_address' => $applicant->EmailAdd,
+                'firstname'     => $firstname,
+                'lastname'      => $lastname,
+            ];
+            $this->sendApplicantEmail($emailApplicant, $jobId, false);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Submission created successfully and email sent.',
+            'data'    => $submit,
+        ], 201);
+    }
+
+    // ✅ Now accepts $jobId to separate files per job application
+    private function storeEmployeeImages(array $images, string $controlNo, int $jobId): array
+    {
+        $allowedCategories = ['education', 'training', 'experience', 'eligibility'];
+        $storedPaths       = [];
+
+        foreach ($allowedCategories as $category) {
+            $files = $images[$category] ?? [];
+            if (empty($files)) continue;
+
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+
+            $storedPaths[$category] = [];
+
+            foreach ($files as $file) {
+                if (!$file instanceof \Illuminate\Http\UploadedFile) continue;
+
+                $fileName     = $this->generateFileName($file);
+
+                // ✅ job_{jobId} separates files per job application
+                $relativePath = "applicant_files/{$controlNo}/job_{$jobId}/{$category}";
+
+                $file->storeAs($relativePath, $fileName, 'public');
+
+                $storedPaths[$category][] = "{$relativePath}/{$fileName}";
+            }
+        }
+
+        return $storedPaths;
+    }
+    private function generateFileName($file): string
+    {
+        if ($file instanceof \Illuminate\Http\UploadedFile) {
+            $extension = $file->getClientOriginalExtension();
+        } elseif ($file instanceof \SplFileInfo) {
+            $extension = pathinfo($file->getFilename(), PATHINFO_EXTENSION);
+        } else {
+            $extension = '';
+        }
+
+        return time() . '_' . Str::random(8) . '.' . $extension;
+    }
+
+
 }

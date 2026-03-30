@@ -47,6 +47,11 @@ return [
             'report' => false,
         ],
 
+        'desktop_storage' => [
+            'driver' => 'local',
+            'root'   => env('DESKTOP_STORAGE_PATH', storage_path('app/public')),
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
