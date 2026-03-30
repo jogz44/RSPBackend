@@ -41,7 +41,12 @@ Route::get('/email/tracking', [EmailController::class, 'emailTracking']); // sen
 
 // user
 Route::post('/verify-code', [VerificationController::class, 'verifyCode']); // verify the code
+
 Route::post('/send-verification', [VerificationController::class, 'sendVerification']); // sending code on email
+
+Route::post('/send-verificationv2', [VerificationController::class, 'sendVerification'])
+    ->middleware('throttle:send-verification'); // 5 requests per 1 minute
+
 
 Route::middleware('auth:sanctum')->post('/logs/auth', [LogController::class, 'logAuth']);
 

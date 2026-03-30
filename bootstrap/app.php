@@ -10,6 +10,7 @@ use App\Http\Middleware\CheckPasswordChange;
 use App\Http\Middleware\ActivityLoggerMiddleware;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -33,5 +34,18 @@ return Application::configure(basePath: dirname(__DIR__))
 
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+
+        // ✅ Friendly rate limit error response
+        $exceptions->render(function (ThrottleRequestsException $exception) {
+            $retryAfter = $exception->getHeaders()['Retry-After'] ?? 60;
+            $minutes    = ceil($retryAfter / 60);
+
+            return response()->json([
+                'success'     => false,
+                'message'     => "Too many attempts. Please wait {$minutes} minute(s) before trying again.",
+                'retry_after' => $retryAfter . ' seconds',
+                'reset_at'    => now()->addSeconds($retryAfter)->toDateTimeString(),
+                'locked_out'  => true,
+            ], 429);
+        });
     })->create();
