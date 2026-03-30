@@ -214,7 +214,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/job-post/{postDate}/{endDate}', [JobBatchesRspController::class,'jobPostFiltered']);
 
     Route::prefix('applicant')->group(function () {
-        Route::get('/exam/list', [ApplicantExamScoreController::class, 'applicantDontHaveExamScore']); // for external applicant with zip file
+        Route::get('/list-no-exam', [ApplicantExamScoreController::class, 'applicantDontHaveExamScore']); // for external applicant with zip file
 
         Route::get('/schedule-exam', [ScheduleController::class, 'applicantListExam']); // applicant dont have yet schedule for examination
         Route::get('/schedule-exam-list', [ScheduleController::class, 'fetchScheduleExamination']); // list of schedule
@@ -227,6 +227,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/details', [ApplicantSubmissionController::class, 'getApplicantDetails']); //  fetch the applicant detail of jon post he apply
         Route::get('/{id}', [JobBatchesRspController::class, 'applicantPds']); // fetching the applicant per job post
         Route::get('/score/{applicantId}/{jobpostId}', [RaterController::class, 'applicantScoreIndividual']); // fetch the history of the applicant
+        Route::post('/exam/score', [ApplicantExamScoreController::class, 'addExamScoreOfApplicant']); // for external applicant with zip file
+        Route::get('/exam/list-scores', [ApplicantExamScoreController::class, 'listOfApplicantHaveScore']); // for external applicant with zip file
+
 
 
     });

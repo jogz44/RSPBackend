@@ -23,6 +23,10 @@ class ApplicantExamScore extends Model
     ];
 
 
+    public function submission()
+    {
+        return $this->belongsTo(Submission::class, 'submission_id');
+    }
 
 
 }

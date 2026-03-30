@@ -35,7 +35,7 @@ class Submission extends Model
         'training_qualification',
         'eligibility_qualification',
 
-        
+
         'exam_details',
         'exam_type',
         'exam_total_score',
@@ -198,6 +198,11 @@ class Submission extends Model
         }
 
         return DB::table('xCivilService')->whereIn('PMID', $this->eligibility_qualification)->get();
+    }
+
+    public function applicantExamScore()
+    {
+        return $this->hasOne(ApplicantExamScore::class, 'submission_id', 'id');
     }
 }
 
