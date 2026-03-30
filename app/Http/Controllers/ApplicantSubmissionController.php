@@ -280,19 +280,6 @@ class ApplicantSubmissionController extends Controller
         return response()->json($submission);
     }
 
-    public function employeeStoreApplicantApplication(Request $request,) // employee applicant
-    {
-
-        // ✅ Validate request
-        $validated = $request->validate([
-            'ControlNo' => 'required|string',
-            'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id',
-        ]);
-
-        $result = $this->employeeService->employeeApplicant($validated);
-
-        return $result;
-    }
 
     // applicant application zipfile and excel file
     public function applicantStoreApplication(ApplicantApplicationRequest $request,)
@@ -319,7 +306,8 @@ class ApplicantSubmissionController extends Controller
         return $result;
     }
 
-    public function employeeStoreApplicantApplicationv2(Request $request)
+    // internal employee applicant application image 
+    public function employeeStoreApplicantApplication(Request $request)
     {
         $validated = $request->validate([
             'ControlNo'           => 'required|string',
@@ -337,7 +325,7 @@ class ApplicantSubmissionController extends Controller
 
         $images = $request->file('images') ?? []; // ['education' => [...], 'training' => [...]]
 
-        $result = $this->employeeService->employeeApplicantv2($validated, $images);
+        $result = $this->employeeService->employeeApplicant($validated, $images);
 
         return $result;
     }

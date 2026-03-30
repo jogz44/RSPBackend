@@ -64,7 +64,7 @@ Route::get('employee/{ControlNo}', [EmployeeController::class, 'appliedEmployee'
 // applying route
 Route::prefix('applicant')->group(function () {
     Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication']); // for external applicant with zip file
-    Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplicationv2']); // employyee applicant applying job
+    Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication']); // employyee applicant applying job
     Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication']); // confirmation for updating his excek file
 });
 

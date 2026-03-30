@@ -142,8 +142,11 @@ class RaterController extends Controller
     }
 
 
-    // get the score of the applicant on the rating_score
-    // rater score of applicant can get the score of the applicant on the rating_score
+    // // get the score of the applicant on the rating_score
+    // public function getScoreOfApplicantScoreByRater(){
+
+
+    // }
 
 
 }
