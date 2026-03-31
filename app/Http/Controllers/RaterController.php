@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 
 use App\Http\Controllers\Controller;
+use App\Models\criteria\criteria_rating;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
+use App\Models\Submission;
+use App\Models\User;
 use App\Services\ApplicantService;
 use App\Services\RaterService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 
@@ -142,11 +146,24 @@ class RaterController extends Controller
     }
 
 
-    // // get the score of the applicant on the rating_score
-    // public function getScoreOfApplicantScoreByRater(){
+    // fetch the rater with the assigned job post
+    public function raterWithJob(){
+
+      $data = $this->raterService->raterWithAssignedJob();
+
+      return $data;
+    }
 
 
-    // }
+    // get the score of the applicant on the rating_score
+    public function getApplicantScore($userId, $jobPostid) // jobpost id
+    {
+
+    $data = $this->raterService->getScoreOfApplicantRateByRater($userId, $jobPostid);
+
+    return $data;
+
+    }
 
 
 }

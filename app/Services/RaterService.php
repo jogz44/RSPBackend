@@ -44,7 +44,7 @@ class RaterService
             'role_id' => 2,   // 2 = Rater
             'remember_token' => Str::random(32),
             'must_change_password' => true, // ← Force password change
-            'role' => $validated['role'],
+            'role_type' => $validated['role'],
             'representative' => $validated['representative'],
         ]);
 
@@ -635,6 +635,12 @@ class RaterService
                         'id' => $user->id,
                         'name' => $user->name,
                         'username' => $user->username,
+                        'office' => $user->office,
+                        'pending' => $pendingCount,
+                        'active' => $user->active,
+                        'completed' => $completeCount,
+                        'created_at' => $user->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $user->updated_at->format('Y-m-d H:i:s'),
                         // Only pending job titles shown
                         'job_batches_rsp' => $user->job_batches_rsp->map(function ($job) {
                             return [
@@ -642,12 +648,7 @@ class RaterService
                                 'position' => $job->Position
                             ];
                         }),
-                        'office' => $user->office,
-                        'pending' => $pendingCount,
-                        'active' => $user->active,
-                        'completed' => $completeCount,
-                        'created_at' => $user->created_at->format('Y-m-d H:i:s'),
-                        'updated_at' => $user->updated_at->format('Y-m-d H:i:s'),
+
                     ];
                 });
 
@@ -1014,5 +1015,160 @@ class RaterService
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
+    }
+
+
+    // get the score of the applicant on the rating_score
+    public function raterWithAssignedJob()
+    {
+        try {
+            $users = User::where('role_id', 2)
+                ->with(['job_batches_rsp' => function ($q) {
+                    // Fetch only job posts assigned to the rater that are still pending
+                    $q->select('job_batches_rsp.id', 'job_batches_rsp.Position', 'job_batches_rsp.post_date', 'job_batches_rsp.end_date')
+                        ->wherePivot('status', 'complete');
+                }])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($user) {
+
+
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'username' => $user->username,
+                        'office' => $user->office,
+                        'active' => $user->active,
+                        'created_at' => $user->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $user->updated_at->format('Y-m-d H:i:s'),
+                        // Only pending job titles shown
+                        'job_batches_rsp' => $user->job_batches_rsp->map(function ($job) {
+                            return [
+                                'id' => $job->id,
+                                'position' => $job->Position,
+                                'post_date' => $job->post_date ? Carbon::parse($job->post_date)->format('m/d/Y') : null,
+                                'end_date' => $job->end_date ? Carbon::parse($job->end_date)->format('m/d/Y') : null,
+                            ];
+                        }),
+
+                    ];
+                });
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Raters retrieved successfully',
+                'data' => $users
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve raters',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    // fetch the score of applicant rate by rater
+    public function getScoreOfApplicantRateByRater($userId, $jobPostid) // jobpost id
+    {
+
+        // Get applicants with relationships
+        $submissions = Submission::where('job_batches_rsp_id', $jobPostid)
+            ->with([
+                'nPersonalInfo.education',
+                'nPersonalInfo.work_experience',
+                'nPersonalInfo.training',
+                'nPersonalInfo.eligibity',
+                'nPersonalInfo.rating_score',
+                'applicantExamScore'
+
+            ])
+            ->where('status', 'qualified')
+            ->get();
+
+        $applicants = $submissions->map(function ($submission) use ($userId) {
+            $info = $submission->nPersonalInfo;
+
+            if (!$info && $submission->ControlNo) {
+                $xPDS = new \App\Http\Controllers\xPDSController();
+                $employeeData = $xPDS->getPersonalDataSheet(new \Illuminate\Http\Request([
+                    'controlno' => $submission->ControlNo
+                ]));
+
+                $employeeJson = $employeeData->getData(true);
+
+                $info = [
+                    'firstname' => $employeeJson['User'][0]['Firstname'] ?? '',
+                    'lastname' => $employeeJson['User'][0]['Surname'] ?? '',
+                    'education' => $employeeJson['Education'] ?? [],
+                    'eligibity' => $employeeJson['Eligibility'] ?? [],
+                    'work_experience' => $employeeJson['Experience'] ?? [],
+                    'training' => $employeeJson['Training'] ?? [],
+                ];
+
+                $ratingScore = \App\Models\rating_score::where('ControlNo', $submission->ControlNo)->first();
+
+                // ✅ Only fetch draft_score for the logged-in rater
+                $draftScore  = \App\Models\draft_score::where('ControlNo', $submission->ControlNo)
+                    ->where('user_id', $userId)
+                    ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
+                    ->first();
+            } else {
+                $ratingScore = $info->rating_score ?? null;
+
+                // ✅ Filter draft_score by rater
+                $draftScore = \App\Models\draft_score::where('nPersonalInfo_id', $submission->nPersonalInfo_id)
+                    ->where('user_id', $userId)
+                    ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
+                    ->first();
+            }
+
+            return [
+                // applicant credentials
+                'id'              => $submission->id,
+                'nPersonalInfo_id' => $submission->nPersonalInfo_id,
+                'ControlNo'       => $submission->ControlNo,
+                'exam_score'       => (int) $submission->exam_score,
+                'firstname'       => $info['firstname'] ?? '',
+                'lastname'        => $info['lastname'] ?? '',
+
+
+                // applicant rating score
+                'rating_score'    => [
+                    'education_score'  => $ratingScore->education_score ?? null,
+                    'experience_score' => $ratingScore->experience_score ?? null,
+                    'training_score'   => $ratingScore->training_score ?? null,
+                    'performance_score' => $ratingScore->performance_score ?? null,
+                    'behavioral_score' => $ratingScore->behavioral_score ?? null,
+                    'exam_score' => $ratingScore->exam_score ?? null, // add
+                    'exam_percentage' => $ratingScore->exam_percentage ?? null, //,
+                    'behavioral_score' => $ratingScore->behavioral_score ?? null,
+                    'total_qs'         => $ratingScore->total_qs ?? null,
+                    'grand_total'      => $ratingScore->grand_total ?? null,
+                    'ranking'          => $ratingScore->ranking ?? null,
+                ],
+                // applicant draft score
+                // 'draft_score'     => [
+                //     'education_score'  => $draftScore->education_score ?? null,
+                //     'experience_score' => $draftScore->experience_score ?? null,
+                //     'training_score'   => $draftScore->training_score ?? null,
+                //     'performance_score' => $draftScore->performance_score ?? null,
+                //     'behavioral_score' => $draftScore->behavioral_score ?? null,
+                //     'exam_score' => $draftScore->exam_score ?? null, // add
+                //     'exam_percentage' => $draftScore->exam_percentage ?? null, //,
+                //     'total_qs'         => $draftScore->total_qs ?? null,
+                //     'grand_total'      => $draftScore->grand_total ?? null,
+                //     'ranking'          => $draftScore->ranking ?? null,
+                // ],
+
+            ];
+        });
+
+        return response()->json([
+            'status'    => true,
+            'message' => 'Fetch successfully',
+            'applicants' => $applicants,
+        ]);
     }
 }

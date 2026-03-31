@@ -31,7 +31,7 @@ class User extends Authenticatable
         'must_change_password',
         'password_changed_at',
         'representative',
-        'role'
+        'role_type'
 
     ];
 

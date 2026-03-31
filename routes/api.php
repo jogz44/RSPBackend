@@ -115,6 +115,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/register', [RaterAuthController::class, 'createRaterAccount']);
         Route::post('/change-password', [RaterAuthController::class, 'changeRaterPassword']);
         Route::get('/list', [RaterController::class, 'fetchRater']);
+        Route::get('/list-jobs', [RaterController::class, 'raterWithJob']);
+        Route::get('/rated-score/{userId}/{jobPostId}', [RaterController::class, 'getApplicantScore']);
         Route::get('/{raterId}', [RaterController::class, 'viewRater']);
         //  });
     });
