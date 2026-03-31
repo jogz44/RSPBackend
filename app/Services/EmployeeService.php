@@ -54,35 +54,7 @@ class EmployeeService
     // /**
     //  * Send applicant confirmation or update email.
     //  */
-    private function sendApplicantEmail($applicant, $jobId, $isUpdate)
-    {
-        $job = \App\Models\JobBatchesRsp::findOrFail($jobId);
 
-        $subject = $isUpdate ? 'Application Updated' : 'Application Received';
-
-        $template = 'mail-template.application';
-
-
-        Mail::to($applicant->email_address)->queue((new EmailApi(
-            $subject,
-            $template,
-            [
-                'mailSubject' => $subject,
-                'firstname' => $applicant->firstname,
-                'lastname' => $applicant->lastname,
-                'jobOffice' => $job->Office,
-                'jobPosition' => $job->Position,
-                'isUpdate' => $isUpdate,
-            ]
-
-
-        ))->onQueue('emails'));
-
-      EmailLog::create([
-        'email' => $applicant->email_address,
-        'activity' => $subject,
-      ]);
-    }
 
 
     //update tempreg and xservice and xpersonal  of the employee
@@ -391,5 +363,44 @@ class EmployeeService
         return time() . '_' . Str::random(8) . '.' . $extension;
     }
 
+
+
+    // send emails to the applicant if he/she apply or update his/her application
+    private function sendApplicantEmail($applicant, $jobId, $isUpdate)
+    {
+        $job = \App\Models\JobBatchesRsp::findOrFail($jobId);
+
+        $subject = $isUpdate ? 'Application Updated' : 'Application Received';
+
+        $template = 'mail-template.application';
+
+           $firstname = $applicant->firstname;
+            $lastname = $applicant->lastname;
+
+
+            $full_name = trim("$firstname $lastname");
+
+        Mail::to($applicant->email_address)->queue((new EmailApi(
+            $subject,
+            $template,
+            [
+                'mailSubject' => $subject,
+                // 'firstname' => $applicant->firstname,
+                // 'lastname' => $applicant->lastname,
+                'full_name' => $full_name,
+                'Office'      => $job->Office,    // 👈 renamed from jobOffice
+                'Position'    => $job->Position,  // 👈 renamed from jobPosition
+                'ItemNo'    => $job->ItemNo,  // 👈 renamed from jobPosition
+                'isUpdate' => $isUpdate,
+            ]
+
+
+        ))->onQueue('emails'));
+
+        EmailLog::create([
+            'email' => $applicant->email_address,
+            'activity' => $subject,
+        ]);
+    }
 
 }

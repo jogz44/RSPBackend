@@ -1155,6 +1155,10 @@ class ReportService
                         'nPersonalInfo_id',
                         'ControlNo',
                         'status',
+                        'education_remark',
+                        'experience_remark',
+                        'training_remark',
+                        'eligibility_remark',
                         'education_qualification',  // [182,234,241]
                         'experience_qualification', // [12,334,241]
                         'training_qualification', // [12,334,241]
@@ -1201,10 +1205,18 @@ class ReportService
                         'training'         => $trainingRecords,
                         'eligibility'      => $eligibilityRecords,
 
+
+                        'education_remark' => $submission->education_remark ?? null,
+                        'experience_remark' => $submission->experience_remark ?? null,
+                        'training_remark' => $submission->training_remark ??  null,
+                        'eligibility_remark' => $submission->eligibility_remark ?? null,
+
+
                         'education_text'   => $this->formatEducationForQualified($educationRecords),
                         'experience_text'  => $this->formatExperienceForQualified($experienceRecords),
                         'training_text'    => $this->formatTrainingForQualified($trainingRecords),
                         'eligibility_text' => $this->formatEligibilityForQualified($eligibilityRecords),
+
                     ];
                 }
 
@@ -1247,10 +1259,17 @@ class ReportService
                         'training'         => $trainingRecords,
                         'eligibility'      => $eligibilityRecords,
 
+
+                        'eligibility_remark' => $submission->eligibility_remark ?? null,
+                        'training_remark' => $submission->training_remark ?? null,
+                        'experience_remark' => $submission->experience_remark ?? null,
+                        'education_remark' => $submission->education_remark ?? null,
+
                         'education_text'   => $this->formatEducationForQualifiedExternal($educationRecords),
                         'experience_text'  => $this->formatExperienceForQualifiedExternal($experienceRecords),
                         'training_text'    => $this->formatTrainingForQualifiedExternal($trainingRecords),
                         'eligibility_text' => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
+
                     ];
                 }
             }
@@ -1278,7 +1297,7 @@ class ReportService
     private function formatEducationForQualified($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
-            return 'No relevant education based on the specific requirement of the position.';
+            return 'No relevant education.';
         }
 
         $formatted = [];

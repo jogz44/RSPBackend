@@ -537,7 +537,7 @@ class ApplicantService
                 'applicant_id'     => $firstRow->id,
                 'nPersonalInfo_id' => (string)$firstRow->nPersonalInfo_id,
                 'ControlNo'        => $firstRow->ControlNo,
-                'jobpostId'     => (int) $firstRow->job_batches_rsp_id,
+                'jobpostId'     => (int)$firstRow->job_batches_rsp_id,
                 'firstname'        => $firstname,  // ✅ now with fallback
                 'lastname'         => $lastname,   // ✅ now with fallback
 
