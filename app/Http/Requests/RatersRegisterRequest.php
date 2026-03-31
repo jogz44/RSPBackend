@@ -31,7 +31,7 @@ class RatersRegisterRequest extends FormRequest
             'office' => 'required|string|max:255',
             'password' => 'required|string|min:5',
             'role' => 'required|string|min:3',
-            'representative' => 'required|string|min:3',
+            'representative' => 'nullable|string|min:3',
         ];
     }
 }

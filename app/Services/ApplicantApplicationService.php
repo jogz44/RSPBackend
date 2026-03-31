@@ -2,27 +2,27 @@
 
 namespace App\Services;
 
-use ZipArchive;
-use Carbon\Carbon;
-
-use App\Mail\EmailApi;
-
-use App\Models\Submission;
-use Illuminate\Support\Str;
-use App\Models\ApplicantZip;
-use Illuminate\Http\Request;
-use App\Models\JobBatchesRsp;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Imports\ApplicantDataImport;
 use App\Imports\ApplicantFormImport;
+use App\Jobs\SendApplicantSms;
+use App\Mail\EmailApi;
+use App\Models\ApplicantZip;
 use App\Models\excel\nPersonal_info;
-use Illuminate\Support\Facades\Mail;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Models\JobBatchesRsp;
+use App\Models\Submission;
+use App\Models\xPersonal;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+use ZipArchive;
 
 
 class ApplicantApplicationService
@@ -38,7 +38,7 @@ class ApplicantApplicationService
     // store applicant applicantion excel file
     public function applicantApplication($validated, $excelFile, $zipFile)
     {
-            // args $excelfile and $zipfile
+        // args $excelfile and $zipfile
         try {
 
             // Step 1: Read and parse Excel WITHOUT saving to database
@@ -55,14 +55,23 @@ class ApplicantApplicationService
                     'message' => "Please check your email, it doesn’t match with the email inside the PDS (Excel file).",
                     'email' => "  Your email use on verification:$userEmail"
                 ], 422);
-                // return [
-                //     'status' => 422,
-                //     'data' => [
-                //         'success' => false,
-                //         'message' => "Please check your email, it doesn’t match with the email inside the PDS (Excel file).",
-                //         'email' => "Your email used on verification: $userEmail"
-                //     ]
-                // ];
+            }
+
+            $firstname = strtoupper(trim($excelData['personal_info']['firstname']));
+            $lastname  = strtoupper(trim($excelData['personal_info']['lastname']));
+            $parsedBirthDate = $this->parseBirthDate($excelData['personal_info']['date_of_birth']);
+
+            $employeeExisting = xPersonal::whereRaw('UPPER(RTRIM(LTRIM(Surname))) = ?', [$lastname])
+                ->whereRaw('UPPER(RTRIM(LTRIM(Firstname))) = ?', [$firstname])
+                ->whereDate('BirthDate', $parsedBirthDate)
+                ->first();
+
+            if ($employeeExisting) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Our records show that you are currently an employee. You are not allowed to apply through this portal.
+                     Please coordinate with your HR department for internal job applications Thank you.",
+                ], 403);
             }
 
             // Step 2: Check for duplicate applicant based on NAME and BIRTHDATE ONLY
@@ -103,8 +112,6 @@ class ApplicantApplicationService
                     'message' => "You have already applied for 3 job posts with the same application period (" .
                         $post_date . " to " .     $end_date  . ").",
                 ], 422);
-
-
             }
 
             if ($existingSubmission) {
@@ -134,17 +141,6 @@ class ApplicantApplicationService
                     'confirmation_token' => $confirmationToken,
                     'expires_in_minutes' => 10,
                 ]);
-                // return [
-                //     'status' => 422,
-                //     'data' => [
-                //         'success' => false,
-                //         'message' => "You've already applied for this job. Do you want to update your previous application?",
-                //         'is_update' => false,
-                //          'confirmation_token' => $confirmationToken,
-                //         'expires_in_minutes' => 10,
-
-                //     ]
-                // ];
             }
 
             // Step 3: Check if email already exists for ANY job (optional warning, not blocking)
@@ -192,16 +188,11 @@ class ApplicantApplicationService
 
                 // Send Email
                 $this->sendApplicantEmail($applicant, $validated['job_batches_rsp_id'], false);
+                $this->sendApplicantSms($applicant,   $validated['job_batches_rsp_id'], false);
+
 
                 DB::commit();
 
-                // return response()->json([
-                //     'success' => true,
-                //     'message' => 'Applicant imported successfully and confirmation email sent.',
-                //     'is_update' => false,
-                //     'excel_file_name' => $excelFileName,
-                //     'nPersonalInfo_id' => $applicant->id,
-                // ]);
 
                 return response()->json([
                     'success' => true,
@@ -211,16 +202,6 @@ class ApplicantApplicationService
                     'nPersonalInfo_id' => $applicant->id,
                 ]);
 
-                // return [
-                //     'status' => 200,
-                //     'data' => [
-                //         'success' => true,
-                //         'message' => 'Applicant imported successfully and confirmation email sent.',
-                //         'is_update' => false,
-                //         'excel_file_name' => $excelFileName,
-                //         'nPersonalInfo_id' => $applicant->id,
-                //     ]
-                // ];
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
@@ -251,22 +232,30 @@ class ApplicantApplicationService
         try {
 
             // Step 1: Read and parse Excel WITHOUT saving to database
-            // $excelFile = $request->file('excel_file');
+
             $excelData = $this->parseExcelData($excelFile);
 
-            // ➤ ADD THE MATCHING CHECK HERE
-            // $excelEmail = strtolower(trim($excelData['personal_info']['email_address']));
-            // $userEmail  = strtolower(trim($validated['email']));
+            //check if the applicant are employee or not
+            // if applicant are employee return response you are not allowed to apply
+            // go to erms
 
-            // if ($excelEmail !== $userEmail) {
-            //     return response()->json([
-            //         'success' => false,
-            //         'message' => "Please check your email, it doesn’t match with the email inside the PDS (Excel file).",
-            //         'email' => "  Your email use on verification:$userEmail"
-            //     ], 422);
-            //     // return [
+            // ✅ Normalize input to UPPERCASE to match xPersonal format
+            $firstname = strtoupper(trim($excelData['personal_info']['firstname']));
+            $lastname  = strtoupper(trim($excelData['personal_info']['lastname']));
+            $parsedBirthDate = $this->parseBirthDate($excelData['personal_info']['date_of_birth']);
 
-            // }
+            $employeeExisting = xPersonal::whereRaw('UPPER(RTRIM(LTRIM(Surname))) = ?', [$lastname])
+                ->whereRaw('UPPER(RTRIM(LTRIM(Firstname))) = ?', [$firstname])
+                ->whereDate('BirthDate', $parsedBirthDate)
+                ->first();
+
+            if ($employeeExisting) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Our records show that you are currently an employee. You are not allowed to apply through this portal.
+                     Please coordinate with your HR department for internal job applications Thank you.",
+                ], 403);
+            }
 
             // Step 2: Check for duplicate applicant based on NAME and BIRTHDATE ONLY
             // This allows same email to apply multiple times
@@ -335,7 +324,6 @@ class ApplicantApplicationService
                     'confirmation_token' => $confirmationToken,
                     'expires_in_minutes' => 10,
                 ]);
-
             }
 
             // Step 3: Check if email already exists for ANY job (optional warning, not blocking)
@@ -383,6 +371,7 @@ class ApplicantApplicationService
 
                 // Send Email
                 $this->sendApplicantEmail($applicant, $validated['job_batches_rsp_id'], false);
+                $this->sendApplicantSms($applicant, $validated['job_batches_rsp_id'], false);
 
                 DB::commit();
 
@@ -393,8 +382,6 @@ class ApplicantApplicationService
                     'excel_file_name' => $excelFileName,
                     'nPersonalInfo_id' => $applicant->id,
                 ]);
-
-
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
@@ -516,6 +503,8 @@ class ApplicantApplicationService
 
             // Send update confirmation email
             $this->sendApplicantEmail($updatedApplicant, $cachedData['job_batches_rsp_id'], true);
+            $this->sendApplicantSms($updatedApplicant,   $cachedData['job_batches_rsp_id'], true);
+
 
             return response()->json([
                 'success' => true,
@@ -637,8 +626,6 @@ class ApplicantApplicationService
             $sex = 'Female';
         } else {
             $sex = 'prefer not to say';
-
-
         }
 
 
@@ -651,7 +638,6 @@ class ApplicantApplicationService
             $citizen = 'Dual Citizenship';
         } elseif ($by_naturalization === true || $by_naturalization === 'TRUE') {
             $citizen = 'by naturalization';
-
         } else {
             $citizen = null;
         }
@@ -1851,163 +1837,7 @@ class ApplicantApplicationService
         ]);
     }
 
-    // Add this method to your controller for testing
-    // public function testCache()
-    // {
-    //     $testData = [
-    //         'children' => [
-    //             ['childapplicant->email_address_name' => 'Test Child', 'birth_date' => '2020-01-01']
-    //         ]
-    //     ];
-
-    //     Cache::put('test_key', $testData, now()->addMinutes(10));
-    //     $retrieved = Cache::get('test_key');
-
-    //     Log::info('Cache Test', [
-    //         'original' => $testData,
-    //         'retrieved' => $retrieved,
-    //         'match' => $testData === $retrieved,
-    //         'cache_driver' => config('cache.default')
-    //     ]);
-
-    //     return response()->json([
-    //         'original' => $testData,
-    //         'retrieved' => $retrieved,
-    //         'match' => $testData === $retrieved
-    //     ]);
-    // }
-
-    //validation for zip file that check the folder structure
-    // private function secondvalidateZipStructure(string $zipPath)
-    // {
-    //     $requiredRoot = 'document';
-    //     $requiredFolders = [
-    //         'education',
-    //         'training',
-    //         'experience',
-    //         'eligibility'
-    //     ];
-
-    //     $zip = new \ZipArchive;
-    //     $fullPath = storage_path('app/public/' . $zipPath);
-
-    //     if ($zip->open($fullPath) !== true) {
-    //         throw new \Exception('Unable to open ZIP file.');
-    //     }
-
-    //     $foundRoots = [];
-    //     $foundSecondLevel = [];
-
-    //     for ($i = 0; $i < $zip->numFiles; $i++) {
-    //         $entry = trim($zip->getNameIndex($i), '/');
-
-    //         if ($entry === '') {
-    //             continue;
-    //         }
-
-    //         $parts = explode('/', $entry);
-
-    //         // Normalize (case-insensitive)
-    //         $root = strtolower($parts[0]);
-    //         $foundRoots[] = $root;
-
-    //         if (count($parts) >= 2) {
-    //             $foundSecondLevel[] = strtolower($parts[1]);
-    //         }
-    //     }
-
-    //     // 1️⃣ Validate ROOT folder
-    //     $uniqueRoots = array_unique($foundRoots);
-
-    //     if (count($uniqueRoots) !== 1 || $uniqueRoots[0] !== $requiredRoot) {
-    //         $zip->close();
-    //         throw new \Exception('ZIP root folder must be named "Document".');
-    //     }
-
-    //     // 2️⃣ Validate required folders
-    //     $foundSecondLevel = array_unique($foundSecondLevel);
-
-    //     $missing = array_diff($requiredFolders, $foundSecondLevel);
-    //     if (!empty($missing)) {
-    //         $zip->close();
-    //         throw new \Exception(
-    //             'Please check your ZIP file. The folder is missing or the folder name is incorrect.' .
-    //                 PHP_EOL . 'Missing required folders: ' . implode(', ', $missing)
-
-    //         );
-    //     }
-
-    //     // 3️⃣ Validate extra folders
-    //     $extra = array_diff($foundSecondLevel, $requiredFolders);
-    //     if (!empty($extra)) {
-    //         $zip->close();
-    //         throw new \Exception(
-    //             'Invalid folder(s) found: ' . implode(', ', $extra)
-    //         );
-    //     }
-
-    //     $zip->close();
-    //     return true;
-    // }
-
-    // private function validateZipStructure(string $zipPath)
-    // {
-    //     $requiredFolders = ['education', 'training', 'experience', 'eligibility'];
-
-    //     $zip      = new \ZipArchive;
-    //     $fullPath = storage_path('app/public/' . $zipPath);
-
-    //     if ($zip->open($fullPath) !== true) {
-    //         throw new \Exception('Unable to open ZIP file.');
-    //     }
-
-    //     $foundFolders = [];
-
-    //     for ($i = 0; $i < $zip->numFiles; $i++) {
-    //         $entry = trim($zip->getNameIndex($i), '/');
-
-    //         if ($entry === '') continue;
-
-    //         $parts = explode('/', $entry);
-
-    //         // ✅ Skip macOS/system hidden files
-    //         if (str_starts_with($parts[0], '__') || str_starts_with($parts[0], '.')) {
-    //             continue;
-    //         }
-
-    //         // ✅ Collect root-level folders
-    //         if ($parts[0] !== '') {
-    //             $foundFolders[] = strtolower($parts[0]);
-    //         }
-    //     }
-
-    //     // 1️⃣ Check required folders exist
-    //     $uniqueFolders = array_unique(array_filter($foundFolders));
-    //     $missing       = array_diff($requiredFolders, $uniqueFolders);
-
-    //     if (!empty($missing)) {
-    //         $zip->close();
-    //         throw new \Exception(
-    //             'Missing required folder(s): ' . implode(', ', $missing) . '. ' .
-    //                 'Your ZIP must contain: ' . implode(', ', $requiredFolders) . '.'
-    //         );
-    //     }
-
-    //     // 2️⃣ Check no extra folders
-    //     $extra = array_diff($uniqueFolders, $requiredFolders);
-
-    //     if (!empty($extra)) {
-    //         $zip->close();
-    //         throw new \Exception(
-    //             'Invalid folder(s) found: "' . implode('", "', $extra) . '". ' .
-    //                 'Only these folders are allowed: ' . implode(', ', $requiredFolders) . '.'
-    //         );
-    //     }
-
-    //     $zip->close();
-    //     return true;
-    // }
-
+     // validate ZIP structure and normalize if needed
     private function validateAndNormalizeZipStructure(string $zipPath): string
     {
         $requiredFolders = ['education', 'training', 'experience', 'eligibility'];
@@ -2160,5 +1990,93 @@ class ApplicantApplicationService
         }
 
         return true;
+    }
+
+    private function parseBirthDate($rawDate): string
+    {
+        $formats = [
+            'm/d/Y',   // 06/11/2002 ← your Excel format (try FIRST)
+            'm/d/y',   // 06/11/02
+            'Y-m-d',   // 1990-05-15
+            'd-m-Y',   // 15-05-1990
+            'Y/m/d',   // 1990/05/15
+            'd/m/Y',   // 15/06/1990 (European format - try LAST)
+            'd/m/y',   // 15/06/90
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                $parsed = Carbon::createFromFormat($format, trim($rawDate));
+                // Validate the parsed date makes sense
+                if ($parsed && $parsed->format($format) === trim($rawDate)) {
+                    return $parsed->format('Y-m-d');
+                }
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        return Carbon::parse($rawDate)->format('Y-m-d');
+    }
+
+
+
+    private function normalizePhoneNumber(?string $number): ?string
+    {
+        if (!$number) return null;
+
+        // If multiple numbers separated by / or comma, take the FIRST one only
+        $number = preg_split('/[\/,]/', $number)[0];
+        $number = trim($number);
+
+        // Remove all non-numeric characters (spaces, dashes, parentheses, +)
+        $cleaned = preg_replace('/\D/', '', $number);
+
+        // Handle +639XXXXXXXXX → 09XXXXXXXXX (international format, 12 digits)
+        if (str_starts_with($cleaned, '639') && strlen($cleaned) === 12) {
+            $cleaned = '0' . substr($cleaned, 2);
+        }
+
+        // Must be exactly 11 digits starting with 09
+        if (strlen($cleaned) === 11 && str_starts_with($cleaned, '09')) {
+            return $cleaned;
+        }
+
+        // Invalid — too short, too long, or wrong prefix
+        Log::warning('Invalid phone number, skipping SMS', [
+            'original' => $number,
+            'cleaned'  => $cleaned,
+            'length'   => strlen($cleaned),
+        ]);
+
+        return null;
+    }
+
+    // ── SMS ───────────────────────────────────────────────────────────
+    private function sendApplicantSms($applicant, $jobId, $isUpdate): void
+    {
+        $job           = \App\Models\JobBatchesRsp::findOrFail($jobId);
+        $fullName      = trim("{$applicant->firstname} {$applicant->lastname}");
+        $contactNumber = $this->normalizePhoneNumber($applicant->cellphone_number ?? null); // 👈 normalize here
+
+
+        if (!$contactNumber) {
+            Log::info('No valid contact number for applicant, skipping SMS', [
+                'raw_number' => $applicant->cellphone_number ?? 'null',
+            ]);
+            return;
+        }
+
+        $smsMessage = $isUpdate
+            ? "Dear {$fullName}, your application for {$job->Position} (Item No. {$job->ItemNo})"
+            . "under {$job->Office} has been updated. "
+            . "Please check your email for full details. Thank you!"
+            :  "Dear {$fullName}, we acknowledge receipt of your application for "
+            . "{$job->Position} (Item No. {$job->ItemNo}) under {$job->Office}. "
+            . "Your application is currently under review by our HRMPSB Secretariat. "
+            . "Please check your email for full details. Thank you!";
+
+        SendApplicantSms::dispatch($contactNumber, $smsMessage)
+            ->onQueue('sms');
     }
 }

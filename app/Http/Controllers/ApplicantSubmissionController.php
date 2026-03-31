@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ApplicantApplicationRequest;
+use App\Http\Requests\EmployeeStoreApplicationRequest;
 use App\Models\Submission;
 use App\Services\ApplicantApplicationService;
 use App\Services\EmployeeService;
@@ -88,56 +89,7 @@ class ApplicantSubmissionController extends Controller
         return response()->json($schedule);
     }
 
-    //
-    // public function getApplicantDetails(Request $request) // applicant details
-    // {
-    //     $validated = $request->validate([
-    //         'firstname' => 'required|string',
-    //         'lastname' => 'required|string',
-    //         'date_of_birth' => 'required|date',
-    //     ]);
 
-    //     // normalize input
-    //     $firstname = trim(strtolower($validated['firstname']));
-    //     $lastname = trim(strtolower($validated['lastname']));
-    //     // ensure a Y-m-d string for whereDate
-    //     $date_of_birth = \Carbon\Carbon::parse($validated['date_of_birth'])->toDateString();
-
-    //     $applicants = Submission::select('id', 'nPersonalInfo_id', 'job_batches_rsp_id', 'status')
-    //         ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
-    //             $query->whereDate('date_of_birth', $date_of_birth)
-    //                 ->where(function ($q) use ($firstname, $lastname) {
-    //                     // normal order: firstname = input.firstname AND lastname = input.lastname
-    //                     $q->whereRaw('LOWER(TRIM(firstname)) = ?', [$firstname])
-    //                         ->whereRaw('LOWER(TRIM(lastname)) = ?', [$lastname]);
-    //                     // OR swapped order: firstname = input.lastname AND lastname = input.firstname
-    //                     $q->orWhereRaw('(LOWER(TRIM(firstname)) = ? AND LOWER(TRIM(lastname)) = ?)', [$lastname, $firstname]);
-    //                 });
-    //         })
-    //         ->with([
-    //             'nPersonalInfo:id,firstname,lastname,date_of_birth',
-    //             'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status'
-    //         ])
-    //         ->get();
-
-    //     if ($applicants->isEmpty()) {
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'No applicant found with the provided details.',
-    //             'input' => [
-    //                 'firstname' => $validated['firstname'],
-    //                 'lastname' => $validated['lastname'],
-    //                 'date_of_birth' => $date_of_birth,
-    //             ]
-    //         ], 404);
-    //     }
-
-    //     return response()->json([
-    //         'message' => 'Applicants retrieved successfully.',
-    //         'count' => $applicants->count(),
-    //         'data' => $applicants
-    //     ]);
-    // }
 
     // fetch the applicant details he applied
     public function getApplicantDetails(Request $request)
@@ -292,21 +244,9 @@ class ApplicantSubmissionController extends Controller
     }
 
     // internal employee applicant application image
-    public function employeeStoreApplicantApplication(Request $request)
+    public function employeeStoreApplicantApplication(EmployeeStoreApplicationRequest $request)
     {
-        $validated = $request->validate([
-            'ControlNo'           => 'required|string',
-            'job_batches_rsp_id'  => 'required|exists:job_batches_rsp,id',
-            'images'              => 'nullable|array',
-            'images.education'    => 'nullable|array|min:1',
-            'images.education.*'  => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'images.training'     => 'nullable|array|min:1',
-            'images.training.*'   => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'images.experience'   => 'nullable|array',
-            'images.experience.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'images.eligibility'   => 'nullable|array',
-            'images.eligibility.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
-        ]);
+        $validated = $request->validated();
 
         $images = $request->file('images') ?? []; // ['education' => [...], 'training' => [...]]
 

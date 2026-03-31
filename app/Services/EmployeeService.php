@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendApplicantSms;
 use App\Mail\EmailApi;
 use App\Models\EmailLog;
 use App\Models\JobBatchesRsp;
@@ -9,6 +10,7 @@ use App\Models\Submission;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -195,7 +197,8 @@ class EmployeeService
                 'xPersonal.Firstname',
                 'xPersonal.Surname',
                 'xPersonal.BirthDate',
-                'xPersonalAddt.EmailAdd'
+                'xPersonalAddt.EmailAdd',
+                'xPersonalAddt.CellphoneNo as cellphone_number',
             )
             ->where('xPersonal.ControlNo', $controlNo)
             ->first();
@@ -308,7 +311,9 @@ class EmployeeService
                 'firstname'     => $firstname,
                 'lastname'      => $lastname,
             ];
+
             $this->sendApplicantEmail($emailApplicant, $jobId, false);
+            $this->sendApplicantSms($applicant, $jobId, false);
         }
 
         return response()->json([
@@ -402,5 +407,67 @@ class EmployeeService
             'activity' => $subject,
         ]);
     }
+
+    private function normalizePhoneNumber(?string $number): ?string
+    {
+        if (!$number) return null;
+
+        // If multiple numbers separated by / or comma, take the FIRST one only
+        $number = preg_split('/[\/,]/', $number)[0];
+        $number = trim($number);
+
+        // Remove all non-numeric characters (spaces, dashes, parentheses, +)
+        $cleaned = preg_replace('/\D/', '', $number);
+
+        // Handle +639XXXXXXXXX → 09XXXXXXXXX (international format, 12 digits)
+        if (str_starts_with($cleaned, '639') && strlen($cleaned) === 12) {
+            $cleaned = '0' . substr($cleaned, 2);
+        }
+
+        // Must be exactly 11 digits starting with 09
+        if (strlen($cleaned) === 11 && str_starts_with($cleaned, '09')) {
+            return $cleaned;
+        }
+
+        // Invalid — too short, too long, or wrong prefix
+        Log::warning('Invalid phone number, skipping SMS', [
+            'original' => $number,
+            'cleaned'  => $cleaned,
+            'length'   => strlen($cleaned),
+        ]);
+
+        return null;
+    }
+
+    // ── SMS ───────────────────────────────────────────────────────────
+    private function sendApplicantSms($applicant, $jobId, $isUpdate): void
+    {
+        $job           = \App\Models\JobBatchesRsp::findOrFail($jobId);
+        $fullName      = trim("{$applicant->Firstname} {$applicant->Surname}");
+        $contactNumber = $this->normalizePhoneNumber($applicant->cellphone_number ?? null); // 👈 normalize here
+
+
+        if (!$contactNumber) {
+            Log::info('No valid contact number for applicant, skipping SMS', [
+                'raw_number' => $applicant->cellphone_number ?? 'null',
+            ]);
+            return;
+        }
+
+
+        $smsMessage = $isUpdate
+            ? "Dear {$fullName}, your application for {$job->Position} (Item No. {$job->ItemNo})"
+                    . "under {$job->Office} has been updated. "
+                    . "Please check your email for full details. Thank you!"
+            :  "Dear {$fullName}, we acknowledge receipt of your application for "
+                    . "{$job->Position} (Item No. {$job->ItemNo}) under {$job->Office}. "
+                    . "Your application is currently under review by our HRMPSB Secretariat. "
+                    . "Please check your email for full details. Thank you!";
+
+        SendApplicantSms::dispatch($contactNumber, $smsMessage)
+            ->onQueue('sms');
+    }
+
+
 
 }
