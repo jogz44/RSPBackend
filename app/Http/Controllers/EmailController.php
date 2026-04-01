@@ -99,9 +99,9 @@ class EmailController extends Controller
             'applicants' => 'required|array',
             'applicants.*.submission_id' => 'required|exists:submission,id',
             'applicants.*.job_batches_rsp' => 'required|exists:job_batches_rsp,id',
-            'date_interview' => 'required|date',
-            'time_interview' => 'required|string',
-            'venue_interview' => 'required|string',
+            'date_exam' => 'required|date',
+            'time_exam' => 'required|string',
+            'venue_exam' => 'required|string',
             'batch_name' => 'required|string',
         ]);
 

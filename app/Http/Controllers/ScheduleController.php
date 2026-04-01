@@ -222,7 +222,7 @@ class ScheduleController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('batch_name', 'like', "%{$search}%")
-                    ->orWhere('venue_interview', 'like', "%{$search}%");
+                    ->orWhere('venue_exam', 'like', "%{$search}%");
             });
         }
 
@@ -233,9 +233,9 @@ class ScheduleController extends Controller
             return [
                 'schedule_id'     => $schedule->id,
                 'batch_name'      => $schedule->batch_name,
-                'venue_interview' => $schedule->venue_interview,
-                'date_interview'  => $schedule->date_interview,
-                'time_interview'  => $schedule->time_interview,
+                'venue_exam' => $schedule->venue_exam,
+                'date_exam'  => $schedule->date_exam,
+                'time_exam'  => $schedule->time_exam,
                 'applicant_no'    => $schedule->schedule_applicants_count,
             ];
         });
@@ -299,9 +299,9 @@ class ScheduleController extends Controller
         return response()->json([
             'schedule_id' => $schedule->id,
             'batch_name'  => $schedule->batch_name,
-            'date'        => $schedule->date_interview,
-            'time'        => $schedule->time_interview,
-            'venue'       => $schedule->venue_interview,
+            'date'        => $schedule->date_exam,
+            'time'        => $schedule->time_exam,
+            'venue'       => $schedule->venue_exam,
             'applicants'  => $applicants
         ]);
     }

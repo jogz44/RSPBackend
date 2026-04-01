@@ -221,6 +221,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/schedule-exam', [ScheduleController::class, 'applicantListExam']); // applicant dont have yet schedule for examination
         Route::get('/schedule-exam-list', [ScheduleController::class, 'fetchScheduleExamination']); // list of schedule
         Route::get('/schedule-exam-detials/{examinationScheduleId}', [ScheduleController::class, 'getApplicantExamination']); // list of schedule
+
+        
         Route::get('/submissions/index', [ApplicantSubmissionController::class, 'index']);
         Route::get('/list', [ApplicantSubmissionController::class, 'listOfApplicants']); // for employyee applicant
         Route::get('/schedule', [ScheduleController::class, 'applicantList']); // list of the applicant external and internal

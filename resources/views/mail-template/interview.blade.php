@@ -121,7 +121,7 @@
              <p>
                 Having qualified to the position, please be informed that you are scheduled for a
                 Behavioral Event Interview with the Human Resource Merit Promotion and Selection
-                Board (HRMPSB) as one of the ecaluation assessment tool on our recruitment process.
+                Board (HRMPSB) as one of the evaluation assessment tool on our recruitment process.
                 As such, kindly refer to the interview schedule below:
             </p>
 

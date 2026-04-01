@@ -90,15 +90,20 @@
             font-weight: bold;
             text-transform: uppercase;
         }
+           .header-image{
+
+            width: 100%;
+            height: 140px;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
     <!-- Letterhead -->
-        <div class="header">
+       <div>
 
-            <img src="{{ $message->embed(public_path('images/header2.jpg')) }}" alt="Logo">
+            <img src="{{ $message->embed(public_path('images/emailHeader.png')) }}" alt="Logo" class="header-image">
 
         </div>
 
@@ -108,21 +113,20 @@
             <p>Greetings of Peace and Safety!</p>
 
             <p>
-                This pertains to your application for the<strong>{{ $position }},</strong> Item No.<strong>{{ $ItemNo }}</strong>
+                This pertains to your application for the <strong>{{ $position }},</strong> Item No.<strong>{{ $ItemNo }}</strong>
                  SG <strong>{{ $SalaryGrade }}</strong>
-                in the {{ $office }}.
+                in the <strong>{{ $office }}</strong>.
             </p>
 
 
              <p>
-                Having qualified to the position, please be informed that you are scheduled for a
-                Behavioral Event Interview with the Human Resource Merit Promotion and Selection
-                Board (HRMPSB) as one of the ecaluation assessment tool on our recruitment process.
-                As such, kindly refer to the interview schedule below:
+                Having qualified to the position, please be informed that you are scheduled to take a
+                Competency-Based Written Examination as one of the evaluation assessment tool on our
+                recruitment process. As such, kindly refer to the examination schedule below:
             </p>
 
             <p>
-                <strong>Interview Details:</strong><br>
+                <strong>Examination Details:</strong><br>
                 <strong>Date:</strong> {{ $date }}<br>
                 <strong>Time:</strong> {{ $time }}<br>
                 <strong>Venue:</strong> {{ $venue }}<br>
