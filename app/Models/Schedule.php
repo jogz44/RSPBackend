@@ -18,6 +18,7 @@ class Schedule extends Model
     {
         return $this->belongsTo(Submission::class, 'submission_id');
     }
+
     public function scheduleApplicants()
     {
         return $this->hasMany(SchedulesApplicant::class, 'schedule_id');

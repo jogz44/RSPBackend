@@ -236,7 +236,7 @@ class ScheduleController extends Controller
                 'venue_exam' => $schedule->venue_exam,
                 'date_exam'  => $schedule->date_exam,
                 'time_exam'  => $schedule->time_exam,
-                'applicant_no'    => $schedule->schedule_applicants_count,
+                'applicant_no'    => $schedule->schedule_exam_applicants_count,
             ];
         });
 
