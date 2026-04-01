@@ -9,6 +9,7 @@ use App\Models\ApplicantZip;
 use App\Models\excel\nPersonal_info;
 use App\Models\JobBatchesRsp;
 use App\Models\Submission;
+use App\Models\vwActive;
 use App\Models\xPersonal;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -72,7 +73,7 @@ class ApplicantApplicationService
             $lastname  = strtoupper(trim($excelData['personal_info']['lastname']));
             $parsedBirthDate = $this->parseBirthDate($excelData['personal_info']['date_of_birth']);
 
-            $employeeExisting = xPersonal::whereRaw('UPPER(RTRIM(LTRIM(Surname))) = ?', [$lastname])
+            $employeeExisting = vwActive::whereRaw('UPPER(RTRIM(LTRIM(Surname))) = ?', [$lastname])
                 ->whereRaw('UPPER(RTRIM(LTRIM(Firstname))) = ?', [$firstname])
                 ->whereDate('BirthDate', $parsedBirthDate)
                 ->first();
@@ -269,7 +270,7 @@ class ApplicantApplicationService
             $lastname  = strtoupper(trim($excelData['personal_info']['lastname']));
             $parsedBirthDate = $this->parseBirthDate($excelData['personal_info']['date_of_birth']);
 
-            $employeeExisting = xPersonal::whereRaw('UPPER(RTRIM(LTRIM(Surname))) = ?', [$lastname])
+            $employeeExisting = vwActive::whereRaw('UPPER(RTRIM(LTRIM(Surname))) = ?', [$lastname])
                 ->whereRaw('UPPER(RTRIM(LTRIM(Firstname))) = ?', [$firstname])
                 ->whereDate('BirthDate', $parsedBirthDate)
                 ->first();
