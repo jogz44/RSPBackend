@@ -16,6 +16,7 @@ use Illuminate\Http\Request; // ✅ CORRECT
 class ApplicantSubmissionController extends Controller
 {
 
+
     protected $applicantApplicationService;
     protected $employeeService;
 

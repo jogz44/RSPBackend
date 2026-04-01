@@ -22,7 +22,7 @@ class ApplicantApplicationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'excel_file' => 'required|file|mimes:xlsx,xls,csv,xlsm',
+            'excel_file' => 'required|file|mimes:xlsx',
             'zip_file' => 'required|file|mimes:zip',
             'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id',
             'email' => 'required|email:rfc,dns'

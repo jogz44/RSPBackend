@@ -28,6 +28,8 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    'pds_file_secret' => env('PDS_FILE_SECRET', ''),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

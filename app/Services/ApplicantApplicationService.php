@@ -20,10 +20,11 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\Xlsx; // ✅ Use Xlsx instead of Xls
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use ZipArchive;
-
 
 class ApplicantApplicationService
 {
@@ -35,15 +36,29 @@ class ApplicantApplicationService
     //     //
     // }
 
+
     // store applicant applicantion excel file
-    public function applicantApplication($validated, $excelFile, $zipFile)
+    public function applicantApplication($validated, $excelFile, $zipFile,)
     {
         // args $excelfile and $zipfile
         try {
 
-            // Step 1: Read and parse Excel WITHOUT saving to database
-            // $excelFile = $request->file('excel_file');
-            $excelData = $this->parseExcelData($excelFile);
+            $spreadsheet = IOFactory::load($excelFile->getPathname());
+
+            // ✅ Pass the object — NOT the file path
+            if (!$this->isOfficialPdsFile($spreadsheet)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid file. Please upload only the official PDS file provided by the system.',
+                ], 422);
+            }
+
+
+            // ✅ Step 2: Parse using the same spreadsheet object — no re-loading
+            $excelData = $this->parseExcelData($spreadsheet);
+            // $excelData = $this->parseExcelData($excelFile);
+
+
 
             // ➤ ADD THE MATCHING CHECK HERE
             $excelEmail = strtolower(trim($excelData['personal_info']['email_address']));
@@ -201,7 +216,6 @@ class ApplicantApplicationService
                     'excel_file_name' => $excelFileName,
                     'nPersonalInfo_id' => $applicant->id,
                 ]);
-
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
@@ -233,7 +247,22 @@ class ApplicantApplicationService
 
             // Step 1: Read and parse Excel WITHOUT saving to database
 
-            $excelData = $this->parseExcelData($excelFile);
+            // $excelData = $this->parseExcelData($excelFile);
+            $spreadsheet = IOFactory::load($excelFile->getPathname());
+
+            // ✅ Pass the object — NOT the file path
+            if (!$this->isOfficialPdsFile($spreadsheet)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid file. Please upload only the official PDS file provided by the system.',
+                ], 422);
+            }
+
+
+            // ✅ Step 2: Parse using the same spreadsheet object — no re-loading
+            $excelData = $this->parseExcelData($spreadsheet);
+            // $excelData = $this->parseExcelData($excelFile);
+
 
             //check if the applicant are employee or not
             // if applicant are employee return response you are not allowed to apply
@@ -532,9 +561,9 @@ class ApplicantApplicationService
     /**
      * Parse Excel data WITHOUT saving to database
      */
-    private function parseExcelData($excelFile)
+    private function parseExcelData(Spreadsheet $spreadsheet): array
     {
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($excelFile->getRealPath());
+        // $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($excelFile->getRealPath());
 
         // Parse Personal Information Sheet
         $personalInfoSheet = $spreadsheet->getSheetByName('Personal Information');
@@ -1837,7 +1866,7 @@ class ApplicantApplicationService
         ]);
     }
 
-     // validate ZIP structure and normalize if needed
+    // validate ZIP structure and normalize if needed
     private function validateAndNormalizeZipStructure(string $zipPath): string
     {
         $requiredFolders = ['education', 'training', 'experience', 'eligibility'];
@@ -2078,5 +2107,48 @@ class ApplicantApplicationService
 
         SendApplicantSms::dispatch($contactNumber, $smsMessage)
             ->onQueue('sms');
+    }
+
+    /**
+     * Try to open the file using your secret password.
+     * Returns true only if the password matches — meaning it's your official file.
+     */
+    /**
+     * ✅ Correct isOfficialPdsFile using env password
+     */
+
+    private function isOfficialPdsFile(Spreadsheet $spreadsheet): bool
+    {
+        try {
+            $sheet = $spreadsheet->getSheetByName('Personal Information');
+
+            if (!$sheet) {
+                Log::warning('isOfficialPdsFile: Sheet "Personal Information" not found');
+                return false;
+            }
+
+            // ✅ Read from AA1 — make sure this cell has the secret in your Excel file
+            $secretValue = trim((string) $sheet->getCell('O2')->getValue());
+
+            // ✅ Use config() not env() — works even when config is cached
+            $expected = trim((string) config('app.pds_file_secret'));
+
+            Log::info('isOfficialPdsFile check', [
+                'secret_value' => $secretValue,
+                'expected'     => $expected,
+                'match'        => $secretValue === $expected,
+            ]);
+
+            // ✅ Reject if EITHER is empty — prevents accidental bypass
+            if (empty($secretValue) || empty($expected)) {
+                Log::warning('isOfficialPdsFile: secret or expected is empty — rejecting');
+                return false;
+            }
+
+            return $secretValue === $expected;
+        } catch (\Exception $e) {
+            Log::warning('isOfficialPdsFile failed: ' . $e->getMessage());
+            return false;
+        }
     }
 }
