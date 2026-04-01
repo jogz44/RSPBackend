@@ -2,8 +2,7 @@
 
 namespace App\Services;
 
-use App\Imports\ApplicantDataImport;
-use App\Imports\ApplicantFormImport;
+
 use App\Jobs\SendApplicantSms;
 use App\Mail\EmailApi;
 use App\Models\ApplicantZip;
@@ -12,16 +11,13 @@ use App\Models\JobBatchesRsp;
 use App\Models\Submission;
 use App\Models\xPersonal;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Reader\Xlsx; // ✅ Use Xlsx instead of Xls
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use ZipArchive;

@@ -31,12 +31,18 @@ class SendApplicantSms implements ShouldQueue
     public function handle(): void
     {
         $content = urlencode($this->message);
-        $number  = preg_replace('/\D/', '', $this->contactNumber); // strip non-digits
+        $number  = preg_replace('/\D/', '', $this->contactNumber);
 
-        $url = "http://192.168.100.52/cgi/WebCGI"
-            . "?1500101=account=apiuser"
-            . "&password=apipass"
-            . "&port=1"
+        // ✅ All sensitive values from config — nothing hardcoded
+        $baseUrl  = config('app.sms_api_url');
+        $apiUser  = config('app.sms_api_user');
+        $apiPass  = config('app.sms_api_pass');
+        $apiPort  = config('app.sms_api_port');
+
+        $url = "{$baseUrl}"
+            . "?1500101=account={$apiUser}"
+            . "&password={$apiPass}"
+            . "&port={$apiPort}"
             . "&destination={$number}"
             . "&content={$content}";
 
@@ -44,12 +50,11 @@ class SendApplicantSms implements ShouldQueue
 
         if (!$response->successful()) {
             Log::warning('SMS failed', [
-                'number'   => $number,
-                'status'   => $response->status(),
-                'body'     => $response->body(),
+                'number' => $number,
+                'status' => $response->status(),
+                'body'   => $response->body(),
             ]);
 
-            // Will be retried up to $tries times
             $this->fail("SMS API returned status: " . $response->status());
         }
 

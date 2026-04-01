@@ -28,7 +28,14 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    // password file
     'pds_file_secret' => env('PDS_FILE_SECRET', ''),
+
+    // config for sms
+    'sms_api_url'  => env('SMS_API_URL', ''),
+    'sms_api_user' => env('SMS_API_USER', ''),
+    'sms_api_pass' => env('SMS_API_PASS', ''),
+    'sms_api_port' => env('SMS_API_PORT', 1),
 
     /*
     |--------------------------------------------------------------------------
