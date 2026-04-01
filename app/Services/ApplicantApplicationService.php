@@ -45,7 +45,7 @@ class ApplicantApplicationService
             if (!$this->isOfficialPdsFile($spreadsheet)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid file. Please upload only the official PDS file provided by the system.',
+                    'message' => 'Invalid Excel File. Please upload only the official PDS file provided by the system.',
                 ], 422);
             }
 
