@@ -112,6 +112,271 @@ class ScheduleService
         ]);
     }
 
+
+    public function updateEmailInterview($validated, $scheduleId)
+    {
+        $schedule = Schedule::findOrFail($scheduleId);
+
+        // ✅ Normalize before comparing — prevents false positives from format mismatches
+        $dateChanged = Carbon::parse($schedule->date_interview)->format('Y-m-d') !== Carbon::parse($validated['date_interview'])->format('Y-m-d')
+            || Carbon::parse($schedule->time_interview)->format('H:i')   !== Carbon::parse($validated['time_interview'])->format('H:i')
+            || trim($schedule->venue_interview)                           !== trim($validated['venue_interview']);
+
+        // Get existing applicants BEFORE updating
+        $existingSubmissionIds = SchedulesApplicant::where('schedule_id', $schedule->id)
+            ->pluck('submission_id')
+            ->toArray();
+
+        $schedule->update([
+            'batch_name'      => $validated['batch_name'],
+            'date_interview'  => $validated['date_interview'],
+            'time_interview'  => $validated['time_interview'],
+            'venue_interview' => $validated['venue_interview'],
+        ]);
+
+        $date          = Carbon::parse($validated['date_interview'])->format('F d, Y');
+        $timeFormatted = Carbon::parse($validated['time_interview'])->format('g:i A');
+        $venue         = $validated['venue_interview'];
+        $newCount      = 0;
+        $oldCount      = 0;
+
+        // ─── STEP 1: Handle new applicants (if any) ───────────────────────
+        if (!empty($validated['applicants'])) {
+            foreach ($validated['applicants'] as $app) {
+
+                $submission = Submission::with('nPersonalInfo')->find($app['submission_id']);
+                if (!$submission) continue;
+
+                $job = JobBatchesRsp::find($app['job_batches_rsp']);
+                if (!$job) continue;
+
+                $isNew = !in_array($submission->id, $existingSubmissionIds);
+
+                SchedulesApplicant::firstOrCreate([
+                    'schedule_id'   => $schedule->id,
+                    'submission_id' => $submission->id,
+                ]);
+
+                if (!$isNew) continue; // already exists, skip
+
+                $position    = $job->Position    ?? '';
+                $office      = $job->Office      ?? '';
+                $SalaryGrade = $job->SalaryGrade ?? '';
+                $ItemNo      = $job->ItemNo      ?? '';
+
+                [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
+
+                if (!$email) {
+                    Log::info("Skipping new applicant {$submission->id}, email not found");
+                    continue;
+                }
+
+                Mail::to($email)->queue((new EmailApi(
+                    "Interview Invitation",
+                    'mail-template.interview',
+                    [
+                        'fullname'    => $fullname,
+                        'date'        => $date,
+                        'time'        => $timeFormatted,
+                        'venue'       => $venue,
+                        'position'    => $position,
+                        'SalaryGrade' => $SalaryGrade,
+                        'office'      => $office,
+                        'ItemNo'      => $ItemNo,
+                    ]
+                ))->onQueue('emails'));
+
+                $this->dispatchSms(
+                    contactNumber: $contactNumber,
+                    fullname: $fullname,
+                    type: 'interview',
+                    date: $date,
+                    time: $timeFormatted,
+                    venue: $venue,
+                    position: $position,
+                    office: $office,
+                    ItemNo: $ItemNo,
+                );
+
+                $newCount++;
+
+                EmailLog::create([
+                    'email'    => $email,
+                    'activity' => 'Interview invitations',
+                ]);
+            }
+        }
+
+        // ─── STEP 2: Notify OLD applicants ONLY if date/time/venue changed ─
+        if ($dateChanged && !empty($existingSubmissionIds)) {
+            $existingApplicants = SchedulesApplicant::where('schedule_id', $schedule->id)
+                ->whereIn('submission_id', $existingSubmissionIds)
+                ->with(['submission.nPersonalInfo'])
+                ->get();
+
+            foreach ($existingApplicants as $scheduleApplicant) {
+                $submission = $scheduleApplicant->submission;
+                if (!$submission) continue;
+
+                $job = JobBatchesRsp::find($submission->job_batches_rsp_id);
+                if (!$job) {
+                    Log::info("Skipping existing applicant {$submission->id}, job not found");
+                    continue;
+                }
+
+                $position    = $job->Position    ?? '';
+                $office      = $job->Office      ?? '';
+                $SalaryGrade = $job->SalaryGrade ?? '';
+                $ItemNo      = $job->ItemNo      ?? '';
+
+                [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
+
+                if (!$email) {
+                    Log::info("Skipping existing applicant {$submission->id}, email not found");
+                    continue;
+                }
+
+                Mail::to($email)->queue((new EmailApi(
+                    "Interview Re-Schedule",
+                    'mail-template.interview-reschedule',
+                    [
+                        'fullname'    => $fullname,
+                        'date'        => $date,
+                        'time'        => $timeFormatted,
+                        'venue'       => $venue,
+                        'position'    => $position,
+                        'SalaryGrade' => $SalaryGrade,
+                        'office'      => $office,
+                        'ItemNo'      => $ItemNo,
+                    ]
+                ))->onQueue('emails'));
+
+                $this->dispatchSms(
+                    contactNumber: $contactNumber,
+                    fullname: $fullname,
+                    type: 'interview-reschedule',
+                    date: $date,
+                    time: $timeFormatted,
+                    venue: $venue,
+                    position: $position,
+                    office: $office,
+                    ItemNo: $ItemNo,
+                );
+
+                $oldCount++;
+
+                EmailLog::create([
+                    'email'    => $email,
+                    'activity' => 'Interview re-schedule invitations',
+                ]);
+            }
+        }
+
+        // ─── Response ─────────────────────────────────────────────────────
+        $messages = [];
+        if ($oldCount > 0) $messages[] = "Re-schedule notice sent to {$oldCount} existing applicant(s).";
+        if ($newCount > 0) $messages[] = "Interview invitation sent to {$newCount} new applicant(s).";
+        if (empty($messages)) $messages[] = "Schedule updated successfully. No emails were sent.";
+
+        return response()->json([
+            'success' => true,
+            'message' => implode(' ', $messages),
+        ]);
+    }
+
+    // cancel interview and send email to applicant
+    public function cancelEmailInterview($scheduleId)
+    {
+        $schedule = Schedule::findOrFail($scheduleId);
+
+        // ✅ Get schedule details for the email
+        $date          = Carbon::parse($schedule->date_interview)->format('F d, Y');
+        $timeFormatted = Carbon::parse($schedule->time_interview)->format('g:i A');
+        $venue         = $schedule->venue_interview;
+        $count         = 0;
+
+        // ✅ Get ALL existing applicants for this schedule
+        $scheduleApplicants = SchedulesApplicant::where('schedule_id', $schedule->id)
+            ->with(['submission.nPersonalInfo'])
+            ->get();
+
+        if ($scheduleApplicants->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No applicants found for this schedule.',
+            ], 404);
+        }
+
+        foreach ($scheduleApplicants as $scheduleApplicant) {
+            $submission = $scheduleApplicant->submission;
+            if (!$submission) continue;
+
+            // ✅ Get job from submission
+            $job = JobBatchesRsp::find($submission->job_batches_rsp_id);
+            if (!$job) {
+                Log::info("Skipping applicant {$submission->id}, job not found");
+                continue;
+            }
+
+            $position    = $job->Position    ?? '';
+            $office      = $job->Office      ?? '';
+            $SalaryGrade = $job->SalaryGrade ?? '';
+            $ItemNo      = $job->ItemNo      ?? '';
+
+            [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
+
+            if (!$email) {
+                Log::info("Skipping applicant {$submission->id}, email not found");
+                continue;
+            }
+
+            // ✅ Send cancellation email
+            Mail::to($email)->queue((new EmailApi(
+                "Interview Cancellation",
+                'mail-template.cancel-interview',
+                [
+                    'fullname'    => $fullname,
+                    'date'        => $date,
+                    'time'        => $timeFormatted,
+                    'venue'       => $venue,
+                    'position'    => $position,
+                    'SalaryGrade' => $SalaryGrade,
+                    'office'      => $office,
+                    'ItemNo'      => $ItemNo,
+                ]
+            ))->onQueue('emails'));
+
+            // ✅ Send cancellation SMS
+            $this->dispatchSms(
+                contactNumber: $contactNumber,
+                fullname: $fullname,
+                type: 'interview-cancel', // use correct type
+                date: $date,
+                time: $timeFormatted,
+                venue: $venue,
+                position: $position,
+                office: $office,
+                ItemNo: $ItemNo,
+            );
+
+            $count++;
+
+            EmailLog::create([
+                'email'    => $email,
+                'activity' => 'Interview cancellation',
+            ]);
+        }
+
+        // ✅ Mark schedule as cancelled
+        $schedule->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Interview cancellation notices sent to {$count} applicant(s).",
+        ]);
+    }
+
+
     // ── SEND EMAIL EXAMINATION ───────────────────────────────────────────
     public function sendEmailExamination($validated)
     {
@@ -740,7 +1005,7 @@ class ScheduleService
         ]);
     }
 
-   
+
     // public function sendEmailApplicantBatch($validated, $request)
     // {
 

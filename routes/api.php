@@ -222,7 +222,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/schedule-exam-list', [ScheduleController::class, 'fetchScheduleExamination']); // list of schedule
         Route::get('/schedule-exam-detials/{examinationScheduleId}', [ScheduleController::class, 'getApplicantExamination']); // list of schedule
 
-        
+
         Route::get('/submissions/index', [ApplicantSubmissionController::class, 'index']);
         Route::get('/list', [ApplicantSubmissionController::class, 'listOfApplicants']); // for employyee applicant
         Route::get('/schedule', [ScheduleController::class, 'applicantList']); // list of the applicant external and internal
@@ -272,11 +272,14 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::get('/old/credentail/{pendingId}/{type}', [EmployeeController::class, 'fetchOldAndNew']);
     });
 
-    Route::prefix('email')->group(function () {
-        Route::post('/send/examination', [EmailController::class, 'storeExaminationApplicant']); // send an interview schedule for applicant
-        Route::post('/send/interview', [EmailController::class, 'storeInterviewApplicant']); // send an interview schedule for applicant
-        Route::post('/send/status', [EmailController::class, 'applicantUnqualified']); // send an update of status applicant
-        Route::post('/send/status/qualified', [EmailController::class, 'applicantQualified']); // send an update of status applicant
+    Route::prefix('email/send')->group(function () {
+        Route::post('examination', [EmailController::class, 'storeExaminationApplicant']); // send an interview schedule for applicant
+        Route::post('interview', [EmailController::class, 'storeInterviewApplicant']); // send an interview schedule for applicant
+        Route::put('interview/update/{scheduleId}', [EmailController::class, 'updateInterviewApplicant']); // update and send an interview schedule for applicant
+        Route::delete('interview/cancel/{scheduleId}', [EmailController::class, 'cancelInterviewApplicant']); // cancel an interview schedule for applicant
+
+        Route::post('status', [EmailController::class, 'applicantUnqualified']); // send an update of status applicant
+        Route::post('status/qualified', [EmailController::class, 'applicantQualified']); // send an update of status applicant
 
     });
 

@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\InterviewApplicantStoreRequest;
+use App\Http\Requests\InterviewApplicantUpdateRequest;
 use App\Mail\EmailApi;
 use App\Models\EmailLog;
-
 use App\Models\JobBatchesRsp;
 use App\Models\Schedule;
 use App\Models\SchedulesApplicant;
@@ -23,23 +24,34 @@ class EmailController extends Controller
 
 
     // store and send email to appllicant interview
-    public function storeInterviewApplicant(Request $request, ScheduleService $scheduleService)
+    public function storeInterviewApplicant( ScheduleService $scheduleService,InterviewApplicantStoreRequest $interviewApplicantStoreRequest)
     {
-        $validated = $request->validate([
-            'applicants' => 'required|array',
-            'applicants.*.submission_id' => 'required|exists:submission,id',
-            'applicants.*.job_batches_rsp' => 'required|exists:job_batches_rsp,id',
-            'date_interview' => 'required|date',
-            'time_interview' => 'required|string',
-            'venue_interview' => 'required|string',
-            'batch_name' => 'required|string',
-        ]);
-
+        $validated = $interviewApplicantStoreRequest->validated();
 
         $result = $scheduleService->sendEmailInterview($validated);
 
         return $result;
+    }
 
+    // update and send email to appllicant interview
+    public function updateInterviewApplicant(InterviewApplicantUpdateRequest $interviewApplicantUpdateRequest, ScheduleService $scheduleService, $scheduleId)
+    {
+
+        $validated = $interviewApplicantUpdateRequest->validated();
+
+
+        $result = $scheduleService->updateEmailInterview($validated, $scheduleId);
+
+        return $result;
+    }
+
+    // cancel and send email to appllicant interview
+    public function cancelInterviewApplicant($scheduleId , ScheduleService $scheduleService)
+    {
+
+        $result = $scheduleService->cancelEmailInterview($scheduleId);
+
+        return $result;
     }
 
     // for the unqualified applicant that send an  the qualification and remarks

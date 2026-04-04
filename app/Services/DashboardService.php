@@ -51,4 +51,23 @@ class DashboardService
             'total' => $total,
         ]);
     }
+
+    // public function plantillaData()
+    // {
+    //     $data = vwplantillastructure::selectRaw("
+    //     COUNT(*) as total,
+    //     SUM(CASE WHEN Funded = 1 THEN 1 ELSE 0 END) as funded,
+    //     SUM(CASE WHEN Funded = 0 THEN 1 ELSE 0 END) as unfunded,
+    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NOT NULL THEN 1 ELSE 0 END) as occupied,
+    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
+    // ")->first();
+
+    //     return response()->json([
+    //         'total'      => (int) $data->total,
+    //         'funded'     => (int) $data->funded,
+    //         'unfunded'   => (int) $data->unfunded,
+    //         'occupied'   => (int) $data->occupied,
+    //         'unoccupied' => (int) $data->unoccupied,
+    //     ]);
+    // }
 }
