@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ExaminationApplicantStoreRequest;
+use App\Http\Requests\ExaminationApplicantUpdateRequest;
 use App\Http\Requests\InterviewApplicantStoreRequest;
 use App\Http\Requests\InterviewApplicantUpdateRequest;
 use App\Mail\EmailApi;
@@ -22,7 +24,6 @@ class EmailController extends Controller
 {
     // set shedules for the applicant wit sent an email
 
-
     // store and send email to appllicant interview
     public function storeInterviewApplicant( ScheduleService $scheduleService,InterviewApplicantStoreRequest $interviewApplicantStoreRequest)
     {
@@ -38,7 +39,6 @@ class EmailController extends Controller
     {
 
         $validated = $interviewApplicantUpdateRequest->validated();
-
 
         $result = $scheduleService->updateEmailInterview($validated, $scheduleId);
 
@@ -104,17 +104,9 @@ class EmailController extends Controller
     }
 
     // store and send email to appllicant interview
-    public function storeExaminationApplicant(Request $request, ScheduleService $scheduleService)
+    public function storeExaminationApplicant(ExaminationApplicantStoreRequest $examinationApplicantStoreRequest, ScheduleService $scheduleService)
     {
-        $validated = $request->validate([
-            'applicants' => 'required|array',
-            'applicants.*.submission_id' => 'required|exists:submission,id',
-            'applicants.*.job_batches_rsp' => 'required|exists:job_batches_rsp,id',
-            'date_exam' => 'required|date',
-            'time_exam' => 'required|string',
-            'venue_exam' => 'required|string',
-            'batch_name' => 'required|string',
-        ]);
+        $validated = $examinationApplicantStoreRequest->validated();
 
 
         $result = $scheduleService->sendEmailExamination($validated);
@@ -122,4 +114,23 @@ class EmailController extends Controller
         return $result;
     }
 
+    // update and send email to appllicant examination
+    public function updateExaminationApplicant(ExaminationApplicantUpdateRequest $examinationApplicantUpdateRequest, ScheduleService $scheduleService, $scheduleExamId)
+    {
+        $validated = $examinationApplicantUpdateRequest->validated();
+
+
+        $result = $scheduleService->updateEmailExamination($validated,$scheduleExamId);
+
+        return $result;
+    }
+
+    //  cancel and send email to appllicant examination
+    public function cancelExaminationApplicant($scheduleExamId, ScheduleService $scheduleService)
+    {
+
+        $result = $scheduleService->cancelEmailExamination($scheduleExamId);
+
+        return $result;
+    }
 }
