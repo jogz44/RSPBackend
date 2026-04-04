@@ -11,7 +11,7 @@ class SchedulesExamApplicant extends Model
 
 
     protected $fillable = [
-        'schedule_id',
+        'schedules_exam_id',
         'submission_id'
     ];
 

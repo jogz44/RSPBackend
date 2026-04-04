@@ -103,7 +103,6 @@ class EmailController extends Controller
         ]);
     }
 
-
     // store and send email to appllicant interview
     public function storeExaminationApplicant(Request $request, ScheduleService $scheduleService)
     {

@@ -387,7 +387,7 @@ class ScheduleService
         $batchName     = $validated['batch_name'];
         $count         = 0;
 
-        $schedule = SchedulesExam::create([
+        $schedules_exam = SchedulesExam::create([
             'batch_name' => $batchName,
             'date_exam'  => $validated['date_exam'],
             'time_exam'  => $time,
@@ -415,7 +415,7 @@ class ScheduleService
             }
 
             SchedulesExamApplicant::create([
-                'schedule_id'   => $schedule->id,
+                'schedules_exam_id'   => $schedules_exam->id,
                 'submission_id' => $submission->id,
             ]);
 

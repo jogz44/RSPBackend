@@ -226,21 +226,21 @@ class ScheduleController extends Controller
             });
         }
 
-        $schedules = $query->paginate($perPage);
+        $schedules_exam = $query->paginate($perPage);
 
         // 🧹 Transform after pagination
-        $schedules->getCollection()->transform(function ($schedule) {
+        $schedules_exam->getCollection()->transform(function ($schedules_exam) {
             return [
-                'schedule_id'     => $schedule->id,
-                'batch_name'      => $schedule->batch_name,
-                'venue_exam' => $schedule->venue_exam,
-                'date_exam'  => $schedule->date_exam,
-                'time_exam'  => $schedule->time_exam,
-                'applicant_no'    => $schedule->schedule_exam_applicants_count,
+                'schedule_id'     => $schedules_exam->id,
+                'batch_name'      => $schedules_exam->batch_name,
+                'venue_exam' => $schedules_exam->venue_exam,
+                'date_exam'  => $schedules_exam->date_exam,
+                'time_exam'  => $schedules_exam->time_exam,
+                'applicant_no'    => $schedules_exam->schedule_exam_applicants_count,
             ];
         });
 
-        return response()->json($schedules);
+        return response()->json($schedules_exam);
     }
 
 

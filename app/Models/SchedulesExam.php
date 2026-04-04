@@ -12,14 +12,15 @@ class SchedulesExam extends Model
         'batch_name',
         'date_exam',
         'time_exam',
-        'venue_exam'
+        'venue_exam',
+
     ];
 
 
 
     public function scheduleExamApplicants()
     {
-        return $this->hasMany(SchedulesExamApplicant::class, 'schedule_id');
+        return $this->hasMany(SchedulesExamApplicant::class, 'schedules_exam_id');
     }
 
 }

@@ -274,6 +274,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('email/send')->group(function () {
         Route::post('examination', [EmailController::class, 'storeExaminationApplicant']); // send an interview schedule for applicant
+        // Route::post('examination', [EmailController::class, 'storeExaminationApplicant']); // send an interview schedule for applicant
+        // Route::post('examination', [EmailController::class, 'storeExaminationApplicant']); // send an interview schedule for applicant
+
         Route::post('interview', [EmailController::class, 'storeInterviewApplicant']); // send an interview schedule for applicant
         Route::put('interview/update/{scheduleId}', [EmailController::class, 'updateInterviewApplicant']); // update and send an interview schedule for applicant
         Route::delete('interview/cancel/{scheduleId}', [EmailController::class, 'cancelInterviewApplicant']); // cancel an interview schedule for applicant
