@@ -162,16 +162,11 @@ class AuthController extends Controller
         }
 
         // Generate a token for the user
-        // $token = $user->createToken('my-secret-token')->plainTextToken;
-        // $token = $user->createToken('admin_token')->plainTextToken;
-        // Force logout any previous sessions
+        // Delete old tokens, generate fresh one
         $user->tokens()->delete();
-
-        // Generate fresh token
         $token = $user->createToken('admin_token')->plainTextToken;
 
-        // Set the token in a secure cookie
-        $cookie = cookie('admin_token', $token, 60 * 24, null, null, true, true, false, 'None');
+
 
         if ($user instanceof \App\Models\User) {
             $user->load('role'); // make sure the role is loaded
@@ -199,39 +194,39 @@ class AuthController extends Controller
 
             ],
             'token' => $token,
-        ])->withCookie($cookie);
+        ]);
     }
 
 
     // logout
+    // Logout
     public function userLogout(Request $request)
     {
         $user = Auth::user();
 
         if ($user) {
+            // ✅ Delete all tokens — no cookie needed
             $user->tokens()->delete();
-        }
 
-        $cookie = cookie()->forget('admin_token');
-
-        if ($user instanceof \App\Models\User) {
-            activity('Logout')
-                ->causedBy($user)
-                ->performedOn($user)
-                ->withProperties([
-                    'username' => $user->username,
-                    'role' => $user->role?->role_name,
-                    'office' => $user->office,
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->header('User-Agent'),
-                ])
-                ->log("'{$user->name}' logout successfully.");
+            if ($user instanceof \App\Models\User) {
+                activity('Logout')
+                    ->causedBy($user)
+                    ->performedOn($user)
+                    ->withProperties([
+                        'username'   => $user->username,
+                        'role'       => $user->role?->role_name,
+                        'office'     => $user->office,
+                        'ip'         => $request->ip(),
+                        'user_agent' => $request->header('User-Agent'),
+                    ])
+                    ->log("'{$user->name}' logout successfully.");
+            }
         }
 
         return response([
-            'status' => true,
+            'status'  => true,
             'message' => 'Logout Successfully',
-        ])->withCookie($cookie);
+        ]);
     }
 
     // Get all users (User Management) with rspControl data

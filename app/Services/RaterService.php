@@ -243,7 +243,7 @@ class RaterService
 
         $token = $user->createToken('rater_token')->plainTextToken;
         // Set the token in a secure cookie
-        $cookie = cookie('rater_token', $token, 60 * 24, null, null, true, true, false, 'None');
+        // $cookie = cookie('rater_token', $token, 60 * 24, null, null, true, true, false, 'None');
 
         //  Log the activity using Spatie Activity Log
         // ✅ Fix: Ensure the correct type for Spatie activity log
@@ -274,7 +274,7 @@ class RaterService
 
             ],
             'token' => $token,
-        ])->withCookie($cookie);
+        ]);
     }
 
 
