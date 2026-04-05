@@ -195,7 +195,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/office/rater', [PlantillaController::class, 'fetchOfficeRater']);
         Route::delete('/delete/all', [OnFundedPlantillaController::class, 'deleteAllPlantillas']);
         Route::get('/appointment/{ControlNo}', [PlantillaController::class, 'getAllData']);
-        Route::get('/offices', [PlantillaController::class, 'arrangement']);
+        Route::get('/offices', [PlantillaController::class, 'offices']);
+        // Route::get('/officesv1', [PlantillaController::class, 'arrangement']);
+        // Route::get('/officesv2', [PlantillaController::class, 'offices']);
     });
 
 
