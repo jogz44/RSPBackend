@@ -69,6 +69,18 @@ class PlantillaController extends Controller
       return $data;
     }
 
+    // office on plantilla
+     public function offices()
+    {
+            $query = vwplantillastructure::select('office as Office')
+                ->distinct()
+                ->get();
+
+            return $query;
+    }
+
+
+
     // office and rater on the modal rater mdoule
     public function fetchOfficeRater()
     {
@@ -86,6 +98,8 @@ class PlantillaController extends Controller
             ->get();
         return response()->json($data);
     }
+
+
 
     // offices and arrangement
     public function arrangement()
