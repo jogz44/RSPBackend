@@ -31,43 +31,43 @@ class DashboardService
     // employee total and status
     // funded and unfunded position
     // total occupied and unccupied position
-    public function plantillaData()
-    {
-        $funded = vwplantillastructure::where('Funded', true)->count();
-        $unfunded = vwplantillastructure::where('Funded', false)->count();
-        $occupied = vwplantillastructure::where('Funded', true)
-            ->whereNotNull('ControlNo')
-            ->count();
-        $unoccupied = vwplantillastructure::where('Funded', true)
-            ->whereNull('ControlNo')
-            ->count();
-        $total = vwplantillastructure::count();
-
-        return response()->json([
-            'funded' => $funded,
-            'unfunded' => $unfunded,
-            'occupied' => $occupied,
-            'unoccupied' => $unoccupied,
-            'total' => $total,
-        ]);
-    }
-
     // public function plantillaData()
     // {
-    //     $data = vwplantillastructure::selectRaw("
-    //     COUNT(*) as total,
-    //     SUM(CASE WHEN Funded = 1 THEN 1 ELSE 0 END) as funded,
-    //     SUM(CASE WHEN Funded = 0 THEN 1 ELSE 0 END) as unfunded,
-    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NOT NULL THEN 1 ELSE 0 END) as occupied,
-    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
-    // ")->first();
+    //     $funded = vwplantillastructure::where('Funded', true)->count();
+    //     $unfunded = vwplantillastructure::where('Funded', false)->count();
+    //     $occupied = vwplantillastructure::where('Funded', true)
+    //         ->whereNotNull('ControlNo')
+    //         ->count();
+    //     $unoccupied = vwplantillastructure::where('Funded', true)
+    //         ->whereNull('ControlNo')
+    //         ->count();
+    //     $total = vwplantillastructure::count();
 
     //     return response()->json([
-    //         'total'      => (int) $data->total,
-    //         'funded'     => (int) $data->funded,
-    //         'unfunded'   => (int) $data->unfunded,
-    //         'occupied'   => (int) $data->occupied,
-    //         'unoccupied' => (int) $data->unoccupied,
+    //         'funded' => $funded,
+    //         'unfunded' => $unfunded,
+    //         'occupied' => $occupied,
+    //         'unoccupied' => $unoccupied,
+    //         'total' => $total,
     //     ]);
     // }
+
+    public function plantillaData()
+    {
+        $data = vwplantillastructure::selectRaw("
+        COUNT(*) as total,
+        SUM(CASE WHEN Funded = 1 THEN 1 ELSE 0 END) as funded,
+        SUM(CASE WHEN Funded = 0 THEN 1 ELSE 0 END) as unfunded,
+        SUM(CASE WHEN Funded = 1 AND ControlNo IS NOT NULL THEN 1 ELSE 0 END) as occupied,
+        SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
+    ")->first();
+
+        return response()->json([
+            'total'      => (int) $data->total,
+            'funded'     => (int) $data->funded,
+            'unfunded'   => (int) $data->unfunded,
+            'occupied'   => (int) $data->occupied,
+            'unoccupied' => (int) $data->unoccupied,
+        ]);
+    }
 }

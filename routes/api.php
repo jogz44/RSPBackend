@@ -180,8 +180,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('plantilla')->group(function () {
-        Route::get('/ControlNo', [PlantillaController::class, 'getMaxControlNo']);
+
         Route::get('/', [PlantillaController::class, 'fetchEmployeeOnPlantilla']);
+        Route::get('/ControlNo', [PlantillaController::class, 'getMaxControlNo']);
         Route::get('/office/rater', [PlantillaController::class, 'fetchOfficeRater']);
         Route::delete('/delete/all', [OnFundedPlantillaController::class, 'deleteAllPlantillas']);
         Route::get('/appointment/{ControlNo}', [PlantillaController::class, 'getAllData']);
