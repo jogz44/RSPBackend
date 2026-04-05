@@ -12,9 +12,17 @@ use App\Models\vwofficearrangement;
 use App\Models\xService;
 use App\Services\PlantillaService;
 use LDAP\Result;
+use PDO;
 
 class PlantillaController extends Controller
 {
+
+        protected $plantillaService;
+
+     public function __construct(PlantillaService $plantillaService){
+
+     return $this->plantillaService = $plantillaService;
+     }
 
     public function getMaxControlNo()
     {
@@ -45,11 +53,20 @@ class PlantillaController extends Controller
 
     // fetch list of employee
     // to get the structure of office and get the employee base on the office
-    public function fetchEmployeeOnPlantilla(Request $request,PlantillaService $plantillaService)
+    public function fetchEmployeeOnPlantilla(Request $request)
     {
-        $result = $plantillaService->fetchAllEmployeeOnplantilla($request);
+        $result = $this->plantillaService->fetchAllEmployeeOnplantilla($request);
 
         return response()->json($result);
+    }
+
+    // fetch all employee on the plantilla
+    public function employeePlantilla(Request $request)
+    {
+
+      $data = $this->plantillaService->getEmployeeByOffice($request);
+
+      return $data;
     }
 
     // office and rater on the modal rater mdoule
@@ -70,7 +87,7 @@ class PlantillaController extends Controller
         return response()->json($data);
     }
 
-
+    // offices and arrangement
     public function arrangement()
     {
         $data = vwofficearrangement::select(['Office'])->get();

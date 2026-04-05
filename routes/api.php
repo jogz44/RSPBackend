@@ -43,11 +43,19 @@ Route::get('/email/tracking', [EmailController::class, 'emailTracking']); // sen
 // user
 Route::post('/verify-code', [VerificationController::class, 'verifyCode']); // verify the code
 
-Route::post('/send-verification', [VerificationController::class, 'sendVerification']); // sending code on email
+Route::post('/send-verification', [VerificationController::class, 'sendVerification'])
+->middleware('throttle:send-verification'); // 5 requests per 1 minute // sending code on email
 
 Route::post('/send-verificationv2', [VerificationController::class, 'sendVerification'])
     ->middleware('throttle:send-verification'); // 5 requests per 1 minute
 
+
+// Route::prefix('job-batches-rsp')->group(function () {
+
+//     Route::get('/', [JobBatchesRspController::class, 'availableJobPost']); // fetching all job post
+
+//     Route::get('/{job_post_id}', [JobBatchesRspController::class, 'jobPostView']); // update the job-batches-rsp start date and end date
+// });
 
 Route::middleware('auth:sanctum')->post('/logs/auth', [LogController::class, 'logAuth']);
 
@@ -181,11 +189,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('plantilla')->group(function () {
 
-        Route::get('/', [PlantillaController::class, 'fetchEmployeeOnPlantilla']);
+        // Route::get('/', [PlantillaController::class, 'fetchEmployeeOnPlantilla']);
+        Route::get('/', [PlantillaController::class, 'employeePlantilla']);
         Route::get('/ControlNo', [PlantillaController::class, 'getMaxControlNo']);
         Route::get('/office/rater', [PlantillaController::class, 'fetchOfficeRater']);
         Route::delete('/delete/all', [OnFundedPlantillaController::class, 'deleteAllPlantillas']);
         Route::get('/appointment/{ControlNo}', [PlantillaController::class, 'getAllData']);
+        Route::get('/offices', [PlantillaController::class, 'arrangement']);
     });
 
 
