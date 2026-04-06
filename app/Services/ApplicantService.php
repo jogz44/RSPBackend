@@ -6,8 +6,10 @@ use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
+use App\Models\vwActive;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ApplicantService
@@ -99,7 +101,7 @@ class ApplicantService
 
     // export applicant on the job post
     //
-    public function store($validated,$request)
+    public function store($validated, $request)
     {
 
         $user = Auth::user(); // Get the authenticated user
@@ -257,20 +259,20 @@ class ApplicantService
         // }
 
         // Generate image URL
-            $imageUrl = null;
-            $rawImagePath = $info['image_path'] ?? null;
+        $imageUrl = null;
+        $rawImagePath = $info['image_path'] ?? null;
 
-            if ($rawImagePath) {
-                // Case 1: Already a full URL (from external DB)
-                if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
-                    $imageUrl = $rawImagePath;
-                }
-                // Case 2: Local storage path
-                elseif (Storage::disk('public')->exists($rawImagePath)) {
-                    $baseUrl = config('app.url');
-                    $imageUrl = $baseUrl . '/storage/' . $rawImagePath;
-                }
+        if ($rawImagePath) {
+            // Case 1: Already a full URL (from external DB)
+            if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
+                $imageUrl = $rawImagePath;
             }
+            // Case 2: Local storage path
+            elseif (Storage::disk('public')->exists($rawImagePath)) {
+                $baseUrl = config('app.url');
+                $imageUrl = $baseUrl . '/storage/' . $rawImagePath;
+            }
+        }
 
 
         // $trainingImages    = [];
@@ -517,14 +519,24 @@ class ApplicantService
 
             // fallback
             if ((!$firstname || !$lastname) && $firstRow->ControlNo) {
-                $xPDS = new \App\Http\Controllers\xPDSController();
-                $employeeData = $xPDS->getPersonalDataSheet(new \Illuminate\Http\Request([
-                    'controlno' => $firstRow->ControlNo
-                ]));
+                // $xPDS = new \App\Http\Controllers\xPDSController();
+                // $employeeData = $xPDS->getPersonalDataSheet(new \Illuminate\Http\Request([
+                //     'controlno' => $firstRow->ControlNo
+                // ]));
 
-                $employeeJson = $employeeData->getData(true);
-                $firstname = $employeeJson['User'][0]['Firstname'] ?? '';
-                $lastname  = $employeeJson['User'][0]['Surname'] ?? '';
+
+                $active = vwActive::where('ControlNo', $firstRow->ControlNo)->first();
+
+                // if (!$active) {
+                //     Log::warning('No vwActive match', [
+                //         'ControlNo' => $firstRow->ControlNo
+                //     ]);
+                // } else {
+                //     Log::info('vwActive found', $active->toArray());
+                // }
+
+                $firstname = $active->Firstname ?? $active->firstname ?? '';
+                $lastname  = $active->Surname ?? $active->surname ?? '';
             }
 
             $scoresArray = $scoreRows->map(fn($row) => [
@@ -913,45 +925,45 @@ class ApplicantService
             ->where('rating_score.job_batches_rsp_id', $jobBatchId)
             ->get();
 
-                if ($historyRecords->isEmpty()) {
-                    return response()->json(['message' => 'No applicant history found'], 404);
-                }
+        if ($historyRecords->isEmpty()) {
+            return response()->json(['message' => 'No applicant history found'], 404);
+        }
 
-                $first = $historyRecords->first();
+        $first = $historyRecords->first();
 
-                // ✅ Use internal or fallback to external
-                $firstname = $first->internal_firstname ?? $first->external_firstname;
-                $lastname  = $first->internal_lastname  ?? $first->external_lastname;
-                $imagePath = $first->internal_image     ?? $first->external_image;
+        // ✅ Use internal or fallback to external
+        $firstname = $first->internal_firstname ?? $first->external_firstname;
+        $lastname  = $first->internal_lastname  ?? $first->external_lastname;
+        $imagePath = $first->internal_image     ?? $first->external_image;
 
-                $imageUrl = $imagePath
-                    ? config('app.url') . '/storage/' . $imagePath
-                    : null;
+        $imageUrl = $imagePath
+            ? config('app.url') . '/storage/' . $imagePath
+            : null;
 
-                return response()->json([
-                    'applicant' => [
-                        'submission_id'    => (int)$first->submission_id,
-                        'nPersonalInfo_id' => (int)$first->nPersonalInfo_id,
-                        'ControlNo'        => $first->ControlNo,
+        return response()->json([
+            'applicant' => [
+                'submission_id'    => (int)$first->submission_id,
+                'nPersonalInfo_id' => (int)$first->nPersonalInfo_id,
+                'ControlNo'        => $first->ControlNo,
 
-                        'firstname'        => $firstname,
-                        'lastname'         => $lastname,
-                        'image_url'        => $imageUrl,
-                    ],
-                    'history' => $historyRecords->map(fn($row) => [
-                        'id'          => $row->id,
-                        'rater_id'    => $row->rater_id,
-                        'rater_name'  => $row->rater_name,
-                        'education'   => $row->education,
-                        'experience'  => $row->experience,
-                        'training'    => $row->training,
-                        'performance' => $row->performance,
-                        'bei'         => $row->bei,
-                        'exam'         => $row->exam,
-                        'total_qs'    => $row->total_qs,
-                        'grand_total' => $row->grand_total,
-                        'ranking'     => $row->ranking,
-                    ])
-                ]);
-            }
+                'firstname'        => $firstname,
+                'lastname'         => $lastname,
+                'image_url'        => $imageUrl,
+            ],
+            'history' => $historyRecords->map(fn($row) => [
+                'id'          => $row->id,
+                'rater_id'    => $row->rater_id,
+                'rater_name'  => $row->rater_name,
+                'education'   => $row->education,
+                'experience'  => $row->experience,
+                'training'    => $row->training,
+                'performance' => $row->performance,
+                'bei'         => $row->bei,
+                'exam'         => $row->exam,
+                'total_qs'    => $row->total_qs,
+                'grand_total' => $row->grand_total,
+                'ranking'     => $row->ranking,
+            ])
+        ]);
+    }
 }
