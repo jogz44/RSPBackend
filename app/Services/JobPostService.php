@@ -554,100 +554,98 @@ class JobPostService
     // }
 
 
-     // jobpost id args with search and pagination
+    // jobpost id args with search and pagination
     public function applicant($id, $request)
-{
-    $search  = $request->input('search');
-    $perPageInput = $request->input('per_page', 10);
+    {
+        $search  = $request->input('search');
+        $perPageInput = $request->input('per_page', 10);
 
-    // Handle "all" — return everything in one page
-    $perPage = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
+        // Handle "all" — return everything in one page
+        $perPage = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
 
-    // Eager load nPersonalInfo to avoid N+1 queries
-    $qualifiedApplicants = Submission::where('job_batches_rsp_id', $id)
-        ->with('nPersonalInfo')
-        ->get();
+        // Eager load nPersonalInfo to avoid N+1 queries
+        $qualifiedApplicants = Submission::where('job_batches_rsp_id', $id)
+            ->with('nPersonalInfo')
+            ->get();
 
-    $totalApplicants  = $qualifiedApplicants->count();
-    $qualifiedCount   = $qualifiedApplicants->where('status', 'Qualified')->count();
-    $unqualifiedCount = $qualifiedApplicants->where('status', 'Unqualified')->count();
-    $assessed         = $qualifiedCount + $unqualifiedCount;
+        $totalApplicants  = $qualifiedApplicants->count();
+        $qualifiedCount   = $qualifiedApplicants->where('status', 'Qualified')->count();
+        $unqualifiedCount = $qualifiedApplicants->where('status', 'Unqualified')->count();
+        $assessed         = $qualifiedCount + $unqualifiedCount;
 
-    $internalCount = $qualifiedApplicants->filter(fn($s) => !empty($s->ControlNo))->count();
-    $externalCount = $qualifiedApplicants->filter(fn($s) => !empty($s->nPersonalInfo_id))->count();
+        $internalCount = $qualifiedApplicants->filter(fn($s) => !empty($s->ControlNo))->count();
+        $externalCount = $qualifiedApplicants->filter(fn($s) => !empty($s->nPersonalInfo_id))->count();
 
-    // ── External applicants ────────────────────────────────────────────────
-    $external = Submission::query()
-        ->where('submission.job_batches_rsp_id', $id)
-        ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
-        ->select(
-            'submission.id as submission_id',
-            'submission.nPersonalInfo_id',
-            DB::raw('NULL as ControlNo'),
-            'submission.job_batches_rsp_id',
-            'submission.status',
-            'p.firstname',
-            'p.lastname',
-            DB::raw("CAST(COALESCE(p.created_at, submission.created_at) AS DATE) as application_date"),
-            DB::raw("'external' as applicant_type")
-        );
+        // ── External applicants ────────────────────────────────────────────────
+        $external = Submission::query()
+            ->where('submission.job_batches_rsp_id', $id)
+            ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
+            ->select(
+                'submission.id as submission_id',
+                'submission.nPersonalInfo_id',
+                DB::raw('NULL as ControlNo'),
+                'submission.job_batches_rsp_id',
+                'submission.status',
+                'p.firstname',
+                'p.lastname',
+                DB::raw("CAST(COALESCE(p.created_at, submission.created_at) AS DATE) as application_date"),
+                DB::raw("'external' as applicant_type")
+            );
 
-    if ($search) {
-        $external->where(function ($q) use ($search) {
-            $q->where('p.firstname', 'like', "%{$search}%")
-                ->orWhere('p.lastname', 'like', "%{$search}%")
-                ->orWhereRaw("CONCAT(p.firstname,' ',p.lastname) LIKE ?", ["%{$search}%"]);
-        });
+        if ($search) {
+            $external->where(function ($q) use ($search) {
+                $q->where('p.firstname', 'like', "%{$search}%")
+                    ->orWhere('p.lastname', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(p.firstname,' ',p.lastname) LIKE ?", ["%{$search}%"]);
+            });
+        }
+
+        // ── Internal applicants ────────────────────────────────────────────────
+        $internal = Submission::query()
+            ->where('submission.job_batches_rsp_id', $id)
+            ->whereNull('submission.nPersonalInfo_id')
+            ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
+            ->select(
+                'submission.id as submission_id',
+                DB::raw('NULL as nPersonalInfo_id'),
+                'submission.ControlNo',
+                'submission.job_batches_rsp_id',
+                'submission.status',
+                'xp.Firstname as firstname',
+                'xp.Surname as lastname',
+                DB::raw("CAST(submission.created_at AS DATE) as application_date"),
+                DB::raw("'internal' as applicant_type")
+            );
+
+        if ($search) {
+            $internal->where(function ($q) use ($search) {
+                $q->where('xp.Firstname', 'like', "%{$search}%")
+                    ->orWhere('xp.Surname', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(xp.Firstname,' ',xp.Surname) LIKE ?", ["%{$search}%"]);
+            });
+        }
+
+        // ── UNION ALL + paginate ───────────────────────────────────────────────
+        $union = $external->unionAll($internal);
+
+        $applicants = DB::table(DB::raw("({$union->toSql()}) as combined"))
+            ->mergeBindings($union->getQuery())
+            ->paginate($perPage);
+
+        return response()->json([
+            'status'                 => true,
+            'qualified_applicants'   => $qualifiedCount,
+            'unqualified_applicants' => $unqualifiedCount,
+            'assessed'               => "{$assessed}/{$totalApplicants}",
+            'total_applicants'       => $totalApplicants,
+            'internal_applicants'    => $internalCount,
+            'external_applicants'    => $externalCount,
+            'applicants'             => $applicants,
+        ]);
     }
-
-    // ── Internal applicants ────────────────────────────────────────────────
-    $internal = Submission::query()
-        ->where('submission.job_batches_rsp_id', $id)
-        ->whereNull('submission.nPersonalInfo_id')
-        ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
-        ->select(
-            'submission.id as submission_id',
-            DB::raw('NULL as nPersonalInfo_id'),
-            'submission.ControlNo',
-            'submission.job_batches_rsp_id',
-            'submission.status',
-            'xp.Firstname as firstname',
-            'xp.Surname as lastname',
-            DB::raw("CAST(submission.created_at AS DATE) as application_date"),
-            DB::raw("'internal' as applicant_type")
-        );
-
-    if ($search) {
-        $internal->where(function ($q) use ($search) {
-            $q->where('xp.Firstname', 'like', "%{$search}%")
-                ->orWhere('xp.Surname', 'like', "%{$search}%")
-                ->orWhereRaw("CONCAT(xp.Firstname,' ',xp.Surname) LIKE ?", ["%{$search}%"]);
-        });
-    }
-
-    // ── UNION ALL + paginate ───────────────────────────────────────────────
-    $union = $external->unionAll($internal);
-
-    $applicants = DB::table(DB::raw("({$union->toSql()}) as combined"))
-        ->mergeBindings($union->getQuery())
-        ->paginate($perPage);
-
-    return response()->json([
-        'status'                 => true,
-        'qualified_applicants'   => $qualifiedCount,
-        'unqualified_applicants' => $unqualifiedCount,
-        'assessed'               => "{$assessed}/{$totalApplicants}",
-        'total_applicants'       => $totalApplicants,
-        'internal_applicants'    => $internalCount,
-        'external_applicants'    => $externalCount,
-        'applicants'             => $applicants,
-    ]);
-}
-
-
 
     // store job post with criteria and pdf file
-    public function store($jobValidated,$request)
+    public function store($jobValidated, $request)
     {
 
         // Validate criteria if present
@@ -744,7 +742,7 @@ class JobPostService
         ], 201);
     }
 
-    public function update($jobValidated,$jobBatchId,$request)
+    public function update($jobValidated, $jobBatchId, $request)
     {
 
 
@@ -839,7 +837,7 @@ class JobPostService
     }
 
 
-    public function republished($validated,$request) // republished the job post
+    public function republished($validated, $request) // republished the job post
     {
 
         // ✅ Step 3: Validate file (required even if not in JobBatchesRsp)
