@@ -26,10 +26,23 @@ class VerificationController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'recaptchaResponse' => 'nullable',
+            'recaptchaResponse' => 'required',
         ]);
 
         $result = $this->recaptchaService->code($request);
+
+        return $result;
+    }
+
+    // resend  code
+    public function reSendVerification(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            // 'recaptchaResponse' => 'nullable',
+        ]);
+
+        $result = $this->recaptchaService->reSendcode($request);
 
         return $result;
     }

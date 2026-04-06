@@ -31,6 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
     // $middleware->alias([
     //     'password.change' => CheckPasswordChange::class,
     // ]);
+    // ✅ Add this — register throttle aliases for named limiters
+    $middleware->alias([
+        'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+    ]);
 
     })
     ->withExceptions(function (Exceptions $exceptions) {

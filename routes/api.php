@@ -46,6 +46,10 @@ Route::post('/verify-code', [VerificationController::class, 'verifyCode']); // v
 Route::post('/send-verification', [VerificationController::class, 'sendVerification'])
 ->middleware('throttle:send-verification'); // 5 requests per 1 minute // sending code on email
 
+Route::post('/resend-verification', [VerificationController::class, 'reSendVerification'])
+->middleware('throttle:resend-verification'); // 5 requests per 1 minute // sending code on email
+
+
 Route::post('/send-verificationv2', [VerificationController::class, 'sendVerification'])
     ->middleware('throttle:send-verification'); // 5 requests per 1 minute
 

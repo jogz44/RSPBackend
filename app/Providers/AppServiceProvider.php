@@ -29,7 +29,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('send-verification', function (Request $request) {
             return [
                 // ✅ 5 attempts, then locked for 3 minutes.
-                Limit::perMinutes(3, 5)
+                Limit::perMinutes(5, 5)
+                    ->by($request->ip()),
+
+
+            ];
+        });
+
+        RateLimiter::for('resend-verification', function (Request $request) {
+            return [
+                // ✅ 5 attempts, then locked for 3 minutes.
+                Limit::perMinutes(5, 5)
                     ->by($request->ip()),
 
 
