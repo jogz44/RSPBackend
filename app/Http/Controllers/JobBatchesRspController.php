@@ -96,11 +96,11 @@ class JobBatchesRspController extends Controller
     }
 
     // get the applicant base on the job post id
-    public function getJobPostApplicant($id, JobPostService $jobPostService)
+    public function getJobPostApplicant($id, JobPostService $jobPostService, Request $request)
     {
          // args id = jobpostId
 
-        $result = $jobPostService->applicant($id);
+        $result = $jobPostService->applicant($id,$request);
 
         return $result;
 
