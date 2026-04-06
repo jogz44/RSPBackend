@@ -175,7 +175,8 @@ class   CriteriaService
             'experiences',
             'trainings',
             'performances',
-            'behaviorals'
+            'behaviorals',
+            'exams'
         ])->where('job_batches_rsp_id', $job_batches_rsp_id)->first();
 
         if (!$criteria) {
@@ -187,6 +188,7 @@ class   CriteriaService
             'training'    => $criteria->trainings,
             'performance' => $criteria->performances,
             'behavioral'  => $criteria->behaviorals,
+            'exams'  => $criteria->exams,
         ]);
     }
 
