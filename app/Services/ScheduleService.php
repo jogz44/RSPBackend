@@ -60,7 +60,7 @@ class ScheduleService
             [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
 
             if (!$email) {
-                Log::info("Skipping applicant {$submission->id}, email not found");
+                // Log::info("Skipping applicant {$submission->id}, email not found");
                 continue;
             }
 
@@ -167,7 +167,7 @@ class ScheduleService
                 [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
 
                 if (!$email) {
-                    Log::info("Skipping new applicant {$submission->id}, email not found");
+                    // Log::info("Skipping new applicant {$submission->id}, email not found");
                     continue;
                 }
 
@@ -220,7 +220,7 @@ class ScheduleService
 
                 $job = JobBatchesRsp::find($submission->job_batches_rsp_id);
                 if (!$job) {
-                    Log::info("Skipping existing applicant {$submission->id}, job not found");
+                    // Log::info("Skipping existing applicant {$submission->id}, job not found");
                     continue;
                 }
 
@@ -232,7 +232,7 @@ class ScheduleService
                 [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
 
                 if (!$email) {
-                    Log::info("Skipping existing applicant {$submission->id}, email not found");
+                    // Log::info("Skipping existing applicant {$submission->id}, email not found");
                     continue;
                 }
 
@@ -314,7 +314,7 @@ class ScheduleService
             // ✅ Get job from submission
             $job = JobBatchesRsp::find($submission->job_batches_rsp_id);
             if (!$job) {
-                Log::info("Skipping applicant {$submission->id}, job not found");
+                // Log::info("Skipping applicant {$submission->id}, job not found");
                 continue;
             }
 
@@ -326,7 +326,7 @@ class ScheduleService
             [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
 
             if (!$email) {
-                Log::info("Skipping applicant {$submission->id}, email not found");
+                // Log::info("Skipping applicant {$submission->id}, email not found");
                 continue;
             }
 
@@ -410,7 +410,7 @@ class ScheduleService
             [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
 
             if (!$email) {
-                Log::info("Skipping applicant {$submission->id}, email not found");
+                // Log::info("Skipping applicant {$submission->id}, email not found");
                 continue;
             }
 
@@ -517,7 +517,7 @@ class ScheduleService
                 [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
 
                 if (!$email) {
-                    Log::info("Skipping new applicant {$submission->id}, email not found");
+                    // Log::info("Skipping new applicant {$submission->id}, email not found");
                     continue;
                 }
 
@@ -570,7 +570,7 @@ class ScheduleService
 
                 $job = JobBatchesRsp::find($submission->job_batches_rsp_id);
                 if (!$job) {
-                    Log::info("Skipping existing applicant {$submission->id}, job not found");
+                    // Log::info("Skipping existing applicant {$submission->id}, job not found");
                     continue;
                 }
 
@@ -582,7 +582,7 @@ class ScheduleService
                 [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
 
                 if (!$email) {
-                    Log::info("Skipping existing applicant {$submission->id}, email not found");
+                    // Log::info("Skipping existing applicant {$submission->id}, email not found");
                     continue;
                 }
 
@@ -666,7 +666,7 @@ class ScheduleService
             // ✅ Get job from submission
             $job = JobBatchesRsp::find($submission->job_batches_rsp_id);
             if (!$job) {
-                Log::info("Skipping applicant {$submission->id}, job not found");
+                // Log::info("Skipping applicant {$submission->id}, job not found");
                 continue;
             }
 
@@ -678,7 +678,7 @@ class ScheduleService
             [$fullname, $email, $contactNumber] = $this->resolveApplicantInfo($submission);
 
             if (!$email) {
-                Log::info("Skipping applicant {$submission->id}, email not found");
+                // Log::info("Skipping applicant {$submission->id}, email not found");
                 continue;
             }
 
@@ -787,9 +787,9 @@ class ScheduleService
         $normalized = $this->normalizePhoneNumber($contactNumber);
 
         if (!$normalized) {
-            Log::info("Skipping SMS for {$fullname} — no valid contact number", [
-                'raw_number' => $contactNumber ?? 'null',
-            ]);
+            // Log::info("Skipping SMS for {$fullname} — no valid contact number", [
+            //     'raw_number' => $contactNumber ?? 'null',
+            // ]);
             return;
         }
 
@@ -803,10 +803,10 @@ class ScheduleService
         SendApplicantSms::dispatch($normalized, $smsMessage)
             ->onQueue('sms');
 
-        Log::info("SMS dispatched for {$label}", [
-            'number'   => $normalized,
-            'fullname' => $fullname,
-        ]);
+        // Log::info("SMS dispatched for {$label}", [
+        //     'number'   => $normalized,
+        //     'fullname' => $fullname,
+        // ]);
     }
 
     // ── REUSABLE: Normalize phone number ────────────────────────────────
@@ -826,271 +826,14 @@ class ScheduleService
             return $cleaned;
         }
 
-        Log::warning('Invalid phone number, skipping SMS', [
-            'original' => $number,
-            'cleaned'  => $cleaned,
-            'length'   => strlen($cleaned),
-        ]);
+        // Log::warning('Invalid phone number, skipping SMS', [
+        //     'original' => $number,
+        //     'cleaned'  => $cleaned,
+        //     'length'   => strlen($cleaned),
+        // ]);
 
         return null;
     }
-
-    // public function sendEmailInterview($validated)
-    // {
-
-    //     $date = Carbon::parse($validated['date_interview'])->format('F d, Y');
-    //     $timeFormatted = Carbon::parse($validated['time_interview'])->format('g:i A');
-    //     $time = $validated['time_interview']; // store this in DB
-
-    //     $venue = $validated['venue_interview'];
-    //     $batchName = $validated['batch_name'];
-
-    //     $count = 0;
-
-    //     /** ✅ CREATE ONE SCHEDULE ONLY */
-    //     $schedule = Schedule::create([
-    //         'batch_name' => $batchName,
-    //         'date_interview' => $validated['date_interview'],
-    //         'time_interview' => $time,
-    //         'venue_interview' => $venue,
-    //     ]);
-
-    //     foreach ($validated['applicants'] as $app) {
-
-    //         $submission = Submission::with('nPersonalInfo')->find($app['submission_id']);
-    //         if (!$submission) continue;
-
-    //         $job = JobBatchesRsp::find($app['job_batches_rsp']);
-    //         if (!$job) continue;
-
-    //         $position = $job->Position ?? '';
-    //         $office = $job->Office ?? '';
-    //         $SalaryGrade = $job->SalaryGrade ?? '';
-    //         $ItemNo = $job->ItemNo ?? '';
-
-    //         // Get applicant info
-    //         if ($submission->nPersonalInfo_id) {
-    //             $firstname = $submission->nPersonalInfo->firstname;
-    //             $lastname  = $submission->nPersonalInfo->lastname;
-    //             $email     = $submission->nPersonalInfo->email_address ?? null;
-    //         } else if ($submission->ControlNo) {
-    //             $employee = DB::table('xPersonalAddt')
-    //                 ->join('xPersonal', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
-    //                 ->where('xPersonalAddt.ControlNo', $submission->ControlNo)
-    //                 ->select('xPersonalAddt.*', 'xPersonal.Firstname', 'xPersonal.Surname', 'xPersonalAddt.EmailAdd','xPersonalAddt.CellphoneNo as cellphone_number')
-    //                 ->first();
-
-    //             if (!$employee) continue;
-
-    //             $firstname = $employee->Firstname;
-    //             $lastname = $employee->Surname;
-    //             $email = $employee->EmailAdd;
-    //         } else {
-    //             continue;
-    //         }
-
-    //         $fullname = trim("$firstname $lastname");
-    //         // if (!$email) continue;
-    //         if (!$email) {
-    //             Log::info("Skipping applicant {$submission->id}, email not found");
-    //             continue;
-    //         }
-
-    //         /** link applicant to schedule */
-    //         SchedulesApplicant::create([
-    //             'schedule_id' => $schedule->id,
-    //             'submission_id' => $submission->id,
-    //         ]);
-
-    //         /** send email */
-    //         Mail::to($email)->queue((new EmailApi(
-    //             "Interview Invitation",
-    //             'mail-template.interview',
-    //             [
-
-    //                 'fullname' => $fullname,
-    //                 'date' => $date,
-    //                 'time' => $time,
-    //                 'venue' => $venue,
-    //                 'position' => $position,
-    //                 'SalaryGrade' => $SalaryGrade,
-    //                 'office' => $office,
-    //                 'ItemNo' => $ItemNo,
-    //             ]
-    //         ))->onQueue('emails'));
-
-    //         $count++;
-
-    //         EmailLog::create([
-    //             'email' => $email,
-    //             'activity' => 'Interview invitations',
-    //         ]);
-    //     }
-
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => "Interview invitations successfully sent to {$count} applicant(s).",
-    //     ]);
-    // }
-
-
-    // private function normalizePhoneNumber(?string $number): ?string
-    // {
-    //     if (!$number) return null;
-
-    //     // If multiple numbers separated by / or comma, take the FIRST one only
-    //     $number = preg_split('/[\/,]/', $number)[0];
-    //     $number = trim($number);
-
-    //     // Remove all non-numeric characters (spaces, dashes, parentheses, +)
-    //     $cleaned = preg_replace('/\D/', '', $number);
-
-    //     // Handle +639XXXXXXXXX → 09XXXXXXXXX (international format, 12 digits)
-    //     if (str_starts_with($cleaned, '639') && strlen($cleaned) === 12) {
-    //         $cleaned = '0' . substr($cleaned, 2);
-    //     }
-
-    //     // Must be exactly 11 digits starting with 09
-    //     if (strlen($cleaned) === 11 && str_starts_with($cleaned, '09')) {
-    //         return $cleaned;
-    //     }
-
-    //     // Invalid — too short, too long, or wrong prefix
-    //     Log::warning('Invalid phone number, skipping SMS', [
-    //         'original' => $number,
-    //         'cleaned'  => $cleaned,
-    //         'length'   => strlen($cleaned),
-    //     ]);
-
-    //     return null;
-    // }
-    // // ── SMS ───────────────────────────────────────────────────────────
-    // private function sendApplicantSms($submission): void
-    // {
-
-    //     $fullName      = trim("{$submission->nPersonalInfo->firstname;} {$submission->nPersonalInfo->lastname}");
-    //     $contactNumber = $this->normalizePhoneNumber($submission->nPersonalInfo->cellphone_number ?? null); // 👈 normalize here
-
-
-    //     if (!$contactNumber) {
-    //         Log::info('No valid contact number for applicant, skipping SMS', [
-    //             'raw_number' => $submission->nPersonalInfo->cellphone_number ?? 'null',
-    //         ]);
-    //         return;
-    //     }
-
-    //     $smsMessage = $isUpdate
-    //         ? "Dear {$fullName}, your application for {$job->Position} (Item No. {$job->ItemNo})"
-    //         . "under {$job->Office} has been updated. "
-    //         . "Please check your email for full details. Thank you!"
-    //         :  "Dear {$fullName}, we acknowledge receipt of your application for "
-    //         . "{$job->Position} (Item No. {$job->ItemNo}) under {$job->Office}. "
-    //         . "Your application is currently under review by our HRMPSB Secretariat. "
-    //         . "Please check your email for full details. Thank you!";
-
-    //     SendApplicantSms::dispatch($contactNumber, $smsMessage)
-    //         ->onQueue('sms');
-    // }
-
-    // // sending schudule examination
-    // public function sendEmailExamination($validated)
-    // {
-
-    //     $date = Carbon::parse($validated['date_exam'])->format('F d, Y');
-    //     $timeFormatted = Carbon::parse($validated['time_exam'])->format('g:i A');
-    //     $time = $validated['time_exam']; // store this in DB
-
-    //     $venue = $validated['venue_exam'];
-    //     $batchName = $validated['batch_name'];
-
-    //     $count = 0;
-
-    //     /** ✅ CREATE ONE SCHEDULE ONLY */
-    //     $schedule = SchedulesExam::create([
-    //         'batch_name' => $batchName,
-    //         'date_exam' => $validated['date_exam'],
-    //         'time_exam' => $time,
-    //         'venue_exam' => $venue,
-    //     ]);
-
-    //     foreach ($validated['applicants'] as $app) {
-
-    //         $submission = Submission::with('nPersonalInfo')->find($app['submission_id']);
-    //         if (!$submission) continue;
-
-    //         $job = JobBatchesRsp::find($app['job_batches_rsp']);
-    //         if (!$job) continue;
-
-    //         $position = $job->Position ?? '';
-    //         $office = $job->Office ?? '';
-    //         $SalaryGrade = $job->SalaryGrade ?? '';
-    //         $ItemNo = $job->ItemNo ?? '';
-
-    //         // Get applicant info
-    //         if ($submission->nPersonalInfo_id) {
-    //             $firstname = $submission->nPersonalInfo->firstname;
-    //             $lastname  = $submission->nPersonalInfo->lastname;
-    //             $email     = $submission->nPersonalInfo->email_address ?? null;
-    //         } else if ($submission->ControlNo) {
-    //             $employee = DB::table('xPersonalAddt')
-    //                 ->join('xPersonal', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
-    //                 ->where('xPersonalAddt.ControlNo', $submission->ControlNo)
-    //                 ->select('xPersonalAddt.*', 'xPersonal.Firstname', 'xPersonal.Surname', 'xPersonalAddt.EmailAdd')
-    //                 ->first();
-
-    //             if (!$employee) continue;
-
-    //             $firstname = $employee->Firstname;
-    //             $lastname = $employee->Surname;
-    //             $email = $employee->EmailAdd;
-    //         } else {
-    //             continue;
-    //         }
-
-    //         $fullname = trim("$firstname $lastname");
-    //         // if (!$email) continue;
-    //         if (!$email) {
-    //             Log::info("Skipping applicant {$submission->id}, email not found");
-    //             continue;
-    //         }
-
-    //         /** link applicant to schedule */
-    //         SchedulesExamApplicant::create([
-    //             'schedule_id' => $schedule->id,
-    //             'submission_id' => $submission->id,
-    //         ]);
-
-    //         /** send email */
-    //         Mail::to($email)->queue((new EmailApi(
-    //             "Examination Invitation",
-    //             'mail-template.examination',
-    //             [
-
-    //                 'fullname' => $fullname,
-    //                 'date' => $date,
-    //                 'time' => $time,
-    //                 'venue' => $venue,
-    //                 'position' => $position,
-    //                 'SalaryGrade' => $SalaryGrade,
-    //                 'office' => $office,
-    //                 'ItemNo' => $ItemNo,
-    //             ]
-    //         ))->onQueue('emails'));
-
-    //         $count++;
-
-    //         EmailLog::create([
-    //             'email' => $email,
-    //             'activity' => 'Examination invitations',
-    //         ]);
-    //     }
-
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => "Examination invitations successfully sent to {$count} applicant(s).",
-    //     ]);
-    // }
-
 
     // for the unqualified applicant that send an  the qualification and remarks
     public function sendEmailApplicantBatch($validated, $request)
@@ -1144,7 +887,7 @@ class ScheduleService
             $activeApplicant = $applicant ?? $externalApplicant;
 
             if (!$activeApplicant) {
-                Log::warning("⚠️ No applicant record found for submission ID: {$submission->id}");
+                // Log::warning("⚠️ No applicant record found for submission ID: {$submission->id}");
                 continue;
             }
 
@@ -1159,7 +902,7 @@ class ScheduleService
                 : ($externalApplicant->cellphone_number  ?? null);
 
             if (empty($email)) {
-                Log::warning("⚠️ Applicant {$fullname} has no email address.");
+                // Log::warning("⚠️ Applicant {$fullname} has no email address.");
                 continue;
             }
 
@@ -1261,7 +1004,7 @@ class ScheduleService
 
                 $count++;
             } catch (\Exception $e) {
-                Log::error("❌ Failed to send email/SMS for {$fullname}: {$e->getMessage()}");
+                // Log::error("❌ Failed to send email/SMS for {$fullname}: {$e->getMessage()}");
             }
         }
 
@@ -1458,9 +1201,9 @@ class ScheduleService
         $normalized = $this->normalizePhoneNumber($contactNumber);
 
         if (!$normalized) {
-            Log::info("Skipping SMS for {$fullname} — no valid contact number", [
-                'raw_number' => $contactNumber ?? 'null',
-            ]);
+            // Log::info("Skipping SMS for {$fullname} — no valid contact number", [
+            //     'raw_number' => $contactNumber ?? 'null',
+            // ]);
             return;
         }
 
@@ -1471,10 +1214,10 @@ class ScheduleService
         SendApplicantSms::dispatch($normalized, $smsMessage)
             ->onQueue('sms');
 
-        Log::info('SMS dispatched for unqualified applicant', [
-            'number'   => $normalized,
-            'fullname' => $fullname,
-        ]);
+        // Log::info('SMS dispatched for unqualified applicant', [
+        //     'number'   => $normalized,
+        //     'fullname' => $fullname,
+        // ]);
     }
 
     // ✅ Helper method to format education
@@ -1679,7 +1422,7 @@ class ScheduleService
             $activeApplicant = $applicant ?? $externalApplicant;
 
             if (!$activeApplicant) {
-                Log::warning("⚠️ No applicant record found for submission ID: {$submission->id}");
+                // Log::warning("⚠️ No applicant record found for submission ID: {$submission->id}");
                 continue;
             }
 
@@ -1692,7 +1435,7 @@ class ScheduleService
                 : trim("{$externalApplicant->Firstname} {$externalApplicant->Surname}");
 
             if (empty($email)) {
-                Log::warning("⚠️ Applicant {$fullname} has no email address.");
+                // Log::warning("⚠️ Applicant {$fullname} has no email address.");
                 continue;
             }
             $isInternal = !is_null($submission->nPersonalInfo_id);
@@ -1798,7 +1541,7 @@ class ScheduleService
 
                 $count++;
             } catch (\Exception $e) {
-                Log::error("❌ Failed to send email for {$fullname}: {$e->getMessage()}");
+                // Log::error("❌ Failed to send email for {$fullname}: {$e->getMessage()}");
             }
         }
 

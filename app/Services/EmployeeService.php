@@ -430,11 +430,11 @@ class EmployeeService
         }
 
         // Invalid — too short, too long, or wrong prefix
-        Log::warning('Invalid phone number, skipping SMS', [
-            'original' => $number,
-            'cleaned'  => $cleaned,
-            'length'   => strlen($cleaned),
-        ]);
+        // Log::warning('Invalid phone number, skipping SMS', [
+        //     'original' => $number,
+        //     'cleaned'  => $cleaned,
+        //     'length'   => strlen($cleaned),
+        // ]);
 
         return null;
     }
@@ -448,9 +448,9 @@ class EmployeeService
 
 
         if (!$contactNumber) {
-            Log::info('No valid contact number for applicant, skipping SMS', [
-                'raw_number' => $applicant->cellphone_number ?? 'null',
-            ]);
+            // Log::info('No valid contact number for applicant, skipping SMS', [
+            //     'raw_number' => $applicant->cellphone_number ?? 'null',
+            // ]);
             return;
         }
 

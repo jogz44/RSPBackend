@@ -127,7 +127,7 @@ class AppiontmentService
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('ElectiveService Error: ' . $e->getMessage());
+            // Log::error('ElectiveService Error: ' . $e->getMessage());
             return response()->json([
                 'success' =>  false,
                 'error' => 'Failed to update plantilla structure',

@@ -159,10 +159,10 @@ class ApplicantApplicationService
             $emailExists = nPersonal_info::where('email_address', $excelData['personal_info']['email_address'])->exists();
 
             if ($emailExists) {
-                Log::info('Email already exists but allowing submission', [
-                    'email' => $excelData['personal_info']['email_address'],
-                    'job_id' => $validated['job_batches_rsp_id']
-                ]);
+                // Log::info('Email already exists but allowing submission', [
+                //     'email' => $excelData['personal_info']['email_address'],
+                //     'job_id' => $validated['job_batches_rsp_id']
+                // ]);
             }
 
             // No duplicate based on name+birthdate - proceed with normal save
@@ -224,10 +224,10 @@ class ApplicantApplicationService
             ], 422);
         } catch (\Exception $e) {
             // Log the full error for debugging
-            Log::error('Failed to import Excel file', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // Log::error('Failed to import Excel file', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
 
             return response()->json([
                 'message' => 'Failed to import Excel file.',
@@ -356,10 +356,10 @@ class ApplicantApplicationService
             $emailExists = nPersonal_info::where('email_address', $excelData['personal_info']['email_address'])->exists();
 
             if ($emailExists) {
-                Log::info('Email already exists but allowing submission', [
-                    'email' => $excelData['personal_info']['email_address'],
-                    'job_id' => $validated['job_batches_rsp_id']
-                ]);
+                // Log::info('Email already exists but allowing submission', [
+                //     'email' => $excelData['personal_info']['email_address'],
+                //     'job_id' => $validated['job_batches_rsp_id']
+                // ]);
             }
 
             // No duplicate based on name+birthdate - proceed with normal save
@@ -419,10 +419,10 @@ class ApplicantApplicationService
             ], 422);
         } catch (\Exception $e) {
             // Log the full error for debugging
-            Log::error('Failed to import Excel file', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // Log::error('Failed to import Excel file', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
 
             return response()->json([
                 'message' => 'Failed to import Excel file.',
@@ -1125,7 +1125,7 @@ class ApplicantApplicationService
     }
     private function parsePersonalDeclarations($sheet)
     {
-        Log::info('=== PARSING PERSONAL DECLARATIONS SHEET ===');
+        // Log::info('=== PARSING PERSONAL DECLARATIONS SHEET ===');
 
         // Helper function for checkbox values
         $isChecked = function ($yes, $no) {
@@ -1259,19 +1259,19 @@ class ApplicantApplicationService
         ];
 
         // Log each declaration with null check
-        Log::info('=== PERSONAL DECLARATIONS PARSED DATA ===');
+        // Log::info('=== PERSONAL DECLARATIONS PARSED DATA ===');
 
         foreach ($declarations as $key => $value) {
             $isNull = $value === null;
             $isEmpty = empty($value);
 
-            Log::info("Declaration: {$key}", [
-                'value' => $value,
-                'type' => gettype($value),
-                'is_null' => $isNull,
-                'is_empty' => $isEmpty,
-                'length' => is_string($value) ? strlen($value) : 'N/A'
-            ]);
+            // Log::info("Declaration: {$key}", [
+            //     'value' => $value,
+            //     'type' => gettype($value),
+            //     'is_null' => $isNull,
+            //     'is_empty' => $isEmpty,
+            //     'length' => is_string($value) ? strlen($value) : 'N/A'
+            // ]);
         }
 
         // Count null and empty values
@@ -1282,12 +1282,12 @@ class ApplicantApplicationService
             if (empty($value)) $emptyCount++;
         }
 
-        Log::info('=== PERSONAL DECLARATIONS SUMMARY ===', [
-            'total_fields' => count($declarations),
-            'null_count' => $nullCount,
-            'empty_count' => $emptyCount,
-            'filled_count' => count($declarations) - $nullCount
-        ]);
+        // Log::info('=== PERSONAL DECLARATIONS SUMMARY ===', [
+        //     'total_fields' => count($declarations),
+        //     'null_count' => $nullCount,
+        //     'empty_count' => $emptyCount,
+        //     'filled_count' => count($declarations) - $nullCount
+        // ]);
 
         // Log specific problematic fields (questions with null responses)
         $nullFields = [];
@@ -1298,12 +1298,12 @@ class ApplicantApplicationService
         }
 
         if (!empty($nullFields)) {
-            Log::warning('Fields with NULL values', [
-                'null_fields' => $nullFields
-            ]);
+            // Log::warning('Fields with NULL values', [
+            //     'null_fields' => $nullFields
+            // ]);
         }
 
-        Log::info('=== PERSONAL DECLARATIONS PARSING COMPLETE ===');
+        // Log::info('=== PERSONAL DECLARATIONS PARSING COMPLETE ===');
 
         return $declarations;
     }
@@ -1489,26 +1489,26 @@ class ApplicantApplicationService
 
             return $tempPath;
         } catch (\Exception $e) {
-            Log::error('Failed to extract image: ' . $e->getMessage());
+            // Log::error('Failed to extract image: ' . $e->getMessage());
             return null;
         }
     }
 
     private function saveApplicantData($excelData, $jobBatchesRspId)
     {
-        Log::info('=== STARTING NEW APPLICANT SAVE ===', [
-            'job_batches_rsp_id' => $jobBatchesRspId
-        ]);
+        // Log::info('=== STARTING NEW APPLICANT SAVE ===', [
+        //     'job_batches_rsp_id' => $jobBatchesRspId
+        // ]);
 
         // Create personal info
         $applicant = nPersonal_info::create($excelData['personal_info']);
-        Log::info('Personal info created', ['applicant_id' => $applicant->id]);
+        // Log::info('Personal info created', ['applicant_id' => $applicant->id]);
 
         // Create family record (SINGLE RECORD)
         if (!empty($excelData['family'])) {
             $excelData['family']['nPersonalInfo_id'] = $applicant->id;
             $applicant->family()->create($excelData['family']);
-            Log::info('Family record created');
+            // Log::info('Family record created');
         }
 
         // Create related records with MULTIPLE entries
@@ -1524,39 +1524,39 @@ class ApplicantApplicationService
         ];
 
         foreach ($multipleRelations as $relation) {
-            Log::info("Processing relation: {$relation}", [
-                'has_data' => !empty($excelData[$relation]),
-                'data_count' => is_array($excelData[$relation]) ? count($excelData[$relation]) : 0,
-                'data' => $excelData[$relation] ?? null
-            ]);
+            // Log::info("Processing relation: {$relation}", [
+            //     'has_data' => !empty($excelData[$relation]),
+            //     'data_count' => is_array($excelData[$relation]) ? count($excelData[$relation]) : 0,
+            //     'data' => $excelData[$relation] ?? null
+            // ]);
 
             if (!empty($excelData[$relation])) {
                 $createdCount = 0;
                 foreach ($excelData[$relation] as $index => $record) {
                     $record['nPersonalInfo_id'] = $applicant->id;
 
-                    Log::info("Creating {$relation} record #{$index}", [
-                        'data' => $record
-                    ]);
+                    // Log::info("Creating {$relation} record #{$index}", [
+                    //     'data' => $record
+                    // ]);
 
                     try {
                         $created = $applicant->$relation()->create($record);
                         $createdCount++;
-                        Log::info("{$relation} record created successfully", [
-                            'id' => $created->id
-                        ]);
+                        // Log::info("{$relation} record created successfully", [
+                        //     'id' => $created->id
+                        // ]);
                     } catch (\Exception $e) {
-                        Log::error("Failed to create {$relation} record", [
-                            'index' => $index,
-                            'data' => $record,
-                            'error' => $e->getMessage()
-                        ]);
+                        // Log::error("Failed to create {$relation} record", [
+                        //     'index' => $index,
+                        //     'data' => $record,
+                        //     'error' => $e->getMessage()
+                        // ]);
                         throw $e;
                     }
                 }
-                Log::info("Created {$createdCount} {$relation} records");
+                // Log::info("Created {$createdCount} {$relation} records");
             } else {
-                Log::info("No {$relation} records to create");
+                // Log::info("No {$relation} records to create");
             }
         }
 
@@ -1565,20 +1565,20 @@ class ApplicantApplicationService
             $declarationData = $excelData['personal_declarations'];
             $declarationData['nPersonalInfo_id'] = $applicant->id;
 
-            Log::info("Creating personal_declarations record", [
-                'data' => $declarationData
-            ]);
+            // Log::info("Creating personal_declarations record", [
+            //     'data' => $declarationData
+            // ]);
 
             try {
                 $created = $applicant->personal_declarations()->create($declarationData);
-                Log::info("personal_declarations record created successfully", [
-                    'id' => $created->id
-                ]);
+                // Log::info("personal_declarations record created successfully", [
+                //     'id' => $created->id
+                // ]);
             } catch (\Exception $e) {
-                Log::error("Failed to create personal_declarations record", [
-                    'data' => $declarationData,
-                    'error' => $e->getMessage()
-                ]);
+                // Log::error("Failed to create personal_declarations record", [
+                //     'data' => $declarationData,
+                //     'error' => $e->getMessage()
+                // ]);
                 throw $e;
             }
         }
@@ -1588,9 +1588,9 @@ class ApplicantApplicationService
             'nPersonalInfo_id' => $applicant->id,
             'job_batches_rsp_id' => $jobBatchesRspId,
         ]);
-        Log::info('Submission record created');
+        // Log::info('Submission record created');
 
-        Log::info('=== NEW APPLICANT SAVE COMPLETE ===', ['applicant_id' => $applicant->id]);
+        // Log::info('=== NEW APPLICANT SAVE COMPLETE ===', ['applicant_id' => $applicant->id]);
 
         return $applicant->fresh()->load([
             'family',
@@ -1610,40 +1610,40 @@ class ApplicantApplicationService
 
     private function updateApplicantData($oldApplicant, $excelData)
     {
-        Log::info('=== STARTING APPLICANT UPDATE ===', [
-            'applicant_id' => $oldApplicant->id,
-            'excel_data_type' => gettype($excelData),
-            'excel_data_keys' => is_array($excelData) ? array_keys($excelData) : 'not an array'
-        ]);
+        // Log::info('=== STARTING APPLICANT UPDATE ===', [
+        //     'applicant_id' => $oldApplicant->id,
+        //     'excel_data_type' => gettype($excelData),
+        //     'excel_data_keys' => is_array($excelData) ? array_keys($excelData) : 'not an array'
+        // ]);
 
         // Ensure $excelData is an array
         if (!is_array($excelData)) {
-            Log::error('Excel data is not an array', [
-                'type' => gettype($excelData),
-                'value' => $excelData
-            ]);
+            // Log::error('Excel data is not an array', [
+            //     'type' => gettype($excelData),
+            //     'value' => $excelData
+            // ]);
             throw new \Exception('Invalid excel data format');
         }
 
         // Ensure personal_info exists and is an array
         if (!isset($excelData['personal_info']) || !is_array($excelData['personal_info'])) {
-            Log::error('Personal info missing or invalid', [
-                'has_personal_info' => isset($excelData['personal_info']),
-                'personal_info_type' => isset($excelData['personal_info']) ? gettype($excelData['personal_info']) : 'not set'
-            ]);
+            // Log::error('Personal info missing or invalid', [
+            //     'has_personal_info' => isset($excelData['personal_info']),
+            //     'personal_info_type' => isset($excelData['personal_info']) ? gettype($excelData['personal_info']) : 'not set'
+            // ]);
             throw new \Exception('Personal info data is missing or invalid');
         }
 
         // Update personal info
         $oldApplicant->update($excelData['personal_info']);
-        Log::info('Personal info updated');
+        // Log::info('Personal info updated');
 
         // Update family (SINGLE RECORD)
         $oldApplicant->family()->delete();
         if (!empty($excelData['family']) && is_array($excelData['family'])) {
             $excelData['family']['nPersonalInfo_id'] = $oldApplicant->id;
             $oldApplicant->family()->create($excelData['family']);
-            Log::info('Family record updated');
+            // Log::info('Family record updated');
         }
 
         // Update related records that have MULTIPLE entries
@@ -1661,66 +1661,66 @@ class ApplicantApplicationService
         foreach ($multipleRelations as $relation) {
             $relationData = $excelData[$relation] ?? null;
 
-            Log::info("Processing multiple relation: {$relation}", [
-                'exists' => isset($excelData[$relation]),
-                'is_array' => is_array($relationData),
-                'data_count' => is_array($relationData) ? count($relationData) : 0,
-                'data_type' => gettype($relationData)
-            ]);
+            // Log::info("Processing multiple relation: {$relation}", [
+            //     'exists' => isset($excelData[$relation]),
+            //     'is_array' => is_array($relationData),
+            //     'data_count' => is_array($relationData) ? count($relationData) : 0,
+            //     'data_type' => gettype($relationData)
+            // ]);
 
             // Delete existing records
             $deletedCount = $oldApplicant->$relation()->count();
             $oldApplicant->$relation()->delete();
-            Log::info("Deleted {$deletedCount} existing {$relation} records");
+            // Log::info("Deleted {$deletedCount} existing {$relation} records");
 
             if (!empty($relationData) && is_array($relationData)) {
                 $createdCount = 0;
                 foreach ($relationData as $index => $record) {
                     if (!is_array($record)) {
-                        Log::warning("Skipping non-array record in {$relation}", [
-                            'index' => $index,
-                            'type' => gettype($record)
-                        ]);
+                        // Log::warning("Skipping non-array record in {$relation}", [
+                        //     'index' => $index,
+                        //     'type' => gettype($record)
+                        // ]);
                         continue;
                     }
 
                     $record['nPersonalInfo_id'] = $oldApplicant->id;
 
-                    Log::info("Creating {$relation} record #{$index}", [
-                        'data' => $record
-                    ]);
+                    // Log::info("Creating {$relation} record #{$index}", [
+                    //     'data' => $record
+                    // ]);
 
                     try {
                         $created = $oldApplicant->$relation()->create($record);
                         $createdCount++;
-                        Log::info("{$relation} record created successfully", [
-                            'id' => $created->id
-                        ]);
+                        // Log::info("{$relation} record created successfully", [
+                        //     'id' => $created->id
+                        // ]);
                     } catch (\Exception $e) {
-                        Log::error("Failed to create {$relation} record", [
-                            'index' => $index,
-                            'data' => $record,
-                            'error' => $e->getMessage()
-                        ]);
+                        // Log::error("Failed to create {$relation} record", [
+                        //     'index' => $index,
+                        //     'data' => $record,
+                        //     'error' => $e->getMessage()
+                        // ]);
                         throw $e;
                     }
                 }
-                Log::info("Created {$createdCount} new {$relation} records");
+                // Log::info("Created {$createdCount} new {$relation} records");
             } else {
-                Log::info("No new {$relation} records to create");
+                // Log::info("No new {$relation} records to create");
             }
         }
 
         // Handle personal_declarations separately (SINGLE RECORD, not multiple)
-        Log::info("Processing single relation: personal_declarations", [
-            'exists' => isset($excelData['personal_declarations']),
-            'is_array' => is_array($excelData['personal_declarations'] ?? null),
-            'data' => $excelData['personal_declarations'] ?? null
-        ]);
+        // Log::info("Processing single relation: personal_declarations", [
+        //     'exists' => isset($excelData['personal_declarations']),
+        //     'is_array' => is_array($excelData['personal_declarations'] ?? null),
+        //     'data' => $excelData['personal_declarations'] ?? null
+        // ]);
 
         // Delete existing personal declarations
         $oldApplicant->personal_declarations()->delete();
-        Log::info("Deleted existing personal_declarations records");
+        // Log::info("Deleted existing personal_declarations records");
 
         if (!empty($excelData['personal_declarations']) && is_array($excelData['personal_declarations'])) {
             $declarationData = $excelData['personal_declarations'];
@@ -1733,33 +1733,33 @@ class ApplicantApplicationService
                 // It's a single record (e.g., ['question_34a' => 'YES', ...])
                 $declarationData['nPersonalInfo_id'] = $oldApplicant->id;
 
-                Log::info("Creating single personal_declarations record", [
-                    'data' => $declarationData
-                ]);
+                // Log::info("Creating single personal_declarations record", [
+                //     'data' => $declarationData
+                // ]);
 
                 try {
                     $created = $oldApplicant->personal_declarations()->create($declarationData);
-                    Log::info("personal_declarations record created successfully", [
-                        'id' => $created->id
-                    ]);
+                    // Log::info("personal_declarations record created successfully", [
+                    //     'id' => $created->id
+                    // ]);
                 } catch (\Exception $e) {
-                    Log::error("Failed to create personal_declarations record", [
-                        'data' => $declarationData,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
+                    // Log::error("Failed to create personal_declarations record", [
+                    //     'data' => $declarationData,
+                    //     'error' => $e->getMessage(),
+                    //     'trace' => $e->getTraceAsString()
+                    // ]);
                     throw $e;
                 }
             } else {
-                Log::warning("personal_declarations appears to be an array of records instead of a single record", [
-                    'data_structure' => $declarationData
-                ]);
+                // Log::warning("personal_declarations appears to be an array of records instead of a single record", [
+                //     'data_structure' => $declarationData
+                // ]);
             }
         } else {
-            Log::info("No personal_declarations data to create");
+            // Log::info("No personal_declarations data to create");
         }
 
-        Log::info('=== APPLICANT UPDATE COMPLETE ===', ['applicant_id' => $oldApplicant->id]);
+        // Log::info('=== APPLICANT UPDATE COMPLETE ===', ['applicant_id' => $oldApplicant->id]);
     }
     /**
      * Delete temporary files
@@ -1773,14 +1773,14 @@ class ApplicantApplicationService
             if (Storage::exists($tempExcelPath)) {
                 Storage::delete($tempExcelPath);
             }
-            Log::info('Temporary files deleted', [
-                'zip' => $tempZipPath,
-                'excel' => $tempExcelPath
-            ]);
+            // Log::info('Temporary files deleted', [
+            //     'zip' => $tempZipPath,
+            //     'excel' => $tempExcelPath
+            // ]);
         } catch (\Exception $e) {
-            Log::error('Failed to delete temporary files', [
-                'error' => $e->getMessage()
-            ]);
+            // Log::error('Failed to delete temporary files', [
+            //     'error' => $e->getMessage()
+            // ]);
         }
     }
 
@@ -2069,11 +2069,11 @@ class ApplicantApplicationService
         }
 
         // Invalid — too short, too long, or wrong prefix
-        Log::warning('Invalid phone number, skipping SMS', [
-            'original' => $number,
-            'cleaned'  => $cleaned,
-            'length'   => strlen($cleaned),
-        ]);
+        // Log::warning('Invalid phone number, skipping SMS', [
+        //     'original' => $number,
+        //     'cleaned'  => $cleaned,
+        //     'length'   => strlen($cleaned),
+        // ]);
 
         return null;
     }
@@ -2087,9 +2087,9 @@ class ApplicantApplicationService
 
 
         if (!$contactNumber) {
-            Log::info('No valid contact number for applicant, skipping SMS', [
-                'raw_number' => $applicant->cellphone_number ?? 'null',
-            ]);
+            // Log::info('No valid contact number for applicant, skipping SMS', [
+            //     'raw_number' => $applicant->cellphone_number ?? 'null',
+            // ]);
             return;
         }
 
@@ -2120,7 +2120,7 @@ class ApplicantApplicationService
             $sheet = $spreadsheet->getSheetByName('Personal Information');
 
             if (!$sheet) {
-                Log::warning('isOfficialPdsFile: Sheet "Personal Information" not found');
+                // Log::warning('isOfficialPdsFile: Sheet "Personal Information" not found');
                 return false;
             }
 
@@ -2130,21 +2130,21 @@ class ApplicantApplicationService
             // ✅ Use config() not env() — works even when config is cached
             $expected = trim((string) config('app.pds_file_secret'));
 
-            Log::info('isOfficialPdsFile check', [
-                'secret_value' => $secretValue,
-                'expected'     => $expected,
-                'match'        => $secretValue === $expected,
-            ]);
+            // Log::info('isOfficialPdsFile check', [
+            //     'secret_value' => $secretValue,
+            //     'expected'     => $expected,
+            //     'match'        => $secretValue === $expected,
+            // ]);
 
             // ✅ Reject if EITHER is empty — prevents accidental bypass
             if (empty($secretValue) || empty($expected)) {
-                Log::warning('isOfficialPdsFile: secret or expected is empty — rejecting');
+                // Log::warning('isOfficialPdsFile: secret or expected is empty — rejecting');
                 return false;
             }
 
             return $secretValue === $expected;
         } catch (\Exception $e) {
-            Log::warning('isOfficialPdsFile failed: ' . $e->getMessage());
+            // Log::warning('isOfficialPdsFile failed: ' . $e->getMessage());
             return false;
         }
     }

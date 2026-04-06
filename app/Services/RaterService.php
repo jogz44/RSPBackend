@@ -849,10 +849,10 @@ class RaterService
             ], 201);
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Error storing rating scores: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
+            // Log::error('Error storing rating scores: ' . $e->getMessage(), [
+            //     'trace' => $e->getTraceAsString(),
+            //     'request_data' => $request->all()
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -1006,10 +1006,10 @@ class RaterService
                 'errors' => $errors,
             ], 200);
         } catch (Exception $e) {
-            Log::error('Error storing draft scores: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
+            // Log::error('Error storing draft scores: ' . $e->getMessage(), [
+            //     'trace' => $e->getTraceAsString(),
+            //     'request_data' => $request->all()
+            // ]);
 
             return response()->json([
                 'success' => false,

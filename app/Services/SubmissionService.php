@@ -49,7 +49,7 @@ class SubmissionService
         $activeApplicant = $applicant ?? $externalApplicant;
 
         if (!$activeApplicant) {
-            Log::warning("⚠️ No applicant found for submission ID: {$id}");
+            // Log::warning("⚠️ No applicant found for submission ID: {$id}");
             return response()->json([
                 'message' => 'Submission updated, but applicant not found for email notification.',
                 'data' => $submission
