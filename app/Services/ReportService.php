@@ -1475,6 +1475,12 @@ class ReportService
             'criteriaRatings' => function ($query) {
                 $query->select('id', 'job_batches_rsp_id')
                     ->with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals']);
+            },
+            'criteria' => function ($query) {
+                $query->select('id', 'job_batches_rsp_id', 'Education',
+                    'Eligibility',
+                    'Training',
+                    'Experience',)->get();
             }
         ])
             ->select('id', 'Office', 'Position', 'ItemNo','SalaryGrade')
@@ -1487,12 +1493,21 @@ class ReportService
 
         // ✅ Flatten criteria — take first criteria_rating since it's per job batch
         $criteria = $jobBatch->criteriaRatings->first();
+        $qs = $jobBatch->criteria->first();
 
         return response()->json([
             'office'   => $jobBatch->Office,
             'position' => $jobBatch->Position,
             'item_no'  => $jobBatch->ItemNo,
             'salary_grade'  => $jobBatch->SalaryGrade,
+
+            'qs' => $qs ? [
+                'education'   => $qs->Education,
+                'experience'  => $qs->Experience,
+                'training'    => $qs->Training,
+                'eligibility' => $qs->Eligibility,
+
+            ] : null,
             'criteria' => $criteria ? [
                 'education'   => $criteria->educations,
                 'experience'  => $criteria->experiences,

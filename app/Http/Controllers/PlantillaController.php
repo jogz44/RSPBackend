@@ -108,7 +108,7 @@ class PlantillaController extends Controller
     // offices and arrangement
     public function arrangement()
     {
-        $data = vwofficearrangement::select(['Office'])->get();
+        $data = Office::select(['office_name as Office'])->get();
         return response()->json($data);
     }
 

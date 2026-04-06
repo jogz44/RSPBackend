@@ -16,6 +16,7 @@ return new class extends Migration
             // ✅ Add new foreign key pointing to schedules_exams
             $table->foreignId('schedules_exam_id')
                 ->after('id')
+                ->nullable()
                 ->constrained('schedules_exams')
                 ->onDelete('cascade');
         });

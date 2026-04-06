@@ -329,7 +329,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Route::get('/applicant/{jobpostId}',[ReportController::class, 'getApplicantHaveSchedules']);
         // Route::post('/send/status', [EmailController::class, 'sendEmailApplicantBatch']); // send an update of status applicant
-
         Route::post('/rating-form', [ReportController::class, 'ratingFormReport']); // generate the plantilla report
 
     });
