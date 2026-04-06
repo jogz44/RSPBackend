@@ -12,38 +12,70 @@ class DashboardService
     // status of applicant
     public function applicantStatus()
     {
-        // count total of applicant each status
-        $qualified = Submission::where('status', 'qualified')->count();
-        $pending = Submission::where('status', 'pending')->count();
-        $unqualified = Submission::where('status', 'unqualified')->count();
+        // Applicant status counts (ONE QUERY ONLY)
+        $applicants = Submission::selectRaw("
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'qualified' THEN 1 ELSE 0 END) as qualified,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'unqualified' THEN 1 ELSE 0 END) as unqualified
+    ")->first();
 
-
-            $funded = vwplantillastructure::where('Funded', true)->count();
-            $unfunded = vwplantillastructure::where('Funded', false)->count();
-            $occupied = vwplantillastructure::where('Funded', true)
-                ->whereNotNull('ControlNo')
-                ->count();
-            $unoccupied = vwplantillastructure::where('Funded', true)
-                ->whereNull('ControlNo')
-                ->count();
-            $total_positions = vwplantillastructure::count();
-
-
-        // count the total of applicant
-        $total = Submission::count();
+        // Plantilla counts (ONE QUERY ONLY)
+        $plantilla = vwplantillastructure::selectRaw("
+        COUNT(*) as total_positions,
+        SUM(CASE WHEN Funded = 1 THEN 1 ELSE 0 END) as funded,
+        SUM(CASE WHEN Funded = 0 THEN 1 ELSE 0 END) as unfunded,
+        SUM(CASE WHEN Funded = 1 AND ControlNo IS NOT NULL THEN 1 ELSE 0 END) as occupied,
+        SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
+    ")->first();
 
         return response()->json([
-            'qualified' => $qualified,
-            'pending' => $pending,
-            'unqualified' => $unqualified,
-            'total_applicant' => $total,
-            'funded' => $funded,
-            'unfunded' => $unfunded,
-            'occupied' => $occupied,
-            'unoccupied' => $unoccupied,
-            'total_positions' => $total_positions,
+            'qualified' => (int) $applicants->qualified,
+            'pending' => (int) $applicants->pending,
+            'unqualified' => (int) $applicants->unqualified,
+            'total_applicant' => (int) $applicants->total,
+
+            'funded' => (int) $plantilla->funded,
+            'unfunded' => (int) $plantilla->unfunded,
+            'occupied' => (int) $plantilla->occupied,
+            'unoccupied' => (int) $plantilla->unoccupied,
+            'total_positions' => (int) $plantilla->total_positions,
         ]);
     }
+    // public function applicantStatus()
+    // {
+    //     // count total of applicant each status
+    //     $qualified = Submission::where('status', 'qualified')->count();
+    //     $pending = Submission::where('status', 'pending')->count();
+    //     $unqualified = Submission::where('status', 'unqualified')->count();
+
+
+    //         $funded = vwplantillastructure::where('Funded', true)->count();
+    //         $unfunded = vwplantillastructure::where('Funded', false)->count();
+    //         $occupied = vwplantillastructure::where('Funded', true)
+    //             ->whereNotNull('ControlNo')
+    //             ->count();
+    //         $unoccupied = vwplantillastructure::where('Funded', true)
+    //             ->whereNull('ControlNo')
+    //             ->count();
+    //         $total_positions = vwplantillastructure::count();
+
+
+    //     // count the total of applicant
+    //     $total = Submission::count();
+
+    //     return response()->json([
+    //         'qualified' => $qualified,
+    //         'pending' => $pending,
+    //         'unqualified' => $unqualified,
+    //         'total_applicant' => $total,
+    //         'funded' => $funded,
+    //         'unfunded' => $unfunded,
+    //         'occupied' => $occupied,
+    //         'unoccupied' => $unoccupied,
+    //         'total_positions' => $total_positions,
+    //     ]);
+    // }
 
     // employee total and status
     // funded and unfunded position

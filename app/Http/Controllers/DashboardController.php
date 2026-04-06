@@ -26,13 +26,13 @@ class DashboardController extends Controller
     // total of funded and unfunded
     // total of occupied and unoccupied
     // total of  employee
-    public function getNumberOfPlantillaData(DashboardService $dashboardService)
-    {
+    // public function getNumberOfPlantillaData(DashboardService $dashboardService)
+    // {
 
-        $result = $dashboardService->plantillaData();
+    //     $result = $dashboardService->plantillaData();
 
-        return $result;
-    }
+    //     return $result;
+    // }
 
 
 
