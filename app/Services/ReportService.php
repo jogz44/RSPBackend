@@ -1477,7 +1477,7 @@ class ReportService
                     ->with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals']);
             }
         ])
-            ->select('id', 'Office', 'Position', 'ItemNo')
+            ->select('id', 'Office', 'Position', 'ItemNo','SalaryGrade')
             ->where('id', $validated['job_batches_rsp_id'])
             ->first();
 
@@ -1492,13 +1492,14 @@ class ReportService
             'office'   => $jobBatch->Office,
             'position' => $jobBatch->Position,
             'item_no'  => $jobBatch->ItemNo,
-
+            'salary_grade'  => $jobBatch->SalaryGrade,
             'criteria' => $criteria ? [
                 'education'   => $criteria->educations,
                 'experience'  => $criteria->experiences,
                 'training'    => $criteria->trainings,
                 'performance' => $criteria->performances,
                 'behavioral'  => $criteria->behaviorals,
+                'exams'  => $criteria->exams,
             ] : null,
 
             'rating_scores' => $jobBatch->ratingScores->map(fn($score) => [
