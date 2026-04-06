@@ -96,6 +96,8 @@ class RaterService
         $rater->update([
             'office' => $validated['office'],
             'active' => $validated['active'],
+            'role_type' => $validated['role_type'],
+            'representative' => $validated['representative'],
         ]);
 
         // Sync job_batches_rsp if provided

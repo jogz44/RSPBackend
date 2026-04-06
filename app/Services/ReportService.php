@@ -1544,7 +1544,10 @@ class ReportService
                 'id'    => $user->id,
                 'name'  => $user->name,
                 'role' => $user->role ?? 'City Adminstrator' ,
-                'representative' => $user->representative ?? 'Chairperson',
+
+                'representative' => $user->representative ?? '',
+                'position' => $user->position ?? '',
+                'role_type' => $user->role_type ?? '',
             ],
 
         ]);
