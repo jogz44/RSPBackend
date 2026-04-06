@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Database\Seeders\OfficeSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -25,7 +25,8 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             CriteriaLibraryASeeder::class,
             CriteriaLibraryBSeeder::class,
-            CriteriaLibraryCSeeder::class
+            CriteriaLibraryCSeeder::class,
+            OfficeSeeder::class,
             // Add other seeders here
         ]);
 

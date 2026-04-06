@@ -184,6 +184,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('dashboard')->group(function () {
         Route::get('/', [DashboardController::class, 'totalApplicantStatus']);
+        // Route::get('/plantilla/status', [DashboardController::class, 'getNumberOfPlantillaData']);
         // Route::get('/job/status', [DashboardController::class, 'job_post_status']);
     });
 
@@ -213,7 +214,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/hire/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
 
-    Route::get('/plantilla/status', [DashboardController::class, 'getNumberOfPlantillaData']);
+    // Route::get('/plantilla/status', [DashboardController::class, 'getNumberOfPlantillaData']);
     Route::get('/activity_log', [LogController::class, 'activityLogs']); // logs
 
     Route::post('/xPDS', [xPDSController::class, 'getPersonalDataSheet']);  // pds of internal

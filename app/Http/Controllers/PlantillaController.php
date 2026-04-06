@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
-use App\Models\vwplantillastructure;
+use App\Models\Office;
 use App\Models\TempRegAppointmentReorg;
 use App\Models\vwActive;
 use App\Models\vwofficearrangement;
+use App\Models\vwplantillastructure;
 use App\Models\xService;
 use App\Services\PlantillaService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use LDAP\Result;
 use PDO;
 
@@ -72,11 +73,14 @@ class PlantillaController extends Controller
     // office on plantilla
      public function offices()
     {
-            $query = vwplantillastructure::select('office as Office')
-                ->distinct()
+            // $query = vwplantillastructure::select('office as Office')
+            //     ->distinct()
+            //     ->get();
+
+            $data = Office::select('office_name as Office')
                 ->get();
 
-            return $query;
+            return $data;
     }
 
 

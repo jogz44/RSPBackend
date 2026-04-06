@@ -17,6 +17,18 @@ class DashboardService
         $pending = Submission::where('status', 'pending')->count();
         $unqualified = Submission::where('status', 'unqualified')->count();
 
+
+            $funded = vwplantillastructure::where('Funded', true)->count();
+            $unfunded = vwplantillastructure::where('Funded', false)->count();
+            $occupied = vwplantillastructure::where('Funded', true)
+                ->whereNotNull('ControlNo')
+                ->count();
+            $unoccupied = vwplantillastructure::where('Funded', true)
+                ->whereNull('ControlNo')
+                ->count();
+            $total_positions = vwplantillastructure::count();
+
+
         // count the total of applicant
         $total = Submission::count();
 
@@ -24,7 +36,12 @@ class DashboardService
             'qualified' => $qualified,
             'pending' => $pending,
             'unqualified' => $unqualified,
-            'total' => $total,
+            'total_applicant' => $total,
+            'funded' => $funded,
+            'unfunded' => $unfunded,
+            'occupied' => $occupied,
+            'unoccupied' => $unoccupied,
+            'total_positions' => $total_positions,
         ]);
     }
 
@@ -52,22 +69,22 @@ class DashboardService
     //     ]);
     // }
 
-    public function plantillaData()
-    {
-        $data = vwplantillastructure::selectRaw("
-        COUNT(*) as total,
-        SUM(CASE WHEN Funded = 1 THEN 1 ELSE 0 END) as funded,
-        SUM(CASE WHEN Funded = 0 THEN 1 ELSE 0 END) as unfunded,
-        SUM(CASE WHEN Funded = 1 AND ControlNo IS NOT NULL THEN 1 ELSE 0 END) as occupied,
-        SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
-    ")->first();
+    // public function plantillaData()
+    // {
+    //     $data = vwplantillastructure::selectRaw("
+    //     COUNT(*) as total,
+    //     SUM(CASE WHEN Funded = 1 THEN 1 ELSE 0 END) as funded,
+    //     SUM(CASE WHEN Funded = 0 THEN 1 ELSE 0 END) as unfunded,
+    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NOT NULL THEN 1 ELSE 0 END) as occupied,
+    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
+    // ")->first();
 
-        return response()->json([
-            'total'      => (int) $data->total,
-            'funded'     => (int) $data->funded,
-            'unfunded'   => (int) $data->unfunded,
-            'occupied'   => (int) $data->occupied,
-            'unoccupied' => (int) $data->unoccupied,
-        ]);
-    }
+    //     return response()->json([
+    //         'total'      => (int) $data->total,
+    //         'funded'     => (int) $data->funded,
+    //         'unfunded'   => (int) $data->unfunded,
+    //         'occupied'   => (int) $data->occupied,
+    //         'unoccupied' => (int) $data->unoccupied,
+    //     ]);
+    // }
 }
