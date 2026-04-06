@@ -96,13 +96,13 @@ class PlantillaService
             'vwplantillaStructure.Status as plantillaStatus',
             'vwplantillaStructure.Name4',
             'vwplantillaStructure.OfficeID',
-            'vwActive.BirthDate',
-            'vwActive.Designation',
+            // 'vwActive.BirthDate',
+            // 'vwActive.Designation',
             'yDesignation.Status as designationStatus',
             'yDesignation.PMID as designationPositionId',
 
         ])
-            ->leftJoin('vwActive', 'vwplantillaStructure.ControlNo', '=', 'vwActive.ControlNo')
+            // ->leftJoin('vwActive', 'vwplantillaStructure.ControlNo', '=', 'vwActive.ControlNo')
             ->leftJoin('yDesignation', 'vwplantillaStructure.PositionID', '=', 'yDesignation.PMID')
             ->where('vwplantillaStructure.office', $office)
             ->get();
