@@ -105,23 +105,22 @@ class RatingService
     public static function addRanking(array $applicants): array
     {
         uasort($applicants, function ($a, $b) {
-            return $b['grand_total'] <=> $a['grand_total'];
+            return (float)$b['grand_total'] <=> (float)$a['grand_total'];
         });
 
-        $rank          = 1;
+        $rank          = 0;
         $previousScore = null;
-        $sameRankCount = 0;
 
         foreach ($applicants as $id => &$data) {
-            if ($previousScore !== null && $data['grand_total'] == $previousScore) {
+            if ($previousScore !== null && (float)$data['grand_total'] === (float)$previousScore) {
+                // Same score — same rank
                 $data['rank'] = $rank;
-                $sameRankCount++;
             } else {
-                $rank += $sameRankCount;
-                $sameRankCount = 1;
-                $data['rank']  = $rank;
+                // New score — just increment by 1
+                $rank++;
+                $data['rank'] = $rank;
             }
-            $previousScore = $data['grand_total'];
+            $previousScore = (float)$data['grand_total'];
         }
 
         return $applicants;
