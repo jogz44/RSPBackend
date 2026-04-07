@@ -24,7 +24,7 @@ class RatersRegisterRequest extends FormRequest
         return [
             //
             'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username',
             'job_batches_rsp_id' => 'required|array',
             'job_batches_rsp_id.*' => 'exists:job_batches_rsp,id',
             'position' => 'required|string|max:255',

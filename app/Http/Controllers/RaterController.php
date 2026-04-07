@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ApplicantDetailsResource;
 use App\Http\Resources\ApplicantRaterResource;
 use App\Models\criteria\criteria_rating;
 use App\Models\JobBatchesRsp;
@@ -72,17 +73,33 @@ class RaterController extends Controller
         return $result;
     }
 
-    // fetch assigned job post on rater
-    public function listOfApplicantRaterAssigned()
+    // // fetch assigned job post on rater
+    // public function listOfApplicantRaterAssigned(Request $request)
+    // {
+    //     $result = $this->raterService->getApplicantBaseOnRaterAssigned($request);
+
+    //     return$result;
+    // }
+
+    // fetch applicant details of the assigned job post on rater
+    public function applicantAppliedJobDetails(Request $request)
     {
-        $result = $this->raterService->getApplicantBaseOnRaterAssigned();
+        $result = $this->raterService->getApplicantDetails($request);
+
+        if ($result->isEmpty()) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'No applicant found with the provided details.',
+            ], 404);
+        }
 
         return response()->json([
-            'status'     => true,
-            'applicants' => ApplicantRaterResource::collection($result),
+            'status'  => true,
+            'message' => 'Applicants retrieved successfully.',
+
+            'data'    => ApplicantDetailsResource::collection($result),
         ]);
     }
-
 
     // fetch the criteria and applicant of job post
     public function fetchCriteriaAndApplicant($id)
