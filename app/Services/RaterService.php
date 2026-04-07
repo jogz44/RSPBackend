@@ -96,14 +96,9 @@ class RaterService
         $rater->update([
             'office' => $validated['office'],
             'active' => $validated['active'],
-            'role_type' => $validated['role_type'],
-            'representative' => $validated['representative'],
+            'role_type' => $validated['role_type'] ?? null,
+            'representative' => $validated['representative'] ?? null,
         ]);
-
-        // Sync job_batches_rsp if provided
-        // if (isset($validated['job_batches_rsp_id'])) {
-        //     $rater->job_batches_rsp()->sync($validated['job_batches_rsp_id']);
-        // }
 
         if (isset($validated['job_batches_rsp_id'])) {
             $newJobPosts = collect($validated['job_batches_rsp_id']);
@@ -1174,85 +1169,81 @@ class RaterService
         ]);
     }
 
-    // // All applicant base on the rater assigened job post
-    // public function getApplicantBaseOnRaterAssigned()
-    // {
-    //     $user = Auth::user();
+    // list of applicant applied internal - external
+    public function getApplicantBaseOnRaterAssigned($request)
+    {
+        $user = Auth::user();
 
-    //     $jobBatchIds = DB::table('job_batches_user')
-    //         ->where('user_id', $user->id)
-    //         ->pluck('job_batches_rsp_id');
+        $jobBatchIds = DB::table('job_batches_user')
+            ->where('user_id', $user->id)
+            ->pluck('job_batches_rsp_id');
 
-    //     return Submission::whereIn('job_batches_rsp_id', $jobBatchIds)
-    //         ->with([
-    //             'nPersonalInfo' => fn($q) => $q->select('id', 'firstname', 'lastname'),
-    //             'xPersonal'     => fn($q) => $q->select('ControlNo', 'Firstname', 'Surname'),
-    //             'job_batch_rsp' => fn($q) => $q->select('id', 'Position'),
-    //         ])
-    //         ->get();
-    // }
+        $search  = $request->input('search');
+        $perPage = $request->input('per_page', 10);
 
-    // // list of applicant applied internal - external
-    // public function getApplicantBaseOnRaterAssigned($request)
-    // {
-    //     $search = $request->input('search');
-    //     $perPage = $request->input('per_page', 10);
+        // ── External applicants — linked to nPersonalInfo ────────────────────────
+        $external = Submission::query()
+            ->from('submission')
+            ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
+            ->whereNotNull('submission.nPersonalInfo_id')
+            ->whereIn('submission.job_batches_rsp_id', $jobBatchIds)
+            ->select(
+                DB::raw('MIN(p.id) as nPersonal_id'),
+                DB::raw('NULL as ControlNo'),
+                'p.firstname',
+                'p.lastname',
+                DB::raw('CONVERT(varchar, p.date_of_birth, 23) as date_of_birth'),
+                DB::raw('COUNT(submission.id) as jobpost'),
+                DB::raw("'external' as applicant_type")
+            )
+            ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
 
-    //     // External applicants — linked to nPersonalInfo
-    //     $external = Submission::query()
-    //         ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
-    //         ->select(
-    //             DB::raw('MIN(p.id) as nPersonal_id'),
-    //             'p.firstname',
-    //             'p.lastname',
-    //             'p.date_of_birth',
-    //             DB::raw('COUNT(submission.id) as jobpost'),
-    //             DB::raw("'external' as applicant_type"),
-    //             DB::raw('NULL as ControlNo')
-    //         )
-    //         ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
+        if ($search) {
+            $external->where(function ($q) use ($search) {
+                $q->where('p.firstname', 'like', "%{$search}%")
+                    ->orWhere('p.lastname', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(p.firstname, ' ', p.lastname) LIKE ?", ["%{$search}%"]);
+            });
+        }
 
-    //     if ($search) {
-    //         $external->where(function ($q) use ($search) {
-    //             $q->where('p.firstname', 'like', "%{$search}%")
-    //                 ->orWhere('p.lastname', 'like', "%{$search}%")
-    //                 ->orWhereRaw("CONCAT(p.firstname,' ',p.lastname) LIKE ?", ["%{$search}%"]);
-    //         });
-    //     }
+        // ── Internal applicants — joined to xPersonal via ControlNo ─────────────
+        $internal = Submission::query()
+            ->from('submission')
+            ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
+            ->whereNull('submission.nPersonalInfo_id')
+            ->whereIn('submission.job_batches_rsp_id', $jobBatchIds)
+            ->select(
+                DB::raw('NULL as nPersonal_id'),
+                'submission.ControlNo',
+                DB::raw('xp.Firstname as firstname'),
+                DB::raw('xp.Surname as lastname'),
+                DB::raw('CONVERT(varchar, xp.BirthDate, 23) as date_of_birth'),
+                DB::raw('COUNT(submission.id) as jobpost'),
+                DB::raw("'internal' as applicant_type")
+            )
+            ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo');
 
-    //     // Internal applicants — joined to xPersonal via ControlNo
-    //     $internal = Submission::query()
-    //         ->whereNull('submission.nPersonalInfo_id')
-    //         ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
-    //         ->select(
-    //             DB::raw('NULL as nPersonal_id'),
-    //             'xp.Firstname',
-    //             'xp.Surname',
-    //             'xp.BirthDate',
-    //             DB::raw('COUNT(submission.id) as jobpost'),
-    //             DB::raw("'internal' as applicant_type"),
-    //             'submission.ControlNo'
-    //         )
-    //         ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo');
+        if ($search) {
+            $internal->where(function ($q) use ($search) {
+                $q->where('xp.Firstname', 'like', "%{$search}%")
+                    ->orWhere('xp.Surname', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(xp.Firstname, ' ', xp.Surname) LIKE ?", ["%{$search}%"])
+                    ->orWhere('submission.ControlNo', 'like', "%{$search}%");
+            });
+        }
 
-    //     if ($search) {
-    //         $internal->where(function ($q) use ($search) {
-    //             $q->where('xp.Firstname', 'like', "%{$search}%")
-    //                 ->orWhere('xp.Surname', 'like', "%{$search}%")
-    //                 ->orWhereRaw("CONCAT(xp.Firstname,' ',xp.Surname) LIKE ?", ["%{$search}%"])
-    //                 ->orWhere('submission.ControlNo', 'like', "%{$search}%");
-    //         });
-    //     }
+        // ── UNION ALL + paginate ─────────────────────────────────────────────────
+        $union = $external->unionAll($internal);
 
-    //     // Combine both using UNION ALL, then paginate
-    //     $query = $external->unionAll($internal);
+        $results = DB::table(DB::raw("({$union->toSql()}) as combined"))
+            ->mergeBindings($union->getQuery())
+            ->paginate($perPage);
 
-    //     $schedule = DB::table(DB::raw("({$query->toSql()}) as combined"))
-    //         ->mergeBindings($query->getQuery())
-    //         ->paginate($perPage);
-
-    //     return response()->json($schedule);
-    // }
+        return response()->json([
+            'status' => true,
+            'data'   => $results,
+        ]);
+    }
 
     // fetch the applicant details he applied
     public function getApplicantDetails($request)

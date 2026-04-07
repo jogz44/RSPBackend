@@ -74,12 +74,12 @@ class RaterController extends Controller
     }
 
     // // fetch assigned job post on rater
-    // public function listOfApplicantRaterAssigned(Request $request)
-    // {
-    //     $result = $this->raterService->getApplicantBaseOnRaterAssigned($request);
+    public function listOfApplicantRaterAssigned(Request $request)
+    {
+        $result = $this->raterService->getApplicantBaseOnRaterAssigned($request);
 
-    //     return$result;
-    // }
+        return$result;
+    }
 
     // fetch applicant details of the assigned job post on rater
     public function applicantAppliedJobDetails(Request $request)
