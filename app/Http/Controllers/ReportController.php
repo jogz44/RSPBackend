@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
+use App\Services\ApplicantService;
 use App\Services\ReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,11 +18,13 @@ class ReportController extends Controller
 
 
     protected $reportService;
+    protected $applicantService;
 
 
-    public function __construct(ReportService $reportService)
+    public function __construct(ReportService $reportService, ApplicantService $applicantService)
     {
         $this->reportService = $reportService;
+        $this->applicantService = $applicantService;
     }
 
     // generate report DBM
@@ -588,5 +591,15 @@ class ReportController extends Controller
     $data = $this->reportService->ratingFormQualificationStandard($validated);
 
         return $data;
+    }
+
+
+    // final summary of the applicant score on the specific job post
+    public function finalSummaryRating($jobpostId, Request $request) // fetch the score of the applicant
+    {
+
+        $result = $this->applicantService->applicantFinalSummaryScore($jobpostId, $request);
+
+        return $result;
     }
 }

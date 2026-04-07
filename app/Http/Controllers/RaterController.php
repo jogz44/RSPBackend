@@ -47,6 +47,9 @@ class RaterController extends Controller
 
     }
 
+
+  
+
     // applicant score individual
     public function applicantScoreIndividual($applicantId,$jobpostId) // applicant rating score
     {
