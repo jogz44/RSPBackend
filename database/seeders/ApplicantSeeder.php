@@ -18,7 +18,7 @@ class ApplicantSeeder extends Seeder
                 // Create submission for this applicant
                 Submission::create([
                     'nPersonalInfo_id' => $applicant->id,
-                    'job_batches_rsp_id' => 11,
+                    'job_batches_rsp_id' => 9,
                     'education_remark' => null,
                     'experience_remark' => null,
                     'training_remark' => null,

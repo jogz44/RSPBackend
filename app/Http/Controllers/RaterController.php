@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ApplicantRaterResource;
 use App\Models\criteria\criteria_rating;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
@@ -70,6 +71,18 @@ class RaterController extends Controller
         $result = $this->raterService->getAssignedJobs($request);
         return $result;
     }
+
+    // fetch assigned job post on rater
+    public function listOfApplicantRaterAssigned()
+    {
+        $result = $this->raterService->getApplicantBaseOnRaterAssigned();
+
+        return response()->json([
+            'status'     => true,
+            'applicants' => ApplicantRaterResource::collection($result),
+        ]);
+    }
+
 
     // fetch the criteria and applicant of job post
     public function fetchCriteriaAndApplicant($id)

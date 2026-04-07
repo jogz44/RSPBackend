@@ -115,6 +115,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('rater')->group(function () {
         Route::get('/assigned-job-batches', [RaterController::class, 'listOfAssignedJobPost']); // fetch the list of job post assigned on rater
+        Route::get('/applicants', [RaterController::class, 'listOfApplicantRaterAssigned']); // fetch applicant list of assigned job post on rater
         Route::get('/', [UsersController::class, 'getAuthenticatedrater']); // dashboard of rater
         Route::post('/logout', [RaterAuthController::class, 'logoutRater']);
         Route::get('/users', [AuthController::class, 'getAllUsers']);

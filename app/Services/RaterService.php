@@ -1173,4 +1173,22 @@ class RaterService
             'applicants' => $applicants,
         ]);
     }
+
+    // All applicant base on the rater assigened job post
+    public function getApplicantBaseOnRaterAssigned()
+    {
+        $user = Auth::user();
+
+        $jobBatchIds = DB::table('job_batches_user')
+            ->where('user_id', $user->id)
+            ->pluck('job_batches_rsp_id');
+
+        return Submission::whereIn('job_batches_rsp_id', $jobBatchIds)
+            ->with([
+                'nPersonalInfo' => fn($q) => $q->select('id', 'firstname', 'lastname'),
+                'xPersonal'     => fn($q) => $q->select('ControlNo', 'Firstname', 'Surname'),
+                'job_batch_rsp' => fn($q) => $q->select('id', 'Position'),
+            ])
+            ->get();
+    }
 }
