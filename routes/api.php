@@ -126,6 +126,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/criteria/applicant/{id}', [RaterController::class, 'fetchCriteriaAndApplicant']);
         Route::get('/show/{jobpostId}', [RaterController::class, 'fetchApplicant']);// fetch applicant have rating score
         Route::post('/edit/{id}', [RaterAuthController::class, 'updateRater']);
+        Route::get('/job-post-list/{raterId}', [RaterController::class, 'jobPost']);
         Route::post('/update-password', [RaterAuthController::class, 'updateRaterPassword']);
         Route::post('/register', [RaterAuthController::class, 'createRaterAccount']);
         Route::post('/change-password', [RaterAuthController::class, 'changeRaterPassword']);

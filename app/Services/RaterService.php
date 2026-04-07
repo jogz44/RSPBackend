@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Http\Requests\RatersRegisterRequest;
 use App\Models\criteria\criteria_rating;
 use App\Models\draft_score;
+use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
 use App\Models\User;
@@ -1349,5 +1350,28 @@ class RaterService
 
         return $applicants; // just return the collection
 
+    }
+
+    // joblist assigned to rater
+    public function jobPostList($raterId)
+    {
+        User::findOrFail($raterId);
+
+        // Get job IDs assigned to this rater that are already complete
+        $completedJobIds = DB::table('job_batches_user')
+            ->where('user_id', $raterId)
+            ->where('status', 'complete')
+            ->pluck('job_batches_rsp_id');
+
+        // Fetch all job posts EXCEPT the completed ones
+        $jobList = JobBatchesRsp::whereNotIn('id', $completedJobIds)
+            ->select('id', 'Position', 'Office', 'status')
+            ->get();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Job posts retrieved successfully',
+            'data'    => $jobList,
+        ]);
     }
 }

@@ -37,6 +37,14 @@ class RaterController extends Controller
         return $result;
     }
 
+    //  fetch the list of job post only didnt assign and assigned on rater
+    public function jobPost($raterId)
+    {
+        $result = $this->raterService->jobPostList($raterId);
+
+        return $result;
+    }
+
     // fetch applicant with score
     public function fetchApplicant($jobpostId,Request $request) // fetch the score of the applicant
     {
@@ -48,7 +56,7 @@ class RaterController extends Controller
     }
 
 
-  
+
 
     // applicant score individual
     public function applicantScoreIndividual($applicantId,$jobpostId) // applicant rating score
