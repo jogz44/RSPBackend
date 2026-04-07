@@ -45,10 +45,15 @@ class CriteriaLiBUpdateRequest extends FormRequest
             'performance.*.description' => 'required|string',
             'performance.*.percentage' => 'required|integer',
 
-            'behavioral' => 'required|array',
-            'behavioral.*.weight' => 'required|integer',
-            'behavioral.*.description' => 'required|string',
-            'behavioral.*.percentage' => 'required|integer',
+            'behavioral' => 'nullable|array',
+            'behavioral.*.weight' => 'nullable|integer',
+            'behavioral.*.description' => 'nullable|string',
+            'behavioral.*.percentage' => 'nullable|integer',
+
+            'exam' => 'nullable|array',
+            'exam.*.weight' => 'nullable|integer',
+            'exam.*.description' => 'nullable|string',
+            'exam.*.percentage' => 'nullable|integer',
         ];
     }
 }

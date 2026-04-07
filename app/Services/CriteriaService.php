@@ -357,6 +357,7 @@ class   CriteriaService
         $saveItems('criteriaLibTraining', $validated['training']);
         $saveItems('criteriaLibPerformance', $validated['performance']);
         $saveItems('criteriaLibBehavioral', $validated['behavioral']);
+        $saveItems('criteriaLibExam', $validated['exam']);
 
 
 
@@ -380,6 +381,7 @@ class   CriteriaService
             'criteriaLibTraining',
             'criteriaLibPerformance',
             'criteriaLibBehavioral',
+            'criteriaLibExam',
         ]);
 
         // --------------------------
@@ -395,6 +397,7 @@ class   CriteriaService
             'training' => $criteriaRange->criteriaLibTraining,
             'performance' => $criteriaRange->criteriaLibPerformance,
             'behavioral' => $criteriaRange->criteriaLibBehavioral,
+            'exam' => $criteriaRange->criteriaLibExam,
         ], 200);
     }
 
@@ -408,6 +411,7 @@ class   CriteriaService
             'criteriaLibTraining:id,criteria_library_id,description,weight,percentage',
             'criteriaLibPerformance:id,criteria_library_id,description,weight,percentage',
             'criteriaLibBehavioral:id,criteria_library_id,description,weight,percentage',
+            'criteriaLibExam:id,criteria_library_id,description,weight,percentage',
         ])->findOrFail($criteriaId);
 
         // Format output
@@ -422,6 +426,7 @@ class   CriteriaService
             'training' => $lib->criteriaLibTraining,
             'performance' => $lib->criteriaLibPerformance,
             'behavioral' => $lib->criteriaLibBehavioral,
+            'exam' => $lib->criteriaLibExam,
         ];
 
         return response()->json($formatted);
@@ -438,6 +443,7 @@ class   CriteriaService
             'criteriaLibTraining:id,criteria_library_id,description,weight,percentage',
             'criteriaLibPerformance:id,criteria_library_id,description,weight,percentage',
             'criteriaLibBehavioral:id,criteria_library_id,description,weight,percentage',
+            'criteriaLibExam:id,criteria_library_id,description,weight,percentage',
         ])
             ->where('sg_min', '<=', $sg)   // sg_min <= SG
             ->where('sg_max', '>=', $sg)   // sg_max >= SG
@@ -458,6 +464,7 @@ class   CriteriaService
             'training' => $lib->criteriaLibTraining,
             'performance' => $lib->criteriaLibPerformance,
             'behavioral' => $lib->criteriaLibBehavioral,
+            'exam' => $lib->criteriaLibExam,
         ]);
     }
 
