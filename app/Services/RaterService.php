@@ -369,7 +369,7 @@ class RaterService
     //  view rater details assigned jobs
     public function viewDetails($raterId)
     {
-        $rater = User::select('id', 'name', 'position', 'office')
+        $rater = User::select('id', 'name', 'position', 'office','representative','role_type')
             ->with(['job_batches_rsp' => function ($query) {
                 $query->select(
                     'job_batches_rsp.id',
@@ -397,7 +397,10 @@ class RaterService
             'name' => $rater->name,
             'position' => $rater->position,
             'office' => $rater->office,
-            'job_batches_rsp' => $rater->job_batches_rsp
+            'job_batches_rsp' => $rater->job_batches_rsp,
+            'representative' => $rater->representative,
+            'role_type' => $rater->name,
+
         ]);
     }
 
@@ -439,7 +442,7 @@ class RaterService
         $userId = Auth::id(); // ✅ get current logged-in rater
 
         // Get criteria
-        $criteria = criteria_rating::with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals', 'jobBatch:id,PositionID'])
+        $criteria = criteria_rating::with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals', 'exams', 'jobBatch:id,PositionID'])
             ->where('job_batches_rsp_id', $id)
             ->get();
 
@@ -633,6 +636,8 @@ class RaterService
                         'name' => $user->name,
                         'username' => $user->username,
                         'office' => $user->office,
+                    'representative' => $user->representative,
+                    'role_type' => $user->role_type,
                         'pending' => $pendingCount,
                         'active' => $user->active,
                         'completed' => $completeCount,
