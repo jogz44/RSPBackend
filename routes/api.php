@@ -256,6 +256,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/exam/score', [ApplicantExamScoreController::class, 'applicantExamScoreStore']); // for external applicant with zip file
         Route::get('/exam/list-scores', [ApplicantExamScoreController::class, 'listOfApplicantWithScore']); // for external applicant with zip file
         Route::put('/exam/update/{submissionId}', [ApplicantExamScoreController::class, 'applicantExamScoreUpdate']); // for external applicant with zip file
+        Route::delete('/exam/delete/{applicantExamScoreId}', [ApplicantExamScoreController::class, 'applicantExamScoreDelete']); // for external applicant with zip file
 
 
 

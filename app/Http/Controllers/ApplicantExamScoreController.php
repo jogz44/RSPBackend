@@ -39,6 +39,27 @@ class ApplicantExamScoreController extends Controller
         return $this->applicantExamScoreService->updateExamScoreOfApplicant($validated, $submissionId);
     }
 
+    // delete the applicant exam score
+    public function applicantExamScoreDelete($applicantExamScoreId)
+    {
+        $exam = ApplicantExamScore::find($applicantExamScoreId);
+
+        if (!$exam) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Exam score Id not found.',
+            ], 404);
+        }
+
+        $exam->delete();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Applicant exam score deleted successfully.',
+        ], 200);
+    }
+
+
 
     // list of applicant that dont have yet exam score
     public function listOfApplicantWithOutExamScore(Request $request)
