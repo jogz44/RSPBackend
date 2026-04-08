@@ -300,12 +300,12 @@ class ScheduleService
             ->with(['submission.nPersonalInfo'])
             ->get();
 
-        if ($scheduleApplicants->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No applicants found for this schedule.',
-            ], 404);
-        }
+        // if ($scheduleApplicants->isEmpty()) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'No applicants found for this schedule.',
+        //     ], 404);
+        // }
 
         foreach ($scheduleApplicants as $scheduleApplicant) {
             $submission = $scheduleApplicant->submission;
@@ -652,12 +652,12 @@ class ScheduleService
             ->with(['submission.nPersonalInfo'])
             ->get();
 
-        if ($scheduleApplicants->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No applicants found for this schedule.',
-            ], 404);
-        }
+        // if ($scheduleApplicants->isEmpty()) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'No applicants found for this schedule.',
+        //     ], 404);
+        // }
 
         foreach ($scheduleApplicants as $scheduleApplicant) {
             $submission = $scheduleApplicant->submission;

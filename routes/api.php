@@ -253,12 +253,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/details', [ApplicantSubmissionController::class, 'getApplicantDetails']); //  fetch the applicant detail of jon post he apply
         Route::get('/{id}', [JobBatchesRspController::class, 'applicantPds']); // fetching the applicant per job post
         Route::get('/score/{applicantId}/{jobpostId}', [RaterController::class, 'applicantScoreIndividual']); // fetch the history of the applicant
+
+
         Route::post('/exam/score', [ApplicantExamScoreController::class, 'applicantExamScoreStore']); // for external applicant with zip file
         Route::get('/exam/list-scores', [ApplicantExamScoreController::class, 'listOfApplicantWithScore']); // for external applicant with zip file
         Route::put('/exam/update/{submissionId}', [ApplicantExamScoreController::class, 'applicantExamScoreUpdate']); // for external applicant with zip file
         Route::delete('/exam/delete/{applicantExamScoreId}', [ApplicantExamScoreController::class, 'applicantExamScoreDelete']); // for external applicant with zip file
-
-
 
     });
 

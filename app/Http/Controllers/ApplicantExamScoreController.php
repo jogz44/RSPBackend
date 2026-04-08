@@ -59,8 +59,6 @@ class ApplicantExamScoreController extends Controller
         ], 200);
     }
 
-
-
     // list of applicant that dont have yet exam score
     public function listOfApplicantWithOutExamScore(Request $request)
     {

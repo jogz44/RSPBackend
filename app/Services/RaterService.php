@@ -1199,7 +1199,7 @@ class RaterService
                 'p.firstname',
                 'p.lastname',
                 DB::raw('CONVERT(varchar, p.date_of_birth, 23) as date_of_birth'),
-                DB::raw('COUNT(submission.id) as jobpost'),
+                DB::raw('COUNT(submission.id) as applied_job'),
                 DB::raw("'external' as applicant_type")
             )
             ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
@@ -1224,7 +1224,7 @@ class RaterService
                 DB::raw('xp.Firstname as firstname'),
                 DB::raw('xp.Surname as lastname'),
                 DB::raw('CONVERT(varchar, xp.BirthDate, 23) as date_of_birth'),
-                DB::raw('COUNT(submission.id) as jobpost'),
+                DB::raw('COUNT(submission.id) as applied_job'),
                 DB::raw("'internal' as applicant_type")
             )
             ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo');
@@ -1275,7 +1275,9 @@ class RaterService
         $date_of_birth = \Carbon\Carbon::parse($validated['date_of_birth'])->toDateString();
 
         // ── External applicants (nPersonalInfo_id is NOT NULL) ──────────────────
-        $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')->whereIn('job_batches_rsp_id', $jobBatchIds)
+        $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
+        ->whereIn('status', ['Qualified','Hired'])
+        ->whereIn('job_batches_rsp_id', $jobBatchIds)
             ->whereNotNull('nPersonalInfo_id')
             ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
                 $query->whereDate('date_of_birth', $date_of_birth)
@@ -1301,7 +1303,9 @@ class RaterService
             });
 
         // ── Internal applicants (nPersonalInfo_id IS NULL, name from xPersonal) ─
-        $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')->whereIn('job_batches_rsp_id', $jobBatchIds)
+        $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
+        ->whereIn('status', ['Qualified','Hired'])
+        ->whereIn('job_batches_rsp_id', $jobBatchIds)
             ->whereNull('nPersonalInfo_id')
             ->whereHas('xPersonal', function ($query) use ($firstname, $lastname, $date_of_birth) {
                 $query->whereDate('BirthDate', $date_of_birth)

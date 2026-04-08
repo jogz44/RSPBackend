@@ -34,7 +34,7 @@ class ApplicantExamScoreService
             'data'    => $results,
         ], 201);
     }
-
+   
     // update the applicant exam score
     public function updateExamScoreOfApplicant($validated, $submissionId)
     {
