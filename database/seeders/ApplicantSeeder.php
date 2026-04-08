@@ -11,14 +11,14 @@ class ApplicantSeeder extends Seeder
 {
     public function run()
     {
-        nPersonal_info::factory(10)
+        nPersonal_info::factory(11)
             ->create()
             ->each(function ($applicant) {
 
                 // Create submission for this applicant
                 Submission::create([
                     'nPersonalInfo_id' => $applicant->id,
-                    'job_batches_rsp_id' => 11,
+                    'job_batches_rsp_id' => 7,
                     'education_remark' => null,
                     'experience_remark' => null,
                     'training_remark' => null,

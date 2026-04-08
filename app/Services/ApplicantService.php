@@ -883,6 +883,9 @@ class ApplicantService
     // fetching the score details of the applicant base on the job batch id and applicant id
     public function applicantScoreDetials($applicantId, $jobBatchId)
     {
+
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences','performances','exams'])
+        ->where('job_batches_rsp_id', $jobBatchId)->get();
         $historyRecords = rating_score::select(
             'rating_score.id',
             'rating_score.user_id as rater_id',
@@ -966,7 +969,8 @@ class ApplicantService
                 'total_qs'    => $row->total_qs,
                 'grand_total' => $row->grand_total,
                 'ranking'     => $row->ranking,
-            ])
+            ]),
+            'criteria' => $criteria,
         ]);
     }
 
