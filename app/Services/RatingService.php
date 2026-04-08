@@ -9,7 +9,7 @@ class RatingService
     public $training;
     public $performance;
     public $bei;
-    public $exam;
+    public $exam_percentage;
 
     public function __construct(
         $education   = 0,
@@ -17,14 +17,14 @@ class RatingService
         $training    = 0,
         $performance = 0,
         $bei         = null,
-        $exam        = null
+        $exam_percentage = null
     ) {
         $this->education   = $education;
         $this->experience  = $experience;
         $this->training    = $training;
         $this->performance = $performance;
         $this->bei         = $bei;
-        $this->exam        = $exam;
+        $this->exam_percentage = $exam_percentage;
     }
 
     /**
@@ -69,7 +69,7 @@ class RatingService
                 'training'    => "0.00",
                 'performance' => "0.00",
                 'bei'         => "0.00",
-                'exam'        => "0.00",
+                'exam_score'    => "0.00",
                 'total_qs'    => "0.00",
                 'grand_total' => "0.00",
             ];
@@ -85,10 +85,10 @@ class RatingService
         $bei  = self::averageNullable($scores, 'bei');
 
         // Exam — null is skipped (same logic as BEI)
-        $exam = self::averageNullable($scores, 'exam');
+        $exam_score = self::averageNullable($scores, 'exam_score');
 
         $total_qs    = $education + $experience + $training + $performance;
-        $grand_total = $total_qs + $bei + $exam;
+        $grand_total = $total_qs + $bei + $exam_score;
 
         return [
             'education'   => number_format($education,   2, '.', ''),
@@ -96,7 +96,7 @@ class RatingService
             'training'    => number_format($training,    2, '.', ''),
             'performance' => number_format($performance, 2, '.', ''),
             'bei'         => number_format($bei,         2, '.', ''),
-            'exam'        => number_format($exam,        2, '.', ''),
+            'exam_score'        => number_format($exam_score,        2, '.', ''),
             'total_qs'    => number_format($total_qs,    2, '.', ''),
             'grand_total' => number_format($grand_total, 2, '.', ''),
         ];

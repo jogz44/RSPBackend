@@ -42,7 +42,7 @@ class EmailApi extends Mailable implements ShouldQueue
     public function content(): Content
     {
         try {
-            Log::info("🛠 EmailApi content called with template: {$this->template}, data: " . json_encode($this->data));
+            // Log::info("🛠 EmailApi content called with template: {$this->template}, data: " . json_encode($this->data));
 
             return new Content(
                 view: $this->template,
@@ -53,7 +53,7 @@ class EmailApi extends Mailable implements ShouldQueue
                 // ]
             );
         } catch (\Exception $e) {
-            Log::error("❌ EmailApi failed to build email: " . $e->getMessage());
+            // Log::error("❌ EmailApi failed to build email: " . $e->getMessage());
             throw $e;
         }
     }

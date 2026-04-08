@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\criteria\criteria_rating;
 use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
@@ -466,7 +467,9 @@ class ApplicantService
 
         $perPage = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
 
-        $jobpost = JobBatchesRsp::findOrFail($jobpostId);
+        // $jobpost = JobBatchesRsp::findOrFail($jobpostId);
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences','performances','exams'])
+        ->where('job_batches_rsp_id', $jobpostId)->get();
 
         $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
             ->whereHas('user', fn($q) => $q->where('active', 1))
@@ -488,7 +491,7 @@ class ApplicantService
             'rating_score.training_score as training',
             'rating_score.performance_score as performance',
             'rating_score.behavioral_score as bei',
-            'rating_score.exam_score as exam',
+            'rating_score.exam_score',
             'rating_score.total_qs',
             'rating_score.grand_total',
             'rating_score.ranking',
@@ -545,7 +548,7 @@ class ApplicantService
                 'training'    => (float)$row->training,
                 'performance' => (float)$row->performance,
                 'bei'         => $row->bei,
-                'exam'        => $row->exam,
+                'exam_score'        => (float)$row->exam_score,
             ])->toArray();
 
             $computed = RatingService::computeFinalScore($scoresArray);
@@ -586,8 +589,8 @@ class ApplicantService
             'jobpost_id'      => $jobpostId,
             'total_assigned'  => $totalAssigned,
             'total_completed' => $totalCompleted,
+            'criteria' => $criteria,
 
-            // ✅ IMPORTANT (for frontend composable)
             'data' => $paginatedData,
 
             'meta' => [
@@ -970,10 +973,10 @@ class ApplicantService
     // applicant scores
     public function applicantFinalSummaryScore($jobpostId, $request)
     {
-        $search       = $request->input('search');
-        $perPageInput = $request->input('per_page', 10);
-        $currentPage  = $request->input('page', 1);
-        $perPage      = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
+        // $search       = $request->input('search');
+        // $perPageInput = $request->input('per_page', 10);
+        // $currentPage  = $request->input('page', 1);
+        // $perPage      = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
 
         $jobpost = JobBatchesRsp::findOrFail($jobpostId);
 
@@ -989,6 +992,9 @@ class ApplicantService
             'rating_score.id',
             'rating_score.user_id as rater_id',
             'users.name as rater_name',
+            'users.role_type',
+            'users.representative',
+            'users.position',
             'rating_score.nPersonalInfo_id',
             'rating_score.ControlNo',
             'rating_score.job_batches_rsp_id',
@@ -1110,8 +1116,8 @@ class ApplicantService
         $collection       = collect($rankedApplicants);
 
         // Manual pagination
-        $total         = $collection->count();
-        $paginatedData = $collection->slice(($currentPage - 1) * $perPage, $perPage)->values();
+        // $total         = $collection->count();
+        // $paginatedData = $collection->slice(($currentPage - 1) * $perPage, $perPage)->values();
 
         return response()->json([
             'jobpost_id'      => $jobpostId,
@@ -1125,14 +1131,14 @@ class ApplicantService
             // Rater headers (for frontend column generation)
             'raters'          => $raters,
 
-            'data' => $paginatedData,
+            'data' => $collection,
 
-            'meta' => [
-                'current_page' => (int)$currentPage,
-                'per_page'     => (int)$perPage,
-                'total'        => $total,
-                'last_page'    => (int)ceil($total / max($perPage, 1)),
-            ],
+            // 'meta' => [
+            //     'current_page' => (int)$currentPage,
+            //     'per_page'     => (int)$perPage,
+            //     'total'        => $total,
+            //     'last_page'    => (int)ceil($total / max($perPage, 1)),
+            // ],
         ]);
     }
 }

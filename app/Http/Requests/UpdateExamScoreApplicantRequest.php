@@ -24,7 +24,7 @@ class UpdateExamScoreApplicantRequest extends FormRequest
         return [
 
             'exam_score' => 'required|numeric',
-            'exam_details' => 'required|string',
+            'exam_details' => 'nullable|string',
             'exam_type' => 'required|string',
             'exam_total_score' => 'required|integer',
             'exam_date' => 'nullable|string',
