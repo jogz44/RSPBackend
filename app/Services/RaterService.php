@@ -442,10 +442,21 @@ class RaterService
 
         $userId = Auth::id(); // ✅ get current logged-in rater
 
+
+
         // Get criteria
         $criteria = criteria_rating::with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals', 'exams', 'jobBatch:id,PositionID'])
             ->where('job_batches_rsp_id', $id)
             ->get();
+
+        if(!$criteria) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Criteria not found for this job post Please ensure the job post has criteria set up Please contact the HR for assistance.',
+            ], 404);
+
+        }
+
 
         // Get applicants with relationships
         $submissions = Submission::where('job_batches_rsp_id', $id)
