@@ -16,7 +16,7 @@ class PlantillaService
     // }
 
     // fetch all employee on the plantilla
-    public function fetchAllEmployeeOnplantilla($request)
+    public function employeePublication($request)
     {
 
         // get the request args office name

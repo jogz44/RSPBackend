@@ -198,7 +198,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('plantilla')->group(function () {
 
-        // Route::get('/', [PlantillaController::class, 'fetchEmployeeOnPlantilla']);
+        Route::get('/publication', [PlantillaController::class, 'publication']);
         Route::get('/', [PlantillaController::class, 'employeePlantilla']);
         Route::get('/ControlNo', [PlantillaController::class, 'getMaxControlNo']);
         Route::get('/office/rater', [PlantillaController::class, 'fetchOfficeRater']);

@@ -51,14 +51,13 @@ class PlantillaController extends Controller
     //     return response()->json($plantilla);
     // }
 
-
-    // fetch list of employee
-    // to get the structure of office and get the employee base on the office
-    public function fetchEmployeeOnPlantilla(Request $request)
+    // femployee publication
+    public function publication(Request $request)
     {
-        $result = $this->plantillaService->fetchAllEmployeeOnplantilla($request);
 
-        return response()->json($result);
+        $data = $this->plantillaService->employeePublication($request);
+
+        return $data;
     }
 
     // fetch all employee on the plantilla
