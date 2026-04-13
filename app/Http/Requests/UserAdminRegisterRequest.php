@@ -40,6 +40,14 @@ class UserAdminRegisterRequest extends FormRequest
             'permissions.isJobView' => 'boolean',
             'permissions.isJobDelete' => 'boolean',
 
+            'permissions.viewSchedule' => 'boolean',
+            'permissions.modifySchedule' => 'boolean',
+            'permissions.viewExam' => 'boolean',
+            'permissions.modifyExam' => 'boolean'
+
+
+
+
         ];
     }
 }

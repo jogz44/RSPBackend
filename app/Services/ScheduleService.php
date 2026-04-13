@@ -89,7 +89,7 @@ class ScheduleService
             $this->dispatchSms(
                 contactNumber: $contactNumber,
                 fullname: $fullname,
-                type: 'interview',
+                type: 'interview-invitation',
                 date: $date,
                 time: $timeFormatted,
                 venue: $venue,
@@ -300,12 +300,7 @@ class ScheduleService
             ->with(['submission.nPersonalInfo'])
             ->get();
 
-        // if ($scheduleApplicants->isEmpty()) {
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'No applicants found for this schedule.',
-        //     ], 404);
-        // }
+
 
         foreach ($scheduleApplicants as $scheduleApplicant) {
             $submission = $scheduleApplicant->submission;
@@ -734,6 +729,7 @@ class ScheduleService
      */
     private function resolveApplicantInfo(Submission $submission): array
     {
+
         if ($submission->nPersonalInfo_id) {
             $firstname     = $submission->nPersonalInfo->firstname;
             $lastname      = $submission->nPersonalInfo->lastname;
@@ -768,11 +764,7 @@ class ScheduleService
         ];
     }
 
-// ── REUSABLE: Dispatch SMS for Interview or Examination ──────────────
-    /**
-     * Builds the SMS message based on type and dispatches it.
-     * $type = 'interview' | 'examination'
-     */
+
     private function dispatchSms(
         ?string $contactNumber,
         string  $fullname,
@@ -787,50 +779,93 @@ class ScheduleService
         $normalized = $this->normalizePhoneNumber($contactNumber);
 
         if (!$normalized) {
-            // Log::info("Skipping SMS for {$fullname} — no valid contact number", [
-            //     'raw_number' => $contactNumber ?? 'null',
-            // ]);
             return;
         }
 
-        $label = $type === 'interview' ? 'interview' : 'examination';
+        $isCancel = str_contains($type, 'cancel');
 
-        $smsMessage = "Dear {$fullname}, you are invited for an {$label} "
-            . "for {$position} (Item No. {$ItemNo}) under {$office}. "
-            . "Date: {$date}, Time: {$time}, Venue: {$venue}. "
-            . "Please be on time. Thank you! Check your email for details.";
+        $label = match (true) {
+            str_contains($type, 'interview-invitation') => 'interview',
+            str_contains($type, 'examination')  => 'examination',
+        };
+
+        if ($isCancel) {
+            $smsMessage = "Dear {$fullname}, we regret to inform you that your scheduled {$label} "
+                . "for {$position} (Item No. {$ItemNo}) under {$office} "
+                . "originally set on {$date} at {$time} at {$venue} has been CANCELLED. "
+                . "Please check your email for further details. Thank you!";
+        } else {
+            $smsMessage = "Dear {$fullname}, you are invited for an {$label} "
+                . "for {$position} (Item No. {$ItemNo}) under {$office}. "
+                . "Date: {$date}, Time: {$time}, Venue: {$venue}. "
+                . "Please be on time. Thank you! Check your email for details.";
+        }
 
         SendApplicantSms::dispatch($normalized, $smsMessage)
             ->onQueue('sms');
 
-        // Log::info("SMS dispatched for {$label}", [
-        //     'number'   => $normalized,
-        //     'fullname' => $fullname,
-        // ]);
+        Log::info("SMS dispatched for {$label}", [
+            'number'   => $normalized,
+            'fullname' => $fullname,
+        ]);
     }
 
     // ── REUSABLE: Normalize phone number ────────────────────────────────
+    // private function normalizePhoneNumber(?string $number): ?string
+    // {
+    //     if (!$number) {
+    //         Log::warning('normalizePhoneNumber: null or empty input');
+    //         return null;
+    //     }
+
+    //     $number  = preg_split('/[\/,]/', $number)[0];
+    //     $number  = trim($number);
+    //     $cleaned = preg_replace('/\D/', '', $number);
+
+    //     if (str_starts_with($cleaned, '639') && strlen($cleaned) === 12) {
+    //         $cleaned = '0' . substr($cleaned, 2);
+    //     }
+
+    //     if (strlen($cleaned) === 11 && str_starts_with($cleaned, '09')) {
+    //         return $cleaned;
+    //     }
+
+
+    //     return null;
+    // }
     private function normalizePhoneNumber(?string $number): ?string
     {
-        if (!$number) return null;
+        if (!$number) {
+            Log::warning('normalizePhoneNumber: null or empty input');
+            return null;
+        }
 
+        // Take first number if multiple are stored (e.g. "09171234567/09181234567")
         $number  = preg_split('/[\/,]/', $number)[0];
         $number  = trim($number);
         $cleaned = preg_replace('/\D/', '', $number);
 
+        // +639XXXXXXXXX or 639XXXXXXXXX → 09XXXXXXXXX
         if (str_starts_with($cleaned, '639') && strlen($cleaned) === 12) {
             $cleaned = '0' . substr($cleaned, 2);
         }
 
+        // +63 with country code but only 10 digits stored (e.g. 63XXXXXXXXXX = 12 digits already handled above)
+        // Handle 9XXXXXXXXX (10 digits, missing leading 0)
+        if (strlen($cleaned) === 10 && str_starts_with($cleaned, '9')) {
+            $cleaned = '0' . $cleaned;
+        }
+
         if (strlen($cleaned) === 11 && str_starts_with($cleaned, '09')) {
+            Log::info('normalizePhoneNumber: success', ['normalized' => $cleaned]);
             return $cleaned;
         }
 
-        // Log::warning('Invalid phone number, skipping SMS', [
-        //     'original' => $number,
-        //     'cleaned'  => $cleaned,
-        //     'length'   => strlen($cleaned),
-        // ]);
+        Log::warning('normalizePhoneNumber: unrecognized format', [
+            'original' => $number,
+            'cleaned'  => $cleaned,
+            'length'   => strlen($cleaned),
+        ]);
 
         return null;
     }

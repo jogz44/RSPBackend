@@ -100,6 +100,11 @@ class UsersController extends Controller
                 'modifyCriteria' => optional($user->rspControl)->modifyCriteria ?? false,
                 'viewReport' => optional($user->rspControl)->viewReport ?? false,
 
+                'viewSchedule' => optional($user->rspControl)->viewSchedule ?? false,
+                'modifySchedule' => optional($user->rspControl)->modifySchedule ?? false,
+                'viewExam' => optional($user->rspControl)->viewExam ?? false,
+                'modifyExam' => optional($user->rspControl)->modifyExam ?? false
+
             ],
         ];
 

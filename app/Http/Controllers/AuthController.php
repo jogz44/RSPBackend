@@ -61,6 +61,12 @@ class AuthController extends Controller
                     'modifyCriteria' => $request->input('permissions.modifyCriteria', false),
 
                     'viewReport' => $request->input('permissions.viewReport', false),
+
+                    'viewSchedule' => $request->input('permissions.viewSchedule', false),
+                    'modifySchedule' => $request->input('permissions.modifySchedule', false),
+                    'viewExam' => $request->input('permissions.viewExam', false),
+                    'modifyExam' => $request->input('permissions.modifyExam', false)
+
                 ]);
             }
 
@@ -300,6 +306,11 @@ class AuthController extends Controller
                 'permissions.modifyCriteria' => 'boolean',
                 'permissions.viewReport' => 'boolean',
 
+                'permissions.viewSchedule' => 'boolean',
+                'permissions.modifySchedule' => 'boolean',
+                'permissions.viewExam' => 'boolean',
+                'permissions.modifyExam' => 'boolean'
+
 
 
             ];
@@ -346,6 +357,11 @@ class AuthController extends Controller
 
                         'viewReport' => $request->input('permissions.viewReport', false),
 
+                        'viewSchedule' =>  $request->input('permissions.viewSchedule', false),
+                        'modifySchedule' => $request->input('permissions.modifySchedule', false),
+                        'viewExam' => $request->input('permissions.viewExam', false),
+                        'modifyExam' => $request->input('permissions.modifyExam', false),
+
 
                     ]);
                 } else {
@@ -365,6 +381,10 @@ class AuthController extends Controller
                         'modifyCriteria' => $request->input('permissions.modifyCriteria', false),
 
                         'viewReport' => $request->input('permissions.viewReport', false),
+                        'viewSchedule' =>  $request->input('permissions.viewSchedule', false),
+                        'modifySchedule' => $request->input('permissions.modifySchedule', false),
+                        'viewExam' => $request->input('permissions.viewExam', false),
+                        'modifyExam' => $request->input('permissions.modifyExam', false),
 
                     ]);
                 }

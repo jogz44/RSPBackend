@@ -26,7 +26,11 @@ class UserRspControl extends Model
 
         'viewCriteria',
         'modifyCriteria',
-        'viewReport'
+        'viewReport',
+        'viewSchedule',
+        'modifySchedule',
+        'viewExam',
+        'modifyExam'
     ];
 
     // In UserRspControl.php
