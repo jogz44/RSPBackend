@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Auth;
 class SubmissionController extends Controller
 {
 
-
+    // service for handling the status of the applicant
     protected $submissionService;
 
     public function __construct(SubmissionService $submissionService)
@@ -51,6 +51,19 @@ class SubmissionController extends Controller
 
         return $result;
     }
+
+
+    // getting the image of the internal applicant
+    public function getImageInternalApplicant($submissionId){
+
+    $data = $this->submissionService->proxyImage($submissionId);
+
+
+    return $data;
+
+
+    }
+
 
 
 }

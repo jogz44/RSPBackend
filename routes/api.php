@@ -63,7 +63,6 @@ Route::prefix('applicant')->group(function () {
     Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication']); // for external applicant with zip file
     Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication']); // employyee applicant applying job
     Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication']); // confirmation for updating his excek file
-
 });
 
 // applicant outside list of jobs
@@ -212,7 +211,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/schedule-exam-list', [ScheduleController::class, 'fetchScheduleExamination']); // list of schedule
         Route::get('/schedule-exam-detials/{examinationScheduleId}', [ScheduleController::class, 'getApplicantExamination']); // list of schedule
 
-
+        // routes/api.php
         Route::get('/submissions/index', [ApplicantSubmissionController::class, 'index']);
         Route::get('/list', [ApplicantSubmissionController::class, 'listOfApplicants']); // for employyee applicant
         Route::get('/schedule', [ScheduleController::class, 'applicantList']); // list of the applicant external and internal
@@ -334,5 +333,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/job-post', [JobBatchesRspController::class, 'jobPost']); // fetching all job post
     Route::get('/job-post/{postDate}/{endDate}', [JobBatchesRspController::class, 'jobPostFiltered']);
 
+    Route::get('/proxy-image/{submissionId}', [SubmissionController::class, 'getImageInternalApplicant']);
 });
 

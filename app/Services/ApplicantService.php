@@ -184,7 +184,7 @@ class ApplicantService
                 'lastname' => $employeeJson['User'][0]['Surname'] ?? '',
                 'middlename' => $employeeJson['User'][0]['MIddlename'] ?? '',
                 'name_extension' => $employeeJson['User'][0]['NameExtension'] ?? null,
-                'image_path' => $employeeJson['User'][0]['Pics'] ?? $employeeJson['User'][0]['image_path'] ?? null,
+                'image_path' => $employeeJson['User'][0]['Pics'] ?? null,
                 'date_of_birth' => $employeeJson['User'][0]['BirthDate'] ?? 'N/A',
                 'place_of_birth' => $employeeJson['User'][0]['BirthPlace'] ?? 'N/A',
                 'sex' => $employeeJson['User'][0]['Sex'] ?? 'N/A',
@@ -250,62 +250,43 @@ class ApplicantService
             ->where('job_batches_rsp_id', $id)
             ->first();
 
-        // Generate image URL
+
+
+        // // Generate image URL
         // $imageUrl = null;
-        // if ($info && isset($info['image_path']) && $info['image_path']) {
-        //     if (Storage::disk('public')->exists($info['image_path'])) {
+        // $rawImagePath = $info['image_path'] ?? null;
+
+        // if ($rawImagePath) {
+        //     // Case 1: Already a full URL (from external DB)
+        //     if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
+        //         $imageUrl = $rawImagePath;
+        //     }
+        //     // Case 2: Local storage path
+        //     elseif (Storage::disk('public')->exists($rawImagePath)) {
         //         $baseUrl = config('app.url');
-        //         $imageUrl = $baseUrl . '/storage/' . $info['image_path'];
+        //         $imageUrl = $baseUrl . '/storage/' . $rawImagePath;
         //     }
         // }
-
-        // Generate image URL
+        // $imageUrl = $imageUrl ? str_replace('\/', '/', $imageUrl) : null;
+        // Replace the image URL generation block with this:
         $imageUrl = null;
         $rawImagePath = $info['image_path'] ?? null;
 
         if ($rawImagePath) {
-            // Case 1: Already a full URL (from external DB)
+            // Case 1: Already a valid HTTP URL (external applicant from MinIO/storage)
             if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
                 $imageUrl = $rawImagePath;
             }
             // Case 2: Local storage path
             elseif (Storage::disk('public')->exists($rawImagePath)) {
-                $baseUrl = config('app.url');
-                $imageUrl = $baseUrl . '/storage/' . $rawImagePath;
+                $imageUrl = config('app.url') . '/storage/' . $rawImagePath;
+            }
+            // Case 3: Windows UNC path (\\server\...) — proxy it through your API
+            elseif (str_starts_with($rawImagePath, '\\\\') || str_starts_with($rawImagePath, '//')) {
+                $imageUrl = config('app.url') . '/api/proxy-image/' . $submission->id;
             }
         }
 
-
-        // $trainingImages    = [];
-        // $educationImages   = [];
-        // $eligibilityImages = [];
-        // $experienceImages  = [];
-
-        // if ($info && isset($info['id'])) {
-        //     $baseFolder = storage_path('app/public/applicant_files/' . $submission->nPersonalInfo_id);
-
-        //     $folders = [
-        //         'training'    => $baseFolder . '/training',
-        //         'education'   => $baseFolder . '/education',
-        //         'eligibility' => $baseFolder . '/eligibility',
-        //         'experience'  => $baseFolder . '/experience',
-        //     ];
-
-        //     foreach ($folders as $type => $path) {
-        //         if (is_dir($path)) {
-        //             $files = collect(scandir($path))
-        //                 ->filter(fn($file) => !in_array($file, ['.', '..']))
-        //                 ->map(fn($file) => asset('storage/applicant_files/' . $info['id'] . '/' . $type . '/' . $file)) // ✅ added slash
-        //                 ->values()
-        //                 ->toArray();
-
-        //             if ($type === 'training')    $trainingImages    = $files;
-        //             if ($type === 'education')   $educationImages   = $files;
-        //             if ($type === 'eligibility') $eligibilityImages = $files;
-        //             if ($type === 'experience')  $experienceImages  = $files;
-        //         }
-        //     }
-        // }
 
         $trainingImages    = [];
         $educationImages   = [];
@@ -350,33 +331,7 @@ class ApplicantService
                 }
             }
         }
-        // $folderKey = $submission->ControlNo ?? ($info['id'] ?? $submission->nPersonalInfo_id ?? null);
 
-        // if ($folderKey) {
-        //     $baseFolder = storage_path('app/public/applicant_files/' . $folderKey);
-
-        //     $folders = [
-        //         'training'    => $baseFolder . '/training',
-        //         'education'   => $baseFolder . '/education',
-        //         'eligibility' => $baseFolder . '/eligibility',
-        //         'experience'  => $baseFolder . '/experience',
-        //     ];
-
-        //     foreach ($folders as $type => $path) {
-        //         if (is_dir($path)) {
-        //             $files = collect(scandir($path))
-        //                 ->filter(fn($file) => !in_array($file, ['.', '..']))
-        //                 ->map(fn($file) => asset('storage/applicant_files/' . $folderKey . '/' . $type . '/' . $file))
-        //                 ->values()
-        //                 ->toArray();
-
-        //             if ($type === 'training')    $trainingImages    = $files;
-        //             if ($type === 'education')   $educationImages   = $files;
-        //             if ($type === 'eligibility') $eligibilityImages = $files;
-        //             if ($type === 'experience')  $experienceImages  = $files;
-        //         }
-        //     }
-        // }
 
         return response()->json([
             // 'applicant_id' => $submission->id,
@@ -456,7 +411,7 @@ class ApplicantService
             'eligibility_images' => $eligibilityImages,
             'experience_images' => $experienceImages,
             'ranking' => $rating->ranking ?? null,
-        ]);
+        ], 200, [], JSON_UNESCAPED_SLASHES); // 👈 this is the key fix
     }
 
     public function score($jobpostId, $request)

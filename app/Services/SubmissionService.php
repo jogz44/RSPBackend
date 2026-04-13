@@ -90,5 +90,42 @@ class SubmissionService
         ]);
     }
 
+    //  getting the image of the internal employee applicant
+    public function proxyImage($submission_id)
+    {
+        $submission = Submission::find($submission_id);
+        if (!$submission) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        // Get image_path from employee DB
+        $xPDS = new \App\Http\Controllers\xPDSController();
+        $employeeData = $xPDS->getPersonalDataSheet(
+            new \Illuminate\Http\Request(['controlno' => $submission->ControlNo])
+        );
+        $employeeJson = $employeeData->getData(true);
+        $imagePath = $employeeJson['User'][0]['Pics'] ?? null;
+
+        if (!$imagePath) {
+            return response()->json(['message' => 'No image found'], 404);
+        }
+
+        // Convert UNC path \\server\share\... to a readable path
+        $localPath = str_replace('\\', '/', $imagePath);
+        // \\192.168.2.205\Payroll Database\... => //192.168.2.205/Payroll Database/...
+        // On Linux server, UNC paths can be mounted — adjust this to your mount point
+        // e.g. if mounted at /mnt/payroll:
+        // $localPath = str_replace('//192.168.2.205/Payroll Database', '/mnt/payroll', $localPath);
+
+        if (!file_exists($localPath)) {
+            return response()->json(['message' => 'Image file not found on server'], 404);
+        }
+
+        $mimeType = mime_content_type($localPath) ?: 'image/jpeg';
+        $imageData = file_get_contents($localPath);
+
+        return response($imageData, 200)->header('Content-Type', $mimeType);
+    }
+
 
 }
