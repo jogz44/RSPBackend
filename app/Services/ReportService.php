@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Jobs\GeneratePlantillaReportJob;
 use App\Jobs\QueueWorkerTestJob;
+use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
+use App\Models\vwActive;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -1549,6 +1551,165 @@ class ReportService
                 'position' => $user->position ?? '',
                 'role_type' => $user->role_type ?? '',
             ],
+
+        ]);
+    }
+
+    // applicant ranking
+    public function ranking($jobpostId, $request)
+    {
+        $rankLimit       = $request->input('rank');
+
+
+        $jobpost = JobBatchesRsp::findOrFail($jobpostId);
+
+        $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
+            ->whereHas('user', fn($q) => $q->where('active', 1))
+            ->count();
+
+        $totalCompleted = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
+            ->where('status', 'complete')
+            ->count();
+
+        $allScores = rating_score::select(
+            'rating_score.id',
+            'rating_score.user_id as rater_id',
+
+            'rating_score.nPersonalInfo_id',
+            'rating_score.ControlNo',
+            'rating_score.job_batches_rsp_id',
+            'rating_score.education_score as education',
+            'rating_score.experience_score as experience',
+            'rating_score.training_score as training',
+            'rating_score.performance_score as performance',
+            'rating_score.behavioral_score as bei',
+            'rating_score.exam_score',
+            'nPersonalInfo.firstname',
+            'nPersonalInfo.lastname',
+            'submission.id as submission_id'
+        )
+            ->leftJoin('nPersonalInfo', 'nPersonalInfo.id', '=', 'rating_score.nPersonalInfo_id')
+            ->leftJoin('users', 'users.id', '=', 'rating_score.user_id')
+            ->leftJoin('submission', function ($join) {
+                $join->on('submission.job_batches_rsp_id', '=', 'rating_score.job_batches_rsp_id')
+                    ->whereColumn('submission.nPersonalInfo_id', 'rating_score.nPersonalInfo_id');
+            })
+            ->where('rating_score.job_batches_rsp_id', $jobpostId)
+            ->get();
+
+
+        // Group scores by applicant
+        $scoresByApplicant = $allScores->groupBy(
+            fn($row) => $row->nPersonalInfo_id ?: 'control_' . $row->ControlNo
+        );
+
+        $applicants = [];
+
+
+
+        foreach ($scoresByApplicant as $applicantKey => $scoreRows) {
+            $firstRow  = $scoreRows->first();
+            $firstname = $firstRow->firstname;
+            $lastname  = $firstRow->lastname;
+
+            // Fallback for internal applicants
+            if ((!$firstname || !$lastname) && $firstRow->ControlNo) {
+                $active    = vwActive::where('ControlNo', $firstRow->ControlNo)->first();
+                $firstname = $active->Firstname ?? $active->firstname ?? '';
+                $lastname  = $active->Surname   ?? $active->surname   ?? '';
+            }
+
+            // ── Per-rater breakdown ──────────────────────────────────────────────
+            $raterBreakdown = [];
+
+            foreach ($scoreRows as $row) {
+                $total_qs = (float)$row->education
+                    + (float)$row->experience
+                    + (float)$row->training
+                    + (float)$row->performance;
+
+                $raterBreakdown[] = [
+                    'rater_id'   => $row->rater_id,
+                    'rater_name' => $row->rater_name,
+                    'education'  => number_format((float)$row->education,  2, '.', ''),
+                    'experience' => number_format((float)$row->experience, 2, '.', ''),
+                    'training'   => number_format((float)$row->training,   2, '.', ''),
+                    'performance' => number_format((float)$row->performance, 2, '.', ''),
+                    'total_qs'   => number_format($total_qs, 2, '.', ''),
+                    'bei'        => $row->bei !== null ? number_format((float)$row->bei, 2, '.', '') : null,
+                    'exam_score'       => $row->exam_score !== null ? number_format((float)$row->exam_score, 2, '.', '') : null,
+                ];
+            }
+
+            // ── Averaged totals (uses your existing RatingService) ───────────────
+            $scoresArray = $scoreRows->map(fn($row) => [
+                'education'   => (float)$row->education,
+                'experience'  => (float)$row->experience,
+                'training'    => (float)$row->training,
+                'performance' => (float)$row->performance,
+                'bei'         => $row->bei,
+                'exam_score'        => $row->exam_score,
+            ])->toArray();
+
+            $computed = RatingService::computeFinalScore($scoresArray);
+
+            $applicants[] = [
+                'nPersonalInfo_id' => (string)$firstRow->nPersonalInfo_id,
+                'ControlNo'        => $firstRow->ControlNo,
+                'submission_id'    => $firstRow->submission_id,
+                'firstname'        => $firstname,
+                'lastname'         => $lastname,
+
+                // ── Applicant type ───────────────────────────────────────────────
+                'applicant_type'   => $firstRow->ControlNo ? 'internal' : 'external',
+
+                // Averaged totals
+                'total_rating'     => $computed['total_qs'],
+                'bei'              => $computed['bei'],
+                'exam_score'       => $computed['exam_score'],
+                'final_rating'     => $computed['grand_total'],
+                'grand_total'      => $computed['grand_total'],
+            ];
+        }
+
+        // Search filter
+        $collection = collect($applicants);
+
+        if (!empty($search)) {
+            $collection = $collection->filter(function ($item) use ($search) {
+                return str_contains(strtolower($item['firstname']), strtolower($search))
+                    || str_contains(strtolower($item['lastname']),  strtolower($search))
+                    || str_contains(strtolower((string)$item['ControlNo']), strtolower($search));
+            })->values();
+        }
+
+        // Rank after filter
+        $rankedApplicants = RatingService::addRanking($collection->values()->all());
+        $collection       = collect($rankedApplicants);
+
+        // ── Filter by rank limit ─────────────────────────────────────────────
+        if ($rankLimit > 0) {
+            $collection = $collection->filter(function ($item) use ($rankLimit) {
+                return (int)$item['rank'] <= $rankLimit;
+            })->values();
+        }
+
+
+
+        return response()->json([
+            'jobpost_id'      => $jobpostId,
+            'total_assigned'  => $totalAssigned,
+            'total_completed' => $totalCompleted,
+            'office' => $jobpost->Office ?? null,
+            'position' => $jobpost->Position ?? null,
+            'Salary_Grade' => $jobpost->SalaryGrade ?? null,
+            'Plantilla_Item_No' => $jobpost->ItemNo ?? null,
+
+            // Rater headers (for frontend column generation)
+            // 'raters'          => $raters,
+
+            'data' => $collection,
+
 
         ]);
     }

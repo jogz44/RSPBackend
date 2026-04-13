@@ -34,13 +34,13 @@ use Illuminate\Support\Facades\Route;
 //     $freeMB = round(disk_free_space($storagePath) / 1024 / 1024, 2);
 //     return "Free storage space: {$freeMB} MB";
 // });
-Route::get('/email/tracking', [EmailController::class, 'emailTracking']); // send an update of status applicant
 
 
 
 
 
-// user
+
+// email verification
 Route::post('/verify-code', [VerificationController::class, 'verifyCode']); // verify the code
 
 Route::post('/send-verification', [VerificationController::class, 'sendVerification'])
@@ -49,42 +49,24 @@ Route::post('/send-verification', [VerificationController::class, 'sendVerificat
 Route::post('/resend-verification', [VerificationController::class, 'reSendVerification'])
 ->middleware('throttle:resend-verification'); // 5 requests per 1 minute // sending code on email
 
-
-Route::post('/send-verificationv2', [VerificationController::class, 'sendVerification'])
-    ->middleware('throttle:send-verification'); // 5 requests per 1 minute
-
-
-// Route::prefix('job-batches-rsp')->group(function () {
-
-//     Route::get('/', [JobBatchesRspController::class, 'availableJobPost']); // fetching all job post
-
-//     Route::get('/{job_post_id}', [JobBatchesRspController::class, 'jobPostView']); // update the job-batches-rsp start date and end date
-// });
-
 Route::middleware('auth:sanctum')->post('/logs/auth', [LogController::class, 'logAuth']);
 
+// rater login
 Route::prefix('rater')->group(function () {
     Route::get('/name', [RaterController::class, 'fetchRaterAccountLogin']); // fetch list of raters
-    Route::post('/login', [RaterAuthController::class, 'loginRater']); //  login for rater
+    Route::post('/login', [RaterAuthController::class, 'loginRater'])->middleware('throttle:rater-login'); // 5 request per 1 min only rater-login
 });
 
-Route::post('/login', [AuthController::class, 'adminLogin']); //  login for admin
-Route::get('/role', [AuthController::class, 'getRole']); // role of user
-
-
-Route::get('employee/{ControlNo}', [EmployeeController::class, 'appliedEmployee']);
 
 // applying route
 Route::prefix('applicant')->group(function () {
     Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication']); // for external applicant with zip file
-    Route::post('/submissions/manual', [ApplicantSubmissionController::class, 'applicantStoreApplicationManual']); // for applicant manual
     Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication']); // employyee applicant applying job
     Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication']); // confirmation for updating his excek file
 
-
 });
 
-
+// applicant outside list of jobs
 Route::prefix('job-batches-rsp')->group(function () {
     Route::get('/postdate', [JobBatchesRspController::class, 'jobPostPostDate']); // fetch job post base on the  postdate
     Route::get('/', [JobBatchesRspController::class, 'availableJobPost']); // fetching all job post
@@ -94,8 +76,20 @@ Route::prefix('job-batches-rsp')->group(function () {
 
 Route::get('/on-funded-plantilla/by-funded/{JobpostId}', [OnFundedPlantillaController::class, 'showByFunded']);
 
+//erms
+Route::get('employee/{ControlNo}', [EmployeeController::class, 'appliedEmployee']);
+
+Route::post('/login', [AuthController::class, 'adminLogin'])->middleware('throttle:rater-login'); //  login for admin
+Route::get('/role', [AuthController::class, 'getRole']); // role of user
+
+//=============================================================== Protected routes that require authentication =====================================================================//
+
+
+
 // Protected routes that require authentication
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::get('/email/tracking', [EmailController::class, 'emailTracking']); // send an update of status applicant
 
     Route::post('/registration', [AuthController::class, 'userRegister']); // create an admin account
 
@@ -210,32 +204,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 
-    Route::post('/submissions/multiple', [ExportApplicantController::class, 'exportApplicant']); // store applicant multiple on jobpost usong export
-
-    Route::get('/rater/job/list', [RaterController::class, 'jobListAssigned']);
-
-    // Route::get('/on-funded-plantilla/by-funded/{JobpostId}', [OnFundedPlantillaController::class, 'showByFunded']);
-
-
-    //
-    Route::get('/export/applicant/{job_post_id}', [ExportApplicantController::class, 'fetchApplicantAppliedOldJobPost']); // fetching all job post
-
-    Route::post('/hire/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
-
-    // Route::get('/plantilla/status', [DashboardController::class, 'getNumberOfPlantillaData']);
-    Route::get('/activity_log', [LogController::class, 'activityLogs']); // logs
-
-    Route::post('/xPDS', [xPDSController::class, 'getPersonalDataSheet']);  // pds of internal
-
-    Route::get('/logs', [LogController::class, 'index']);
-
-    Route::get('/office', [PlantillaController::class, 'arrangement']); // this is for the modal fetching  fetching the employye // office arrangement
-    Route::get('/active', [PlantillaController::class, 'vwActiveGet']); // fetching employee active
-    Route::get('/view/criteria/{job_batches_rsp_id}', [CriteriaController::class, 'viewCriteria']); // view details of job criteria
-
-    Route::delete('/job/delete/{id}', [JobBatchesRspController::class, 'deleteJobPost']); // delete job post  with the criteria and pdf
-    Route::get('/job-post', [JobBatchesRspController::class, 'jobPost']); // fetching all job post
-    Route::get('/job-post/{postDate}/{endDate}', [JobBatchesRspController::class,'jobPostFiltered']);
 
     Route::prefix('applicant')->group(function () {
         Route::get('/list-no-exam', [ApplicantExamScoreController::class, 'listOfApplicantWithOutExamScore']); // for external applicant with zip file
@@ -259,6 +227,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/exam/list-scores', [ApplicantExamScoreController::class, 'listOfApplicantWithScore']); // for external applicant with zip file
         Route::put('/exam/update/{submissionId}', [ApplicantExamScoreController::class, 'applicantExamScoreUpdate']); // for external applicant with zip file
         Route::delete('/exam/delete/{applicantExamScoreId}', [ApplicantExamScoreController::class, 'applicantExamScoreDelete']); // for external applicant with zip file
+
+        Route::post('/submissions/manual', [ApplicantSubmissionController::class, 'applicantStoreApplicationManual']); // for applicant manual
+
 
     });
 
@@ -310,7 +281,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 
-
     Route::prefix('generate')->group(function () {
         Route::get('/', [ReportController::class, 'reportPlantilla']);
         Route::post('/cancel/{jobId}', [ReportController::class, 'cancelPlantilla']);
@@ -318,7 +288,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/job-position', [ReportController::class, 'exportJobRequestPosition']);
 
     });
-
 
 
     Route::prefix('report')->group(function () {
@@ -337,7 +306,33 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/rating-form', [ReportController::class, 'ratingFormReport']); // generate the plantilla report
         Route::get('/final-summary-rating/{jobpostId}', [ReportController::class, 'finalSummaryRating']); // generate the plantilla report
 
+        //get the all rank of the applicant per job post
+        Route::get('/applicant/ranking/{jobpostId}', [ReportController::class, 'applicantRanking']); // generate appliicant ranking per job post
+
     });
+
+    Route::post('/submissions/multiple', [ExportApplicantController::class, 'exportApplicant']); // store applicant multiple on jobpost usong export
+
+    Route::get('/rater/job/list', [RaterController::class, 'jobListAssigned']);
+
+    Route::get('/export/applicant/{job_post_id}', [ExportApplicantController::class, 'fetchApplicantAppliedOldJobPost']); // fetching all job post
+
+    Route::post('/hire/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
+
+    // Route::get('/plantilla/status', [DashboardController::class, 'getNumberOfPlantillaData']);
+    Route::get('/activity_log', [LogController::class, 'activityLogs']); // logs
+
+    Route::post('/xPDS', [xPDSController::class, 'getPersonalDataSheet']);  // pds of internal
+
+    Route::get('/logs', [LogController::class, 'index']);
+
+    Route::get('/office', [PlantillaController::class, 'arrangement']); // this is for the modal fetching  fetching the employye // office arrangement
+    Route::get('/active', [PlantillaController::class, 'vwActiveGet']); // fetching employee active
+    Route::get('/view/criteria/{job_batches_rsp_id}', [CriteriaController::class, 'viewCriteria']); // view details of job criteria
+
+    Route::delete('/job/delete/{id}', [JobBatchesRspController::class, 'deleteJobPost']); // delete job post  with the criteria and pdf
+    Route::get('/job-post', [JobBatchesRspController::class, 'jobPost']); // fetching all job post
+    Route::get('/job-post/{postDate}/{endDate}', [JobBatchesRspController::class, 'jobPostFiltered']);
 
 });
 

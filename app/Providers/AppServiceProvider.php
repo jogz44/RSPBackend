@@ -31,8 +31,6 @@ class AppServiceProvider extends ServiceProvider
                 // ✅ 5 attempts, then locked for 3 minutes.
                 Limit::perMinutes(5, 5)
                     ->by($request->ip()),
-
-
             ];
         });
 
@@ -41,8 +39,22 @@ class AppServiceProvider extends ServiceProvider
                 // ✅ 5 attempts, then locked for 3 minutes.
                 Limit::perMinutes(5, 5)
                     ->by($request->ip()),
+            ];
+        });
 
+        RateLimiter::for('rater-login', function (Request $request) {
+            return [
+                // ✅ 5 attempts, then locked for 3 minutes.
+                Limit::perMinutes(1, 5)  //  Allow 5 attempts per 1 minute
+                    ->by($request->ip()),
+            ];
+        });
 
+        RateLimiter::for('admin-login', function (Request $request) {
+            return [
+                // ✅ 5 attempts, then locked for 3 minutes.
+                Limit::perMinutes(1, 5)  //  Allow 5 attempts per 1 minute
+                    ->by($request->ip()),
             ];
         });
     }

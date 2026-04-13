@@ -977,12 +977,10 @@ class ApplicantService
     // applicant scores
     public function applicantFinalSummaryScore($jobpostId, $request)
     {
-        // $search       = $request->input('search');
-        // $perPageInput = $request->input('per_page', 10);
-        // $currentPage  = $request->input('page', 1);
-        // $perPage      = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
-
         $jobpost = JobBatchesRsp::findOrFail($jobpostId);
+
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams'])
+            ->where('job_batches_rsp_id', $jobpostId)->get();
 
         $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
             ->whereHas('user', fn($q) => $q->where('active', 1))
@@ -1007,7 +1005,7 @@ class ApplicantService
             'rating_score.training_score as training',
             'rating_score.performance_score as performance',
             'rating_score.behavioral_score as bei',
-            'rating_score.exam_score as exam',
+            'rating_score.exam_score',
             'nPersonalInfo.firstname',
             'nPersonalInfo.lastname',
             'submission.id as submission_id'
@@ -1067,7 +1065,7 @@ class ApplicantService
                     'performance' => number_format((float)$row->performance, 2, '.', ''),
                     'total_qs'   => number_format($total_qs, 2, '.', ''),
                     'bei'        => $row->bei !== null ? number_format((float)$row->bei, 2, '.', '') : null,
-                    'exam'       => $row->exam !== null ? number_format((float)$row->exam, 2, '.', '') : null,
+                    'exam_score'       => $row->exam_score !== null ? number_format((float)$row->exam_score, 2, '.', '') : null,
                 ];
             }
 
@@ -1078,7 +1076,7 @@ class ApplicantService
                 'training'    => (float)$row->training,
                 'performance' => (float)$row->performance,
                 'bei'         => $row->bei,
-                'exam'        => $row->exam,
+                'exam_score'        => $row->exam_score,
             ])->toArray();
 
             $computed = RatingService::computeFinalScore($scoresArray);
@@ -1096,7 +1094,7 @@ class ApplicantService
                 // Averaged totals
                 'total_rating'     => $computed['total_qs'],    // avg of all raters' total_qs
                 'bei'              => $computed['bei'],          // avg of all raters' bei
-                'exam'             => $computed['exam'],         // avg of all raters' exam
+                'exam_score'             => $computed['exam_score'],         // avg of all raters' exam
                 'final_rating'     => $computed['grand_total'],  // total_rating + bei + exam
 
                 // grand_total used for ranking
@@ -1132,6 +1130,8 @@ class ApplicantService
             'Salary_Grade' => $jobpost->SalaryGrade ?? null,
             'Plantilla_Item_No' => $jobpost->ItemNo ?? null,
 
+            'criteria' => $criteria,
+
             // Rater headers (for frontend column generation)
             'raters'          => $raters,
 
@@ -1145,4 +1145,7 @@ class ApplicantService
             // ],
         ]);
     }
+
+
+
 }

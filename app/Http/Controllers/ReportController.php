@@ -602,4 +602,14 @@ class ReportController extends Controller
 
         return $result;
     }
+
+
+    // applicant raking per jobp post
+    public function applicantRanking($jobpostId, Request $request) 
+    {
+
+        $result = $this->reportService->ranking($jobpostId, $request);
+
+        return $result;
+    }
 }
