@@ -307,7 +307,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/final-summary-rating/{jobpostId}', [ReportController::class, 'finalSummaryRating']); // generate the plantilla report
 
         //get the all rank of the applicant per job post
-        Route::get('/applicant/ranking/{jobpostId}', [ReportController::class, 'applicantRanking']); // generate appliicant ranking per job post
+        Route::get('/applicant/per-position/{jobpostId}', [ReportController::class, 'applicantRanking']); // generate appliicant ranking per job post
 
     });
 

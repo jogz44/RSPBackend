@@ -8,15 +8,19 @@ use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
+use App\Models\User;
 use App\Models\vwActive;
+use App\Models\xPersonal;
+use App\Models\xService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
 class ReportService
 {
     /**
@@ -863,6 +867,8 @@ class ReportService
     // top 5 ranking applicant date publication
     public function topApplicant($postDate)
     {
+
+    $rater = User::select('name','position','role_type','representative','active','role_id')->where('active',1)->where('role_id',2)->get();
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
             ->select(
                 'id',
@@ -890,6 +896,8 @@ class ReportService
                 'rating_score.training_score as training',
                 'rating_score.performance_score as performance',
                 'rating_score.behavioral_score as bei',
+                'rating_score.grand_total',
+                'rating_score.exam_score',
                 'nPersonalInfo.firstname',
                 'nPersonalInfo.lastname'
             )
@@ -913,6 +921,7 @@ class ReportService
                     'training'    => (float) $row->training,
                     'performance' => (float) $row->performance,
                     'bei'         => (float) $row->bei,
+                    'exam_score'      => (float) $row->exam_score,
                 ])->toArray();
 
                 $computed = RatingService::computeFinalScore($scoresArray);
@@ -930,7 +939,7 @@ class ReportService
                 RatingService::addRanking($applicants)
             )
                 ->sortBy('ranking')
-                ->take(5)
+                // ->take(5)
                 ->values();
 
             // ===== Group by OFFICE =====
@@ -946,14 +955,17 @@ class ReportService
                 'Position'       => $jobPost->Position,
                 'Salary Grade'   => $jobPost->SalaryGrade,
                 'Plantilla Item No'        => $jobPost->ItemNo,
-                'Top 5 Applicant' => $topApplicants
+                'Top Applicant' => $topApplicants,
+
             ];
         }
 
         return response()->json([
-            'Header'   => 'Top 5 Ranking Applicants',
+            'Header'   => 'Top Ranking Applicants',
             'Date' => "$postDate Publication",
-            'Offices'   => array_values($offices)
+
+            'Offices'   => array_values($offices),
+            'rater' => $rater,
         ]);
     }
 
@@ -1547,44 +1559,83 @@ class ReportService
             ->where('rating_score.job_batches_rsp_id', $jobpostId)
             ->get();
 
-
-        // Group scores by applicant
         // Group scores by applicant
         $scoresByApplicant = $allScores->groupBy(
             fn($row) => $row->nPersonalInfo_id ?: 'control_' . $row->ControlNo
         );
 
         $applicants = [];
-
         foreach ($scoresByApplicant as $applicantKey => $scoreRows) {
             $firstRow  = $scoreRows->first();
             $firstname = $firstRow->firstname;
             $lastname  = $firstRow->lastname;
-            $imageUrl  = null; // ✅ initialize image
+            $imageUrl  = null;
 
-            // ── Internal Applicant (has ControlNo, no nPersonalInfo_id) ─────────────
-        
+            // ✅ Initialize BEFORE if blocks
+            $office          = null;
+            $designation     = null;
+            $lengthOfService = null;
+
+            // ── Internal Applicant ───────────────────────────────────────────────────
             if ((!$firstname || !$lastname) && $firstRow->ControlNo) {
-                $active    = vwActive::where('ControlNo', $firstRow->ControlNo)->first();
-                $firstname = $active->Firstname ?? $active->firstname ?? '';
-                $lastname  = $active->Surname   ?? $active->surname   ?? '';
 
-                // ✅ Fetch Pics from xPersonal model
-                $xPersonal = \App\Models\xPersonal::where('ControlNo', $firstRow->ControlNo)->first();
-                $pics      = $xPersonal->Pics ?? null;
+                // ✅ Get personal info
+                $active    = xPersonal::where('ControlNo', $firstRow->ControlNo)->first();
+                $firstname = $active->Firstname ?? null;
+                $lastname  = $active->Surname   ?? null;
+                $pics      = $active->Pics ?? null;
 
+                // ✅ Get LATEST service record by PMID (single record)
+                $current_service = xService::where('ControlNo', $firstRow->ControlNo)
+                    ->orderByDesc('PMID')
+                    ->first(); // ✅ first() not get()
+
+                // ✅ Now safe to use $current_service
+                $office      = $current_service->Office      ?? null;
+                $designation = $current_service->Designation ?? null;
+
+                // ✅ Image
                 if ($pics) {
-                    // UNC path (\\192.168.2.205\...) — proxy through Laravel endpoint
                     if (str_starts_with($pics, '\\\\') || str_starts_with($pics, '//')) {
                         $imageUrl = config('app.url') . '/api/employee/photo/' . $firstRow->ControlNo;
-                    }
-                    // Already a valid HTTP URL
-                    elseif (filter_var($pics, FILTER_VALIDATE_URL)) {
+                    } elseif (filter_var($pics, FILTER_VALIDATE_URL)) {
                         $imageUrl = $pics;
                     }
                 }
-            }
 
+                // ✅ Get ALL service records for length calculation
+                $xservice = xService::select('FromDate', 'ToDate')
+                    ->where('ControlNo', $firstRow->ControlNo)
+                    ->get();
+
+                $totalDays = 0;
+                $today     = Carbon::now();
+
+                foreach ($xservice as $service) {
+                    $from = Carbon::parse($service->FromDate);
+                    $to   = Carbon::parse($service->ToDate ?? now());
+
+                    // Cap ToDate to today if in the future
+                    if ($to->isFuture()) {
+                        $to = $today;
+                    }
+
+                    // Skip if FromDate is also in the future
+                    if ($from->isFuture()) {
+                        continue;
+                    }
+
+                    $totalDays += $from->diffInDays($to);
+                }
+
+                // ✅ Convert to years, months, days, hours, minutes
+                $years   = intdiv($totalDays, 365);
+                $remain  = $totalDays % 365;
+                $months  = intdiv($remain, 30);
+                $days    = $remain % 30;
+
+                $lengthOfService = "{$years} years, {$months} months, {$days} days";
+            }
             // ── External Applicant (has nPersonalInfo_id) ────────────────────────────
             if ($firstRow->nPersonalInfo_id) {
                 $personalInfo = \App\Models\excel\nPersonal_info::find($firstRow->nPersonalInfo_id);
@@ -1642,7 +1693,9 @@ class ReportService
                 'firstname'        => $firstname,
                 'lastname'         => $lastname,
                 'image_url'        => $imageUrl, // ✅ added here
-
+                'office' =>  $office ?? null,
+                'current_position'  =>  $designation ?? null,
+                'length_of_service' =>   $lengthOfService,
                 // ── Applicant type ───────────────────────────────────────────────────
                 'applicant_type'   => $firstRow->ControlNo ? 'internal' : 'external',
 
@@ -1677,14 +1730,16 @@ class ReportService
         //     })->values();
         // }
 
-
-
-
         return response()->json([
             'jobpost_id'      => $jobpostId,
             'total_assigned'  => $totalAssigned,
             'total_completed' => $totalCompleted,
             'office' => $jobpost->Office ?? null,
+            'office2' => $jobpost->Office2 ?? null,
+            'group' => $jobpost->Group?? null,
+            'division' => $jobpost->Division ?? null,
+            'section' => $jobpost->Section ?? null,
+            'unit' => $jobpost->Unit ?? null,
             'position' => $jobpost->Position ?? null,
             'Salary_Grade' => $jobpost->SalaryGrade ?? null,
             'Plantilla_Item_No' => $jobpost->ItemNo ?? null,

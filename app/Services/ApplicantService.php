@@ -8,6 +8,7 @@ use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
 use App\Models\vwActive;
+use App\Models\xPersonal;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -235,6 +236,7 @@ class ApplicantService
                 'Academic' => $employeeJson['Academic'] ?? [],
                 'Organization' => $employeeJson['Organization'] ?? [],
                 'reference' => $employeeJson['Reference'] ?? [],
+
                 'children' => collect($employeeJson['User'][0]['children'] ?? [])->map(function ($child) {
                     return [
                         'child_name' => $child['ChildName'] ?? $child['child_name'] ?? null,
@@ -390,6 +392,7 @@ class ApplicantService
             'children' => $info['children'] ?? [],
             'family' => $info['family'] ?? [],
             'reference' => $info['reference'] ?? [],
+            'personal_declarations' => $info['personal_declarations'] ?? [],
             'training_images' => $trainingImages,
             'education_images' => $educationImages,
             'eligibility_images' => $eligibilityImages,
@@ -467,7 +470,7 @@ class ApplicantService
                 // ]));
 
 
-                $active = vwActive::where('ControlNo', $firstRow->ControlNo)->first();
+                $active = xPersonal::where('ControlNo', $firstRow->ControlNo)->first();
 
                 // if (!$active) {
                 //     Log::warning('No vwActive match', [
@@ -541,14 +544,144 @@ class ApplicantService
         ]);
     }
 
-  
+
 
     // fetching the score details of the applicant base on the job batch id and applicant id
+    // public function applicantScoreDetials($applicantId, $jobBatchId)
+    // {
+
+    //     $criteria = criteria_rating::with(['educations', 'trainings', 'experiences','performances','exams'])
+    //     ->where('job_batches_rsp_id', $jobBatchId)->get();
+    //     $historyRecords = rating_score::select(
+    //         'rating_score.id',
+    //         'rating_score.user_id as rater_id',
+    //         'rater.name as rater_name',
+    //         'rating_score.nPersonalInfo_id',
+    //         'rating_score.ControlNo',
+    //         'rating_score.job_batches_rsp_id',
+    //         'rating_score.education_score as education',
+    //         'rating_score.experience_score as experience',
+    //         'rating_score.training_score as training',
+    //         'rating_score.performance_score as performance',
+    //         'rating_score.behavioral_score as bei',
+    //         'rating_score.exam_score as exam',
+    //         'rating_score.total_qs',
+    //         'rating_score.grand_total',
+    //         'rating_score.ranking',
+
+    //         'nPersonalInfo.firstname as internal_firstname',
+    //         'nPersonalInfo.lastname as internal_lastname',
+    //         'nPersonalInfo.image_path as internal_image',
+
+    //         'xPersonal.Firstname as external_firstname',
+    //         'xPersonal.Surname as external_lastname',
+
+    //         'submission.id as submission_id'
+    //     )
+    //         ->leftJoin('users as rater', 'rater.id', '=', 'rating_score.user_id')
+    //         ->leftJoin('nPersonalInfo', 'nPersonalInfo.id', '=', 'rating_score.nPersonalInfo_id')
+    //         ->leftJoin('xPersonal', 'xPersonal.ControlNo', '=', 'rating_score.ControlNo')
+    //         ->leftJoin('xPersonalAddt', 'xPersonalAddt.ControlNo', '=', 'rating_score.ControlNo')
+    //         ->leftJoin('submission', function ($join) {
+    //             $join->on('submission.job_batches_rsp_id', '=', 'rating_score.job_batches_rsp_id')
+    //                 ->where(function ($q) {
+    //                     $q->on('submission.nPersonalInfo_id', '=', 'rating_score.nPersonalInfo_id')
+    //                         ->orOn('submission.ControlNo', '=', 'rating_score.ControlNo');
+    //                 });
+    //         })
+    //         ->where(function ($q) use ($applicantId) {
+    //             $q->where('rating_score.nPersonalInfo_id', $applicantId)
+    //                 ->orWhere('rating_score.ControlNo', $applicantId);
+    //         })
+    //         // ✅ Add this — filter by specific job batch
+    //         ->where('rating_score.job_batches_rsp_id', $jobBatchId)
+    //         ->get();
+
+    //     if ($historyRecords->isEmpty()) {
+    //         return response()->json(['message' => 'No applicant history found'], 404);
+    //     }
+
+    //     $first = $historyRecords->first();
+
+    //     // ✅ Use internal or fallback to external
+    //     $firstname = $first->internal_firstname ?? $first->external_firstname;
+    //     $lastname  = $first->internal_lastname  ?? $first->external_lastname;
+    //     $imageUrl  = null; // Initialize here to avoid "Undefined variable" error
+    //     // $imagePath = $first->internal_image     ?? $first->external_image;
+
+    //     // $imageUrl = $imagePath
+    //     //     ? config('app.url') . '/storage/' . $imagePath
+    //     //     : null;
+
+    //     // ── Internal Applicant ───────────────────────────────────────────────────
+    //     if ((!$firstname || !$lastname) &&   $first->ControlNo) {
+
+    //         // ✅ Get personal info
+    //         $active    = xPersonal::where('ControlNo', $first->ControlNo)->first();
+    //         $pics      = $active->Pics ?? null;
+
+
+    //         // ✅ Image
+    //         if ($pics) {
+    //             if (str_starts_with($pics, '\\\\') || str_starts_with($pics, '//')) {
+    //                 $imageUrl = config('app.url') . '/api/employee/photo/' . $first->ControlNo;
+    //             } elseif (filter_var($pics, FILTER_VALIDATE_URL)) {
+    //                 $imageUrl = $pics;
+    //             }
+    //         }
+
+
+    //     }
+    //     // ── External Applicant (has nPersonalInfo_id) ────────────────────────────
+    //     if ($first->nPersonalInfo_id) {
+    //         $personalInfo = \App\Models\excel\nPersonal_info::find($first->nPersonalInfo_id);
+    //         $rawImagePath = $personalInfo->image_path ?? null;
+
+    //         if ($rawImagePath) {
+    //             // Case 1: Already a valid HTTP URL (MinIO/storage)
+    //             if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
+    //                 $imageUrl = $rawImagePath;
+    //             }
+    //             // Case 2: Local storage path
+    //             elseif (Storage::disk('public')->exists($rawImagePath)) {
+    //                 $imageUrl = config('app.url') . '/storage/' . $rawImagePath;
+    //             }
+    //         }
+    //     }
+
+    //     return response()->json([
+    //         'applicant' => [
+    //             'submission_id'    => (int)$first->submission_id,
+    //             'nPersonalInfo_id' => (int)$first->nPersonalInfo_id,
+    //             'ControlNo'        => $first->ControlNo,
+
+    //             'firstname'        => $firstname,
+    //             'lastname'         => $lastname,
+    //             'image_url'        => $imageUrl,
+    //         ],
+    //         'history' => $historyRecords->map(fn($row) => [
+    //             'id'          => $row->id,
+    //             'rater_id'    => $row->rater_id,
+    //             'rater_name'  => $row->rater_name,
+    //             'education'   => $row->education,
+    //             'experience'  => $row->experience,
+    //             'training'    => $row->training,
+    //             'performance' => $row->performance,
+    //             'bei'         => $row->bei,
+    //             'exam'         => $row->exam,
+    //             'total_qs'    => $row->total_qs,
+    //             'grand_total' => $row->grand_total,
+    //             'ranking'     => $row->ranking,
+    //         ]),
+    //         'criteria' => $criteria,
+    //     ]);
+    // }
+
     public function applicantScoreDetials($applicantId, $jobBatchId)
     {
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams'])
+            ->where('job_batches_rsp_id', $jobBatchId)->get();
 
-        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences','performances','exams'])
-        ->where('job_batches_rsp_id', $jobBatchId)->get();
         $historyRecords = rating_score::select(
             'rating_score.id',
             'rating_score.user_id as rater_id',
@@ -590,7 +723,6 @@ class ApplicantService
                 $q->where('rating_score.nPersonalInfo_id', $applicantId)
                     ->orWhere('rating_score.ControlNo', $applicantId);
             })
-            // ✅ Add this — filter by specific job batch
             ->where('rating_score.job_batches_rsp_id', $jobBatchId)
             ->get();
 
@@ -600,21 +732,43 @@ class ApplicantService
 
         $first = $historyRecords->first();
 
-        // ✅ Use internal or fallback to external
         $firstname = $first->internal_firstname ?? $first->external_firstname;
         $lastname  = $first->internal_lastname  ?? $first->external_lastname;
-        $imagePath = $first->internal_image     ?? $first->external_image;
+        $imageUrl  = null; // ✅ Initialize here to avoid "Undefined variable" error
 
-        $imageUrl = $imagePath
-            ? config('app.url') . '/storage/' . $imagePath
-            : null;
+        // ── Internal Applicant (has ControlNo) ──────────────────────────────────
+        if ($first->ControlNo) {
+            $active = xPersonal::where('ControlNo', $first->ControlNo)->first();
+            $pics   = $active->Pics ?? null;
+
+            if ($pics) {
+                if (str_starts_with($pics, '\\\\') || str_starts_with($pics, '//')) {
+                    $imageUrl = config('app.url') . '/api/employee/photo/' . $first->ControlNo;
+                } elseif (filter_var($pics, FILTER_VALIDATE_URL)) {
+                    $imageUrl = $pics;
+                }
+            }
+        }
+
+        // ── External Applicant (has nPersonalInfo_id) ────────────────────────────
+        if ($first->nPersonalInfo_id) {
+            $personalInfo = \App\Models\excel\nPersonal_info::find($first->nPersonalInfo_id);
+            $rawImagePath = $personalInfo->image_path ?? null;
+
+            if ($rawImagePath) {
+                if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
+                    $imageUrl = $rawImagePath;
+                } elseif (Storage::disk('public')->exists($rawImagePath)) {
+                    $imageUrl = config('app.url') . '/storage/' . $rawImagePath;
+                }
+            }
+        }
 
         return response()->json([
             'applicant' => [
                 'submission_id'    => (int)$first->submission_id,
                 'nPersonalInfo_id' => (int)$first->nPersonalInfo_id,
                 'ControlNo'        => $first->ControlNo,
-
                 'firstname'        => $firstname,
                 'lastname'         => $lastname,
                 'image_url'        => $imageUrl,
@@ -628,13 +782,13 @@ class ApplicantService
                 'training'    => $row->training,
                 'performance' => $row->performance,
                 'bei'         => $row->bei,
-                'exam'         => $row->exam,
+                'exam'        => $row->exam,
                 'total_qs'    => $row->total_qs,
                 'grand_total' => $row->grand_total,
                 'ranking'     => $row->ranking,
             ]),
             'criteria' => $criteria,
-        ]);
+        ], 200, [], JSON_UNESCAPED_SLASHES); // remove slash /\/\/\ image
     }
 
     // applicant scores
