@@ -58,7 +58,24 @@ class AppServiceProvider extends ServiceProvider
                     ->by($request->ip()),
             ];
         });
-        
+
+        // ✅ For public API routes (outside sanctum)
+        RateLimiter::for('public-api', function (Request $request) {
+            return[Limit::perMinute(30) // 30 requests per minute
+                ->by($request->ip()),  // limit per IP address
+            ];
+        });
+
+
+        // application
+        RateLimiter::for('application', function (Request $request) {
+            return [
+                // ✅ 5 attempts, then locked for 3 minutes.
+                Limit::perMinutes(1, 15)  //  Allow 5 attempts per 1 minute
+                    ->by($request->ip()),
+            ];
+        });
+
         $this->connectNetworkShare();
 
     }

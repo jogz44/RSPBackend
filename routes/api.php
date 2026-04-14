@@ -53,33 +53,33 @@ Route::middleware('auth:sanctum')->post('/logs/auth', [LogController::class, 'lo
 
 // rater login
 Route::prefix('rater')->group(function () {
-    Route::get('/name', [RaterController::class, 'fetchRaterAccountLogin']); // fetch list of raters
+    Route::get('/name', [RaterController::class, 'fetchRaterAccountLogin'])->middleware('throttle:public-api'); // 5 request per 1 min only rater-login; // fetch list of raters
     Route::post('/login', [RaterAuthController::class, 'loginRater'])->middleware('throttle:rater-login'); // 5 request per 1 min only rater-login
 });
 
 
 // applying route
 Route::prefix('applicant')->group(function () {
-    Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication']); // for external applicant with zip file
-    Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication']); // employyee applicant applying job
-    Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication']); // confirmation for updating his excek file
+    Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication'])->middleware('throttle:application'); // for external applicant with zip file
+    Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication'])->middleware('throttle:application'); // employyee applicant applying job
+    Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication'])->middleware('throttle:application'); // confirmation for updating his excek file
 });
 
 // applicant outside list of jobs
 Route::prefix('job-batches-rsp')->group(function () {
-    Route::get('/postdate', [JobBatchesRspController::class, 'jobPostPostDate']); // fetch job post base on the  postdate
-    Route::get('/', [JobBatchesRspController::class, 'availableJobPost']); // fetching all job post
-    Route::get('/list', [JobBatchesRspController::class, 'jobListCriteria']); // fetching the all job post on the admin
-    Route::get('/{job_post_id}', [JobBatchesRspController::class, 'jobPostView']); // update the job-batches-rsp start date and end date
+    Route::get('/postdate', [JobBatchesRspController::class, 'jobPostPostDate'])->middleware('throttle:public-api');// fetch job post base on the  postdate
+    Route::get('/', [JobBatchesRspController::class, 'availableJobPost'])->middleware('throttle:public-api'); // fetching all job post
+    Route::get('/list', [JobBatchesRspController::class, 'jobListCriteria'])->middleware('throttle:public-api'); // fetching the all job post on the admin
+    Route::get('/{job_post_id}', [JobBatchesRspController::class, 'jobPostView'])->middleware('throttle:public-api'); // update the job-batches-rsp start date and end date
 });
 
-Route::get('/on-funded-plantilla/by-funded/{JobpostId}', [OnFundedPlantillaController::class, 'showByFunded']);
+Route::get('/on-funded-plantilla/by-funded/{JobpostId}', [OnFundedPlantillaController::class, 'showByFunded'])->middleware('throttle:public-api');
 
 //erms
 Route::get('employee/{ControlNo}', [EmployeeController::class, 'appliedEmployee']);
 
 Route::post('/login', [AuthController::class, 'adminLogin'])->middleware('throttle:rater-login'); //  login for admin
-Route::get('/role', [AuthController::class, 'getRole']); // role of user
+Route::get('/role', [AuthController::class, 'getRole'])->middleware('throttle:public-api'); // role of user
 
 //=============================================================== Protected routes that require authentication =====================================================================//
 
