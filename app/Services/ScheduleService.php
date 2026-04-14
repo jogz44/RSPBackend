@@ -790,15 +790,27 @@ class ScheduleService
         };
 
         if ($isCancel) {
-            $smsMessage = "Dear {$fullname}, we regret to inform you that your scheduled {$label} "
-                . "for {$position} (Item No. {$ItemNo}) under {$office} "
-                . "originally set on {$date} at {$time} at {$venue} has been CANCELLED. "
-                . "Please check your email for further details. Thank you!";
+            $smsMessage = "Dear {$fullname},\n\n"
+                . "We regret to inform you that your scheduled {$label} has been CANCELLED.\n\n"
+                . "Position: {$position}\n"
+                . "Item No: {$ItemNo}\n"
+                . "Office: {$office}\n"
+                . "Date: {$date}\n"
+                . "Time: {$time}\n"
+                . "Venue: {$venue}\n\n"
+                . "Please check your email for further details.\n\n"
+                . "Thank you!";
         } else {
-            $smsMessage = "Dear {$fullname}, you are invited for an {$label} "
-                . "for {$position} (Item No. {$ItemNo}) under {$office}. "
-                . "Date: {$date}, Time: {$time}, Venue: {$venue}. "
-                . "Please be on time. Thank you! Check your email for details.";
+            $smsMessage = "Dear {$fullname},\n\n"
+                . "You are invited to attend the {$label}.\n\n"
+                . "Position: {$position}\n"
+                . "Item No: {$ItemNo}\n"
+                . "Office: {$office}\n"
+                . "Date: {$date}\n"
+                . "Time: {$time}\n"
+                . "Venue: {$venue}\n\n"
+                . "Please be on time and check your email for further details.\n\n"
+                . "Thank you!";
         }
 
         SendApplicantSms::dispatch($normalized, $smsMessage)
@@ -1068,9 +1080,12 @@ class ScheduleService
             return;
         }
 
-        $smsMessage = "Dear {$fullname}, we regret to inform you that your application "
-            . "for {$position} under {$office} did not meet the qualification standards. "
-            . "Please check your email for the full details. Thank you!";
+        $smsMessage = "Dear {$fullname},\n\n"
+            . "We regret to inform you that your application did not meet the qualification standards.\n\n"
+            . "Position : {$position}\n"
+            . "Office   : {$office}\n\n"
+            . "Please check your email for the full details.\n\n"
+            . "Thank you!";
 
         SendApplicantSms::dispatch($normalized, $smsMessage)
             ->onQueue('sms');

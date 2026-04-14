@@ -2094,13 +2094,21 @@ class ApplicantApplicationService
         }
 
         $smsMessage = $isUpdate
-            ? "Dear {$fullName}, your application for {$job->Position} (Item No. {$job->ItemNo})"
-            . "under {$job->Office} has been updated. "
-            . "Please check your email for full details. Thank you!"
-            :  "Dear {$fullName}, we acknowledge receipt of your application for "
-            . "{$job->Position} (Item No. {$job->ItemNo}) under {$job->Office}. "
-            . "Your application is currently under review by our HRMPSB Secretariat. "
-            . "Please check your email for full details. Thank you!";
+            ? "Dear {$fullName},\n\n"
+            . "Your application has been UPDATED.\n\n"
+            . "Position: {$job->Position}\n"
+            . "Item No: {$job->ItemNo}\n"
+            . "Office: {$job->Office}\n\n"
+            . "Please check your email for full details.\n\n"
+            . "Thank you!"
+            : "Dear {$fullName},\n\n"
+            . "We acknowledge receipt of your application.\n\n"
+            . "Position: {$job->Position}\n"
+            . "Item No: {$job->ItemNo}\n"
+            . "Office: {$job->Office}\n\n"
+            . "Your application is currently under review by our HRMPSB Secretariat.\n\n"
+            . "Please check your email for full details.\n\n"
+            . "Thank you!";
 
         SendApplicantSms::dispatch($contactNumber, $smsMessage)
             ->onQueue('sms');
