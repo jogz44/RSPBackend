@@ -1082,7 +1082,7 @@ class ReportService
                         'current_designation' => $tempReorg->Designation ?? null,
                         'office' => $tempReorg->Office ?? null,
                         'status' => $submission->status,
-                        'applicant_status' => 'EXTERNAL',
+                        'applicant_status' => 'INTERNAL',
 
                         'education'        => $educationRecords,
                         'experience'       => $experienceRecords,
@@ -1239,7 +1239,7 @@ class ReportService
                         'current_designation' => $tempReorg->Designation ?? null,
                         'office' => $tempReorg->Office ?? null,
                         'status' => $submission->status,
-                        'applicant_status' => 'EXTERNAL',
+                        'applicant_status' => 'INTERNAL',
 
                         'education'        => $educationRecords,
                         'experience'       => $experienceRecords,
