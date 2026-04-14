@@ -1013,7 +1013,7 @@ class ReportService
     public function listQualified($postDate)
     {
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
-            ->select('id', 'Position', 'ItemNo')
+            ->select('id', 'Position', 'ItemNo','SalaryGrade')
             ->with([
                 'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
                 'submissions' => function ($query) {
@@ -1129,6 +1129,7 @@ class ReportService
                 'id' => $job->id,
                 'Position' => $job->Position,
                 'ItemNo' => $job->ItemNo,
+                'SalaryGrade' => $job->SalaryGrade,
                 'criteria' => $job->criteria,
                 'applicants' => $applicants
             ];
@@ -1147,7 +1148,7 @@ class ReportService
     public function listUnQualified($postDate)
     {
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
-            ->select('id', 'Position', 'ItemNo')
+            ->select('id', 'Position', 'ItemNo','SalaryGrade')
             ->with([
                 'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
                 'submissions' => function ($query) {
@@ -1282,6 +1283,7 @@ class ReportService
                 'id' => $job->id,
                 'Position' => $job->Position,
                 'ItemNo' => $job->ItemNo,
+                'SalaryGrade' => $job->SalaryGrade,
                 'criteria' => $job->criteria,
                 'applicants' => $applicants
             ];

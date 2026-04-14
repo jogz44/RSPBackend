@@ -37,6 +37,13 @@ return [
     'sms_api_pass' => env('SMS_API_PASS', ''),
     'sms_api_port' => env('SMS_API_PORT', 1),
 
+
+    'network_share' => [
+        'host'     => env('NETWORK_SHARE_HOST'),
+        'name'     => env('NETWORK_SHARE_NAME'),
+        'username' => env('NETWORK_SHARE_USERNAME'),
+        'password' => env('NETWORK_SHARE_PASSWORD'),
+    ],
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

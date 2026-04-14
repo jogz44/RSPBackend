@@ -49,4 +49,12 @@ class EmployeeController extends Controller
 
     }
 
+    //getting the image for the employee using the control number and the path stored in the database and return it as a response
+    public function proxyImageInternal($ControlNo,EmployeeService $employeeService)
+    {
+
+        $data = $employeeService->getEmployeePhoto($ControlNo);
+
+        return $data;
+    }
 }

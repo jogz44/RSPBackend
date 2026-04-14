@@ -258,6 +258,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/applicant/xpds', [xPDSController::class, 'getPersonalDataSheet']); // employee pds
         Route::get('/list', [AppointmentController::class, 'employee']); // employe list
         Route::post('/update/{controlNo}', [EmployeeController::class, 'updateEmployeeCredentials']); //  updating the  employee appoitment
+        Route::get('/photo/{controlNo}', [EmployeeController::class, 'proxyImageInternal']); //  proxy-image get on the 2.205 ip
         // Route::post('/confirmation', [EmployeeController::class, 'approveUpdate']); //  updating the  employee appoitment
 
         // Route::get('/request', [EmployeeController::class, 'fetchApprovingTable']);

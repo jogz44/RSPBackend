@@ -7,6 +7,7 @@ use App\Mail\EmailApi;
 use App\Models\EmailLog;
 use App\Models\JobBatchesRsp;
 use App\Models\Submission;
+use App\Models\xPersonal;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -469,5 +470,35 @@ class EmployeeService
     }
 
 
+    //getting the image for the employee using the control number and the path stored in the database and return it as a response
+    public function getEmployeePhoto($ControlNo)
+    {
 
+        $employee = xPersonal::where('ControlNo', $ControlNo)->select('Pics')->first();
+
+        if (!$employee || !$employee->Pics) {
+            return response()->json(['error' => 'Image not found'], 404);
+        }
+
+        // Convert Windows UNC path to accessible path
+        // \\192.168.2.205\Payroll Database\... → //192.168.2.205/Payroll Database/...
+        $path = str_replace('\\', '/', $employee->Pics);
+        $path = ltrim($path, '/');
+        // Result: 192.168.2.205/Payroll Database/IDPICTURE/.../filename.jpg
+
+        // Full UNC for file_get_contents (Linux uses smb:// or mapped path)
+        // If Laravel server is Windows and has access to the share:
+        $windowsPath = $employee->Pics; // use raw UNC path directly
+
+        if (!file_exists($windowsPath)) {
+            return response()->json(['error' => 'Image not found'], 404);
+        }
+
+        $fileContents = file_get_contents($windowsPath);
+        $mimeType = mime_content_type($windowsPath) ?: 'image/jpeg';
+
+        return response($fileContents, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Cache-Control', 'public, max-age=3600');
+    }
 }

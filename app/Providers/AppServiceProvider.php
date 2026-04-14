@@ -6,9 +6,10 @@ use App\Listeners\LogAuthActivity;
 use App\Models\User;
 use App\Observers\ActivityObserver;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -57,5 +58,44 @@ class AppServiceProvider extends ServiceProvider
                     ->by($request->ip()),
             ];
         });
+        
+        $this->connectNetworkShare();
+
+    }
+
+    // ✅ Clean separate method
+    private function connectNetworkShare(): void
+    {
+        $host     = config('app.network_share.host');
+        $name     = config('app.network_share.name');
+        $username = config('app.network_share.username');
+        $password = config('app.network_share.password');
+
+        if (!$host || !$name || !$username || !$password) {
+            Log::warning('Network share config is incomplete, skipping connection.');
+            return;
+        }
+
+        $sharePath = "\\\\{$host}\\{$name}";
+
+        // Check if already connected
+        exec("net use \"{$sharePath}\" 2>&1", $output, $code);
+
+        if ($code !== 0) {
+            // Not connected, connect now
+            exec(
+                "net use \"{$sharePath}\" \"{$password}\" /user:\"{$username}\" /persistent:yes 2>&1",
+                $output,
+                $code
+            );
+
+            if ($code !== 0) {
+                Log::error('Network share connection failed: ' . implode(' ', $output));
+            } else {
+                Log::info("Network share connected: {$sharePath}");
+            }
+        } else {
+            Log::info("Network share already connected: {$sharePath}");
+        }
     }
 }
