@@ -972,8 +972,11 @@ class ReportService
     // list of qualified applicants  for job post publication
     public function listQualified($postDate)
     {
+
+
+
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
-            ->select('id', 'Position', 'ItemNo','SalaryGrade')
+            ->select('id', 'Position', 'ItemNo','SalaryGrade','Office')
             ->with([
                 'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
                 'submissions' => function ($query) {
@@ -1001,10 +1004,12 @@ class ReportService
             ->get();
 
 
+
         $responseJobs = [];
 
         foreach ($jobPosts as $job) {
 
+            $office = DB::table('yOffice')->select('Descriptions', 'Abbr')->where('Descriptions', $job->Office)->first();
             $applicants = [];
             foreach ($job->submissions as $submission) {
 
@@ -1087,6 +1092,10 @@ class ReportService
             // ✅ BUILD FINAL JOB OBJECT (ORDER GUARANTEED)
             $responseJobs[] = [
                 'id' => $job->id,
+                'Office'      => $job->Office,
+                'yOffice'     => $office->Descriptions ?? $job->Office, // ✅ fallback to job->Office if not found
+                'Abbr'        => $office->Abbr ?? null,
+                // 'yOffice' => $job->Office,
                 'Position' => $job->Position,
                 'ItemNo' => $job->ItemNo,
                 'SalaryGrade' => $job->SalaryGrade,
@@ -1108,7 +1117,7 @@ class ReportService
     public function listUnQualified($postDate)
     {
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
-            ->select('id', 'Position', 'ItemNo','SalaryGrade')
+            ->select('id', 'Position', 'ItemNo','SalaryGrade','Office')
             ->with([
                 'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
                 'submissions' => function ($query) {
@@ -1144,6 +1153,7 @@ class ReportService
 
         foreach ($jobPosts as $job) {
 
+            $office = DB::table('yOffice')->select('Descriptions', 'Abbr')->where('Descriptions', $job->Office)->first();
             $applicants = [];
             foreach ($job->submissions as $submission) {
 
@@ -1241,6 +1251,9 @@ class ReportService
             // ✅ BUILD FINAL JOB OBJECT (ORDER GUARANTEED)
             $responseJobs[] = [
                 'id' => $job->id,
+                'Office'      => $job->Office,
+                'yOffice'     => $office->Descriptions ?? $job->Office, // ✅ fallback to job->Office if not found
+                'Abbr'        => $office->Abbr ?? null,
                 'Position' => $job->Position,
                 'ItemNo' => $job->ItemNo,
                 'SalaryGrade' => $job->SalaryGrade,
