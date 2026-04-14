@@ -7,6 +7,7 @@ use App\Jobs\QueueWorkerTestJob;
 use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
+use App\Models\Submission;
 use App\Models\vwActive;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
-
+use Illuminate\Support\Facades\Storage;
 class ReportService
 {
     /**
@@ -684,59 +685,6 @@ class ReportService
         ]);
     }
 
-
-    // private function isQueueWorkerRunning()
-    // {
-    //     try {
-    //         // Method 1: Check if we can connect to queue
-    //         $connection = config('queue.default');
-    //         $queueName = config("queue.connections.{$connection}.queue", 'default');
-
-    //         // Try to get queue size (this will fail if Redis/database is not available)
-    //         Queue::size($queueName);
-
-    //         // Method 2: Check for active workers by trying to dispatch a test
-    //         // This is optional but more reliable
-    //         return $this->checkForActiveWorkers();
-    //     } catch (\Exception $e) {
-    //         Log::error('Queue check failed: ' . $e->getMessage());
-    //         return false;
-    //     }
-    // }
-
-
-    /**
-     * Check if there are active queue workers by looking at recent job processing
-     */
-    // private function checkForActiveWorkers()
-    // {
-    //     // Create a test marker
-    //     $testKey = 'queue_worker_test_' . now()->timestamp;
-    //     Cache::put($testKey, 'waiting', 10); // 10 seconds TTL
-
-    //     // Dispatch a test job
-    //     QueueWorkerTestJob::dispatch($testKey)->onQueue('reports');
-
-    //     // Wait a moment and check if job was processed
-    //     sleep(2);
-
-    //     $result = Cache::get($testKey);
-
-    //     // If the test job ran, it would have changed this value
-    //     return $result === 'processed';
-    // }
-
-    // public function checkQueueWorkerStatus()
-    // {
-    //     $isRunning = $this->isQueueWorkerRunning();
-
-    //     return response()->json([
-    //         'is_running' => $isRunning,
-    //         'message' => $isRunning
-    //             ? 'Queue worker is running'
-    //             : 'Queue worker is not running'
-    //     ]);
-    // }
 
     // plantilla status
     public function status($jobId)
@@ -1560,7 +1508,7 @@ class ReportService
     // applicant ranking
     public function ranking($jobpostId, $request)
     {
-        $rankLimit       = $request->input('rank');
+        // $rankLimit    = $request->input('rank');
 
 
         $jobpost = JobBatchesRsp::findOrFail($jobpostId);
@@ -1576,7 +1524,6 @@ class ReportService
         $allScores = rating_score::select(
             'rating_score.id',
             'rating_score.user_id as rater_id',
-
             'rating_score.nPersonalInfo_id',
             'rating_score.ControlNo',
             'rating_score.job_batches_rsp_id',
@@ -1586,6 +1533,7 @@ class ReportService
             'rating_score.performance_score as performance',
             'rating_score.behavioral_score as bei',
             'rating_score.exam_score',
+            'rating_score.grand_total',
             'nPersonalInfo.firstname',
             'nPersonalInfo.lastname',
             'submission.id as submission_id'
@@ -1601,29 +1549,61 @@ class ReportService
 
 
         // Group scores by applicant
+        // Group scores by applicant
         $scoresByApplicant = $allScores->groupBy(
             fn($row) => $row->nPersonalInfo_id ?: 'control_' . $row->ControlNo
         );
 
         $applicants = [];
 
-
-
         foreach ($scoresByApplicant as $applicantKey => $scoreRows) {
             $firstRow  = $scoreRows->first();
             $firstname = $firstRow->firstname;
             $lastname  = $firstRow->lastname;
+            $imageUrl  = null; // ✅ initialize image
 
-            // Fallback for internal applicants
+            // ── Internal Applicant (has ControlNo, no nPersonalInfo_id) ─────────────
+        
             if ((!$firstname || !$lastname) && $firstRow->ControlNo) {
                 $active    = vwActive::where('ControlNo', $firstRow->ControlNo)->first();
                 $firstname = $active->Firstname ?? $active->firstname ?? '';
                 $lastname  = $active->Surname   ?? $active->surname   ?? '';
+
+                // ✅ Fetch Pics from xPersonal model
+                $xPersonal = \App\Models\xPersonal::where('ControlNo', $firstRow->ControlNo)->first();
+                $pics      = $xPersonal->Pics ?? null;
+
+                if ($pics) {
+                    // UNC path (\\192.168.2.205\...) — proxy through Laravel endpoint
+                    if (str_starts_with($pics, '\\\\') || str_starts_with($pics, '//')) {
+                        $imageUrl = config('app.url') . '/api/employee/photo/' . $firstRow->ControlNo;
+                    }
+                    // Already a valid HTTP URL
+                    elseif (filter_var($pics, FILTER_VALIDATE_URL)) {
+                        $imageUrl = $pics;
+                    }
+                }
             }
 
-            // ── Per-rater breakdown ──────────────────────────────────────────────
-            $raterBreakdown = [];
+            // ── External Applicant (has nPersonalInfo_id) ────────────────────────────
+            if ($firstRow->nPersonalInfo_id) {
+                $personalInfo = \App\Models\excel\nPersonal_info::find($firstRow->nPersonalInfo_id);
+                $rawImagePath = $personalInfo->image_path ?? null;
 
+                if ($rawImagePath) {
+                    // Case 1: Already a valid HTTP URL (MinIO/storage)
+                    if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
+                        $imageUrl = $rawImagePath;
+                    }
+                    // Case 2: Local storage path
+                    elseif (Storage::disk('public')->exists($rawImagePath)) {
+                        $imageUrl = config('app.url') . '/storage/' . $rawImagePath;
+                    }
+                }
+            }
+
+            // ── Per-rater breakdown ──────────────────────────────────────────────────
+            $raterBreakdown = [];
             foreach ($scoreRows as $row) {
                 $total_qs = (float)$row->education
                     + (float)$row->experience
@@ -1631,26 +1611,26 @@ class ReportService
                     + (float)$row->performance;
 
                 $raterBreakdown[] = [
-                    'rater_id'   => $row->rater_id,
-                    'rater_name' => $row->rater_name,
-                    'education'  => number_format((float)$row->education,  2, '.', ''),
-                    'experience' => number_format((float)$row->experience, 2, '.', ''),
-                    'training'   => number_format((float)$row->training,   2, '.', ''),
+                    'rater_id'    => $row->rater_id,
+                    'rater_name'  => $row->rater_name,
+                    'education'   => number_format((float)$row->education,   2, '.', ''),
+                    'experience'  => number_format((float)$row->experience,  2, '.', ''),
+                    'training'    => number_format((float)$row->training,    2, '.', ''),
                     'performance' => number_format((float)$row->performance, 2, '.', ''),
-                    'total_qs'   => number_format($total_qs, 2, '.', ''),
-                    'bei'        => $row->bei !== null ? number_format((float)$row->bei, 2, '.', '') : null,
-                    'exam_score'       => $row->exam_score !== null ? number_format((float)$row->exam_score, 2, '.', '') : null,
+                    'total_qs'    => number_format($total_qs, 2, '.', ''),
+                    'bei'         => $row->bei       !== null ? number_format((float)$row->bei,        2, '.', '') : null,
+                    'exam_score'  => $row->exam_score !== null ? number_format((float)$row->exam_score, 2, '.', '') : null,
                 ];
             }
 
-            // ── Averaged totals (uses your existing RatingService) ───────────────
+            // ── Averaged totals ──────────────────────────────────────────────────────
             $scoresArray = $scoreRows->map(fn($row) => [
                 'education'   => (float)$row->education,
                 'experience'  => (float)$row->experience,
                 'training'    => (float)$row->training,
                 'performance' => (float)$row->performance,
                 'bei'         => $row->bei,
-                'exam_score'        => $row->exam_score,
+                'exam_score'  => $row->exam_score,
             ])->toArray();
 
             $computed = RatingService::computeFinalScore($scoresArray);
@@ -1661,8 +1641,9 @@ class ReportService
                 'submission_id'    => $firstRow->submission_id,
                 'firstname'        => $firstname,
                 'lastname'         => $lastname,
+                'image_url'        => $imageUrl, // ✅ added here
 
-                // ── Applicant type ───────────────────────────────────────────────
+                // ── Applicant type ───────────────────────────────────────────────────
                 'applicant_type'   => $firstRow->ControlNo ? 'internal' : 'external',
 
                 // Averaged totals
@@ -1689,12 +1670,13 @@ class ReportService
         $rankedApplicants = RatingService::addRanking($collection->values()->all());
         $collection       = collect($rankedApplicants);
 
-        // ── Filter by rank limit ─────────────────────────────────────────────
-        if ($rankLimit > 0) {
-            $collection = $collection->filter(function ($item) use ($rankLimit) {
-                return (int)$item['rank'] <= $rankLimit;
-            })->values();
-        }
+        // // ── Filter by rank limit ─────────────────────────────────────────────
+        // if ($rankLimit > 0) {
+        //     $collection = $collection->filter(function ($item) use ($rankLimit) {
+        //         return (int)$item['rank'] <= $rankLimit;
+        //     })->values();
+        // }
+
 
 
 
@@ -1706,9 +1688,6 @@ class ReportService
             'position' => $jobpost->Position ?? null,
             'Salary_Grade' => $jobpost->SalaryGrade ?? null,
             'Plantilla_Item_No' => $jobpost->ItemNo ?? null,
-
-            // Rater headers (for frontend column generation)
-            // 'raters'          => $raters,
 
             'data' => $collection,
 
