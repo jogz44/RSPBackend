@@ -48,7 +48,15 @@ class ApplicantHiringService
                 'sepcause' => 'nullable|string|max:255',
                 'vicename' => 'nullable|string|max:255',
                 'vicecause' => 'nullable|string|max:255',
+
+                //appoitment affective
+                'fromDate' => 'required|date_format:Y-m-d'
+
             ]);
+
+            // appiotment date
+            $fromDate = Carbon::parse($request->input('fromDate'));
+
 
             // Then pass them explicitly
             $SepDate_service  = $request->input('SepDate');
@@ -59,6 +67,8 @@ class ApplicantHiringService
             $sepcause = $request->input('sepcause');
             $vicename = $request->input('vicename');
             $vicecause = $request->input('vicecause');
+
+
 
             $submission = Submission::with([
                 'nPersonalInfo.children',
@@ -127,7 +137,7 @@ class ApplicantHiringService
             // Update plantilla structure
             // $SepDate_service  = $request->input('SepDate');
             // $SepCause_service = $request->input('SepCause');
-            $this->updatePlantillaStructure($jobPost, $finalControlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause);
+            $this->updatePlantillaStructure($jobPost, $finalControlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause, $fromDate);
 
             // ✅ Send email notification to the hired applicant
             $externalApplicant = DB::table('xPersonalAddt')
@@ -138,33 +148,7 @@ class ApplicantHiringService
 
             $activeApplicant = $applicant ?? $externalApplicant;
 
-            // if ($activeApplicant) {
-            //     $email = $applicant->email_address ?? $externalApplicant->EmailAdd ?? null;
-            //     $fullname = $applicant
-            //         ? trim("{$applicant->firstname} {$applicant->lastname}")
-            //         : trim("{$externalApplicant->Firstname} {$externalApplicant->Surname}");
 
-            //     $position = $jobPost->Position ?? 'the applied position';
-            //     $office = $jobPost->Office ?? 'the corresponding office';
-
-            //     if (!empty($email)) {
-            //         $subject = "🎉 Congratulations! You're Hired!";
-            //         $message = "
-            //         Dear {$fullname},<br><br>
-            //         We are delighted to inform you that you have been <strong>officially hired</strong>
-            //         for the position of <strong>{$position}</strong> under <strong>{$office}</strong>.<br><br>
-            //         Please expect further instructions regarding your onboarding and necessary documentation.<br><br>
-            //         Congratulations once again and welcome to the team!<br><br>
-            //         Best regards,<br>
-            //         <strong>Human Resource Department</strong>
-            //     ";
-
-            //         // Send email
-            //         Mail::to($email)->queue(new EmailApi($message, $subject));
-            //     }
-            // } else {
-            //     Log::warning("⚠️ No applicant email found for hired submission ID: {$submissionId}");
-            // }
 
             $user = Auth::user();
 
@@ -534,7 +518,7 @@ class ApplicantHiringService
         }
     }
 
-    private function updatePlantillaStructure($jobPost, $controlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause)
+    private function updatePlantillaStructure($jobPost, $controlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause, $fromDate)
     {
 
         $tblStructureDetails_ID = $jobPost->tblStructureDetails_ID;
@@ -582,8 +566,6 @@ class ApplicantHiringService
         DB::table('tempRegAppointmentReorg')->where('ControlNo', $controlNo)->delete();
 
 
-
-
         $designation = DB::table('yDesignation')
             ->select('Codes', 'Descriptions', 'Status')
             ->where('Descriptions', $jobPost->Position)
@@ -606,7 +588,10 @@ class ApplicantHiringService
         $rateDay  = $rateMon > 0 ? $rateMon / 22 : 0;
         $rateYear = $rateMon * 12;
 
-        $fromDate = Carbon::now()->startOfDay();
+
+
+        //fromDate will be inputed
+
         $toDate   = $fromDate->copy()->addYears(50);
 
         $Division = DB::table('yDivision')
@@ -665,6 +650,7 @@ class ApplicantHiringService
             'Grades'       => $jobPost->SalaryGrade ?? null, // 1
             'Steps'        => 1,
             'Charges'      => '',
+            'effectiveDate'      => $fromDate->format('Y-m-d H:i:s'),
         ]);
 
         $structure = DB::table('tblStructureDetails')

@@ -65,9 +65,11 @@ class JobPostService
     {
         // Only fetch jobs where end_post is today or later (still active)
         $today = Carbon::today();
-        $activeJobs = JobBatchesRsp::whereDate('end_date', '>=', $today)
+        $activeJobs = JobBatchesRsp::whereDate('post_date', '<=', $today)
+        ->
+        whereDate('end_date', '>=', $today)
             ->orderBy('post_date', 'asc')
-            ->whereNotIn('status', ['unoccupied', 'occupied', 'republished'])
+            ->whereNotIn('status', ['Unoccupied', 'Occupied', 'Republished'])
             ->get();
 
         return response()->json($activeJobs);

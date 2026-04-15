@@ -9,10 +9,16 @@ class xService extends Model
     //
     protected $table = 'xService';
     public $timestamps = false;
+
+    protected $fillable = [
+        'effectiveDate',
+    ];
+
     protected $casts = [
         'ControlNo' => 'string',
         'FromDate' => 'string',
         'ToDate' => 'string',
+        'effectiveDate' => 'string',
     ];
 
     public function plantilla()
