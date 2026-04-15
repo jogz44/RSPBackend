@@ -66,7 +66,6 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
-
         // application
         RateLimiter::for('application', function (Request $request) {
             return [
@@ -107,12 +106,12 @@ class AppServiceProvider extends ServiceProvider
             );
 
             if ($code !== 0) {
-                Log::error('Network share connection failed: ' . implode(' ', $output));
+                // Log::error('Network share connection failed: ' . implode(' ', $output));
             } else {
-                Log::info("Network share connected: {$sharePath}");
+                // Log::info("Network share connected: {$sharePath}");
             }
         } else {
-            Log::info("Network share already connected: {$sharePath}");
+            // Log::info("Network share already connected: {$sharePath}");
         }
     }
 }

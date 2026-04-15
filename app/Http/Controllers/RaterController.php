@@ -20,13 +20,13 @@ use Illuminate\Http\Request;
 class RaterController extends Controller
 {
 
-     protected $raterService;
-     protected $applicantService;
+    protected $raterService;
+    protected $applicantService;
 
-     public function __construct(RaterService $raterService, ApplicantService $applicantService)
+    public function __construct(RaterService $raterService, ApplicantService $applicantService)
     {
-            $this->raterService = $raterService;
-            $this->applicantService = $applicantService;
+        $this->raterService = $raterService;
+        $this->applicantService = $applicantService;
     }
 
     //  view rater details assigned jobs
@@ -46,22 +46,21 @@ class RaterController extends Controller
     }
 
     // fetch applicant with score
-    public function fetchApplicant($jobpostId,Request $request) // fetch the score of the applicant
+    public function fetchApplicant($jobpostId, Request $request) // fetch the score of the applicant
     {
 
-        $result = $this->applicantService->score($jobpostId,$request);
+        $result = $this->applicantService->score($jobpostId, $request);
 
         return $result;
-
     }
 
 
 
 
     // applicant score individual
-    public function applicantScoreIndividual($applicantId,$jobpostId) // applicant rating score
+    public function applicantScoreIndividual($applicantId, $jobpostId) // applicant rating score
     {
-        $result = $this->applicantService->applicantScoreDetials($applicantId,$jobpostId);
+        $result = $this->applicantService->applicantScoreDetials($applicantId, $jobpostId);
 
         return $result;
     }
@@ -89,7 +88,7 @@ class RaterController extends Controller
     {
         $result = $this->raterService->getApplicantBaseOnRaterAssigned($request);
 
-        return$result;
+        return $result;
     }
 
     // fetch applicant details of the assigned job post on rater
@@ -120,7 +119,6 @@ class RaterController extends Controller
         $result = $this->raterService->getCriteriaOfJobpostAndApplicant($id);
 
         return  $result;
-
     }
 
     // fetch raters
@@ -142,9 +140,9 @@ class RaterController extends Controller
     // store applicant scores
     public function storeApplicantScore(Request $request) // storing the score of the applicant
     {
-       $result = $this->raterService->storeScore($request);
+        $result = $this->raterService->storeScore($request);
 
-       return $result;
+        return $result;
     }
 
     // draft the score of applicants
@@ -180,7 +178,7 @@ class RaterController extends Controller
     {
         // ✅ Fetch only job posts excluding 'unoccupied' and 'occupied'
         $jobs = JobBatchesRsp::select('id', 'Office', 'Position', 'status')
-            ->whereNotIn('status', ['unoccupied', 'occupied','republished'])
+            ->whereNotIn('status', ['unoccupied', 'occupied', 'republished'])
             ->get();
 
         return response()->json($jobs);
@@ -188,23 +186,27 @@ class RaterController extends Controller
 
 
     // fetch the rater with the assigned job post
-    public function raterWithJob(){
+    public function raterWithJob($jobPostId)
+    {
 
-      $data = $this->raterService->raterWithAssignedJob();
+        $data = $this->raterService->raterWithAssignedJob($jobPostId);
 
-      return $data;
+        return $data;
     }
 
 
     // get the score of the applicant on the rating_score
-    public function getApplicantScore($userId, $jobPostid) // jobpost id
+    public function getApplicantScore(Request $request) // jobpost id
     {
 
-    $data = $this->raterService->getScoreOfApplicantRateByRater($userId, $jobPostid);
+        $validated = $request->validate([
+            'userId' => 'required|exists:users,id',
+            'jobPostId' => 'required|exists:job_batches_rsp,id'
 
-    return $data;
+        ]);
 
+        $data = $this->raterService->getScoreOfApplicantRateByRater($validated);
+
+        return $data;
     }
-
-
 }

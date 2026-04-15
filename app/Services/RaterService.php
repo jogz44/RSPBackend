@@ -1031,14 +1031,15 @@ class RaterService
 
 
     // get the score of the applicant on the rating_score
-    public function raterWithAssignedJob()
+    public function raterWithAssignedJob($jobPostId)
     {
         try {
-            $users = User::where('role_id', 2)
-                ->with(['job_batches_rsp' => function ($q) {
+            $users = User::where('role_id', 2)->where('active',1)
+                ->with(['job_batches_rsp' => function ($q) use ($jobPostId) {
                     // Fetch only job posts assigned to the rater that are still pending
                     $q->select('job_batches_rsp.id', 'job_batches_rsp.Position', 'job_batches_rsp.post_date', 'job_batches_rsp.end_date')
-                        ->wherePivot('status', 'complete');
+                        ->wherePivot('status', 'complete')
+                        ->where('job_batches_rsp.id',$jobPostId);
                 }])
                 ->orderBy('created_at', 'desc')
                 ->get()
@@ -1082,11 +1083,13 @@ class RaterService
 
 
     // fetch the score of applicant rate by rater
-    public function getScoreOfApplicantRateByRater($userId, $jobPostid) // jobpost id
+    public function getScoreOfApplicantRateByRater($validated) // jobpost id
     {
+        //$userId, $jobPostid ,
+
 
         // Get applicants with relationships
-        $submissions = Submission::where('job_batches_rsp_id', $jobPostid)
+        $submissions = Submission::where('job_batches_rsp_id',$validated['jobPostId'])
             ->with([
                 'nPersonalInfo.education',
                 'nPersonalInfo.work_experience',
@@ -1099,7 +1102,7 @@ class RaterService
             ->where('status', 'qualified')
             ->get();
 
-        $applicants = $submissions->map(function ($submission) use ($userId) {
+        $applicants = $submissions->map(function ($submission) use ($validated) {
             $info = $submission->nPersonalInfo;
 
             if (!$info && $submission->ControlNo) {
@@ -1123,7 +1126,7 @@ class RaterService
 
                 // ✅ Only fetch draft_score for the logged-in rater
                 $draftScore  = \App\Models\draft_score::where('ControlNo', $submission->ControlNo)
-                    ->where('user_id', $userId)
+                    ->where('user_id', $validated['userId'])
                     ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
                     ->first();
             } else {
@@ -1131,7 +1134,7 @@ class RaterService
 
                 // ✅ Filter draft_score by rater
                 $draftScore = \App\Models\draft_score::where('nPersonalInfo_id', $submission->nPersonalInfo_id)
-                    ->where('user_id', $userId)
+                    ->where('user_id', $validated['userId'])
                     ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
                     ->first();
             }

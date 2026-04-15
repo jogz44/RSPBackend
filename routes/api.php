@@ -57,7 +57,6 @@ Route::prefix('rater')->group(function () {
     Route::post('/login', [RaterAuthController::class, 'loginRater'])->middleware('throttle:rater-login'); // 5 request per 1 min only rater-login
 });
 
-
 // applying route
 Route::prefix('applicant')->group(function () {
     Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication'])->middleware('throttle:application'); // for external applicant with zip file
@@ -124,8 +123,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/register', [RaterAuthController::class, 'createRaterAccount']);
         Route::post('/change-password', [RaterAuthController::class, 'changeRaterPassword']);
         Route::get('/list', [RaterController::class, 'fetchRater']);
-        Route::get('/list-jobs', [RaterController::class, 'raterWithJob']);
-        Route::get('/rated-score/{userId}/{jobPostId}', [RaterController::class, 'getApplicantScore']);
+        Route::get('/list-jobs/{jobPostId}', [RaterController::class, 'raterWithJob']);
+        Route::post('/rated-score', [RaterController::class, 'getApplicantScore']);
         Route::get('/{raterId}', [RaterController::class, 'viewRater']);
         //  });
     });
@@ -205,6 +204,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     Route::prefix('applicant')->group(function () {
+        // routes/api.php
+        Route::get('/photo/{nPersonalInfoId}', [ApplicantExamScoreController::class, 'getApplicantPhoto']);
         Route::get('/list-no-exam', [ApplicantExamScoreController::class, 'listOfApplicantWithOutExamScore']); // for external applicant with zip file
 
         Route::get('/schedule-exam', [ScheduleController::class, 'applicantListExam']); // applicant dont have yet schedule for examination
@@ -225,6 +226,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/exam/score', [ApplicantExamScoreController::class, 'applicantExamScoreStore']); // for external applicant with zip file
         Route::get('/exam/list-scores', [ApplicantExamScoreController::class, 'listOfApplicantWithScore']); // for external applicant with zip file
         Route::put('/exam/update/{submissionId}', [ApplicantExamScoreController::class, 'applicantExamScoreUpdate']); // for external applicant with zip file
+
         Route::delete('/exam/delete/{applicantExamScoreId}', [ApplicantExamScoreController::class, 'applicantExamScoreDelete']); // for external applicant with zip file
 
         Route::post('/submissions/manual', [ApplicantSubmissionController::class, 'applicantStoreApplicationManual']); // for applicant manual
