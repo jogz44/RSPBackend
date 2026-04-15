@@ -106,6 +106,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::middleware('password.change')->group(function () {
 
     Route::prefix('rater')->group(function () {
+        Route::get('/criteria/applicant/{id}', [RaterController::class, 'fetchCriteriaAndApplicant']);
         Route::get('/assigned-job-batches', [RaterController::class, 'listOfAssignedJobPost']); // fetch the list of job post assigned on rater
         Route::get('/applicants', [RaterController::class, 'listOfApplicantRaterAssigned']); //list of applicant
         Route::post('/applicant-details', [RaterController::class, 'applicantAppliedJobDetails']); // fetch applicant list of assigned job post on rater
@@ -115,7 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users', [AuthController::class, 'getAllUsers']);
         Route::get('/', [UsersController::class, 'getAuthenticatedrater']);
         Route::delete('/{id}', [RaterAuthController::class, 'deleteUser']);
-        Route::get('/criteria/applicant/{id}', [RaterController::class, 'fetchCriteriaAndApplicant']);
+
         Route::get('/show/{jobpostId}', [RaterController::class, 'fetchApplicant']);// fetch applicant have rating score
         Route::post('/edit/{id}', [RaterAuthController::class, 'updateRater']);
         Route::get('/job-post-list/{raterId}', [RaterController::class, 'jobPost']);
@@ -123,8 +124,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/register', [RaterAuthController::class, 'createRaterAccount']);
         Route::post('/change-password', [RaterAuthController::class, 'changeRaterPassword']);
         Route::get('/list', [RaterController::class, 'fetchRater']);
-        Route::get('/list-jobs/{jobPostId}', [RaterController::class, 'raterWithJob']);
         Route::post('/rated-score', [RaterController::class, 'getApplicantScore']);
+        Route::get('/list-jobs/{jobPostId}', [RaterController::class, 'raterWithJob']);
         Route::get('/{raterId}', [RaterController::class, 'viewRater']);
         //  });
     });
@@ -310,6 +311,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         //get the all rank of the applicant per job post
         Route::get('/applicant/per-position/{jobpostId}', [ReportController::class, 'applicantRanking']); // generate appliicant ranking per job post
+
+        // Route::get('/job/list', [JobBatchesRspController::class, 'jobPostList']);   //  create a new job post
 
     });
 

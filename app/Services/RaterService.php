@@ -471,7 +471,7 @@ class RaterService
             ->where('status', 'qualified')
             ->get();
 
-        $applicants = $submissions->map(function ($submission) use ($userId) {
+        $applicants = $submissions->map(function ($submission) use ($userId, $id) {
             $info = $submission->nPersonalInfo;
 
             $examScore = $submission->applicantExamScore;
@@ -493,21 +493,42 @@ class RaterService
                     'training' => $employeeJson['Training'] ?? [],
                 ];
 
-                $ratingScore = \App\Models\rating_score::where('ControlNo', $submission->ControlNo)->first();
+                // Branch 1 (ControlNo path)
+                $ratingScore = \App\Models\rating_score::where('ControlNo', $submission->ControlNo)
+                    ->where('user_id', $userId)  // ✅ filter by logged-in rater
+                    ->where('job_batches_rsp_id', $id)
+                    ->first();
 
                 // ✅ Only fetch draft_score for the logged-in rater
                 $draftScore  = \App\Models\draft_score::where('ControlNo', $submission->ControlNo)
                     ->where('user_id', $userId)
-                    ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
+                    // ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) //  filter by current job post
+                    ->where('job_batches_rsp_id', $id) //  filter by current job post
                     ->first();
+                // Log::debug('draft_score query', [
+                //     'user_id' => $userId,
+                //     'job_batches_rsp_id' => $submission->job_batches_rsp_id,
+                //     'id_from_route' => $id,
+                //     'match' => $submission->job_batches_rsp_id == $id,
+                // ]);
             } else {
-                $ratingScore = $info->rating_score ?? null;
+                $ratingScore = \App\Models\rating_score::where('nPersonalInfo_id', $submission->nPersonalInfo_id)
+                    ->where('user_id', $userId)  // ✅ filter by logged-in rater
+                    ->where('job_batches_rsp_id', $id)
+                    ->first();
 
                 // ✅ Filter draft_score by rater
                 $draftScore = \App\Models\draft_score::where('nPersonalInfo_id', $submission->nPersonalInfo_id)
                     ->where('user_id', $userId)
-                    ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
+                    ->where('job_batches_rsp_id',  $id) //  filter by current job post
                     ->first();
+
+                // Log::debug('draft_score query', [
+                //     'user_id' => $userId,
+                //     'job_batches_rsp_id' => $submission->job_batches_rsp_id,
+                //     'id_from_route' => $id,
+                //     'match' => $submission->job_batches_rsp_id == $id,
+                // ]);
             }
 
             // 🔄 Standardize datasets (education, eligibility, training, experience)
@@ -1122,21 +1143,29 @@ class RaterService
                     'training' => $employeeJson['Training'] ?? [],
                 ];
 
-                $ratingScore = \App\Models\rating_score::where('ControlNo', $submission->ControlNo)->first();
+                // Branch 1 (ControlNo path)
+                $ratingScore = \App\Models\rating_score::where('ControlNo', $submission->ControlNo)
+                    ->where('user_id', $validated['userId'])  // filter by logged-in rater
+                    ->where('job_batches_rsp_id', $validated['jobPostId'])
+                    ->first();
+
 
                 // ✅ Only fetch draft_score for the logged-in rater
-                $draftScore  = \App\Models\draft_score::where('ControlNo', $submission->ControlNo)
-                    ->where('user_id', $validated['userId'])
-                    ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
-                    ->first();
+                // $draftScore  = \App\Models\draft_score::where('ControlNo', $submission->ControlNo)
+                //     ->where('user_id', $validated['userId'])
+                //     ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
+                //     ->first();
             } else {
-                $ratingScore = $info->rating_score ?? null;
-
-                // ✅ Filter draft_score by rater
-                $draftScore = \App\Models\draft_score::where('nPersonalInfo_id', $submission->nPersonalInfo_id)
-                    ->where('user_id', $validated['userId'])
-                    ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
+                $ratingScore = \App\Models\rating_score::where('nPersonalInfo_id', $submission->nPersonalInfo_id)
+                    ->where('user_id', $validated['userId'])  //  filter by logged-in rater
+                    ->where('job_batches_rsp_id', $validated['jobPostId'])
                     ->first();
+
+                // // ✅ Filter draft_score by rater
+                // $draftScore = \App\Models\draft_score::where('nPersonalInfo_id', $submission->nPersonalInfo_id)
+                //     ->where('user_id', $validated['userId'])
+                //     ->where('job_batches_rsp_id', $submission->job_batches_rsp_id) // 🔑 filter by current job post
+                //     ->first();
             }
 
             return [

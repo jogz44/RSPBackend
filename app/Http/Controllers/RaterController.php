@@ -200,9 +200,8 @@ class RaterController extends Controller
     {
 
         $validated = $request->validate([
-            'userId' => 'required|exists:users,id',
-            'jobPostId' => 'required|exists:job_batches_rsp,id'
-
+            'userId'    => 'required|integer|exists:users,id',
+            'jobPostId' => 'required|integer|exists:job_batches_rsp,id',
         ]);
 
         $data = $this->raterService->getScoreOfApplicantRateByRater($validated);

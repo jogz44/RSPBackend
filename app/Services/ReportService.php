@@ -1664,21 +1664,7 @@ class ReportService
                 $lengthOfService = "{$years} years, {$months} months, {$days} days";
             }
             // // ── External Applicant (has nPersonalInfo_id) ────────────────────────────
-            // if ($firstRow->nPersonalInfo_id) {
-            //     $personalInfo = \App\Models\excel\nPersonal_info::find($firstRow->nPersonalInfo_id);
-            //     $rawImagePath = $personalInfo->image_path ?? null;
-
-            //     if ($rawImagePath) {
-            //         // Case 1: Already a valid HTTP URL (MinIO/storage)
-            //         if (filter_var($rawImagePath, FILTER_VALIDATE_URL)) {
-            //             $imageUrl = $rawImagePath;
-            //         }
-            //         // Case 2: Local storage path
-            //         elseif (Storage::disk('public')->exists($rawImagePath)) {
-            //             $imageUrl = config('app.url') . '/storage/' . $rawImagePath;
-            //         }
-            //     }
-            // }
+    
             // ── External Applicant (has nPersonalInfo_id) ────────────────────────────
             if ($firstRow->nPersonalInfo_id) {
                 $personalInfo = \App\Models\excel\nPersonal_info::find($firstRow->nPersonalInfo_id);
