@@ -5,15 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\JobPostRepublishedRequest;
 use App\Http\Requests\JobPostStoreRequest;
 use App\Http\Requests\JobPostUpdateRequest;
-use Carbon\Carbon;
-
-use Illuminate\Http\Request;
 use App\Models\JobBatchesRsp;
-
-use Illuminate\Http\JsonResponse;
-
+use App\Models\xService;
 use App\Services\ApplicantService;
 use App\Services\JobPostService;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 
 
@@ -289,19 +288,70 @@ class JobBatchesRspController extends Controller
     // fetch job Occupied
     public function jobPostPublicationOccupied()
     {
+        // Step 1: Get all distinct post_dates with status Occupied
         $dates = JobBatchesRsp::select('post_date')
             ->where('status', 'Occupied')
             ->distinct()
             ->orderBy('post_date', 'desc')
             ->get();
 
-        $formattedDate = $dates->map(function ($item) {
+        // Step 2: For each date, get job posts and their effective dates
+        $result = $dates->map(function ($item) {
+            $postDate = $item->post_date;
+
+            $jobPosts = JobBatchesRsp::with(['submissions' => function ($query) {
+                $query->where('status', 'Hired')
+                    ->with('nPersonalInfo');
+            }])
+                ->whereDate('post_date', $postDate)
+                ->where('status', 'Occupied')
+                ->get();
+
+            // Flatten all hired applicants across all job posts for this date
+            $effectiveDates = $jobPosts->flatMap(function ($jobPost) {
+                return $jobPost->submissions->map(function ($submission) use ($jobPost) {
+                    $info = $submission->nPersonalInfo;
+
+                    $xPersonal = null;
+                    if (!$info && $submission->ControlNo) {
+                        $xPersonal = DB::table('xPersonal')
+                            ->where('ControlNo', $submission->ControlNo)
+                            ->select('Firstname', 'Middlename', 'Surname')
+                            ->first();
+                    }
+
+                    $name = null;
+                    if ($info) {
+                        $name = trim("{$info->firstname} {$info->middlename} {$info->lastname}");
+                    } elseif ($xPersonal) {
+                        $name = trim("{$xPersonal->Firstname} {$xPersonal->Middlename} {$xPersonal->Surname}");
+                    }
+
+                    $service = xService::where('submission_id', $submission->id)->first();
+
+                    return [
+                        // 'submission_id' => $submission->id,
+                        // 'control_no'    => $submission->ControlNo,
+                        // 'name'          => $name,
+                        // 'salary_grade'  => $jobPost->SalaryGrade,
+                        // 'ItemNo'        => $jobPost->ItemNo,
+                        // 'designation'   => $jobPost->Position,
+                        'effectiveDate' => $service?->effectiveDate
+                            ? Carbon::parse($service->effectiveDate)->format('M d, Y')
+                            : null,
+                    ];
+                });
+            });
+
             return [
-                // 'date'      => $item->post_date, // RAW date (for API logic)
-                'date' => Carbon::parse($item->post_date)->format('M d, Y'), // UI only
+                'date'                   => Carbon::parse($postDate)->format('M d, Y'),
+                'effective_date_available' => $effectiveDates->values(), // ← flattened list
             ];
         });
 
-        return response()->json($formattedDate);
-    }
+        return response()->json([
+            'success' => true,
+            'data'    => $result,
+        ]);
+}
 }

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
+use App\Models\xService;
 use App\Services\ApplicantService;
 use App\Services\ReportService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -614,39 +616,100 @@ class ReportController extends Controller
     }
 
 
-    // list of the applicant newly appointed & promoted
+    // // list of the applicant newly appointed & promoted
+    // public function appointed(Request $request)
+    // {
+    //     $validated = $request->validate([
+    //         'publication_date' => 'required|date_format:Y-m-d',
+    //         'effective_date' => 'required|date_format:Y-m-d'
+    //     ]);
+
+    //     $publicationDate = \Carbon\Carbon::parse($validated['publication_date'])->toDateString();
+
+    //     $jobPosts = JobBatchesRsp::with(['submissions' => function ($query) {
+    //         $query->where('status', 'Hired')
+    //             ->with('nPersonalInfo'); // include applicant info if needed
+    //     }])
+    //         ->whereDate('post_date', $publicationDate)
+    //         ->get()
+    //         ->map(function ($jobPost) {
+    //             return [
+    //                 'job_post_id'  => $jobPost->id,
+
+    //                 'office'       => $jobPost->Office,
+    //                 'office2'       => $jobPost->Office2,
+    //                 'group'       => $jobPost->Group,
+    //                 'division'       => $jobPost->Division,
+    //                 'section'       => $jobPost->Section,
+    //                 'unit'       =>    $jobPost->Unit,
+    //                 'post_date'    => $jobPost->post_date,
+    //                 'end_date'     => $jobPost->end_date,
+    //                 'status'       => $jobPost->status,
+
+    //             'hired_applicants' => $jobPost->submissions->map(function ($submission) use ($jobPost)  {
+    //                 $info = $submission->nPersonalInfo;
+
+    //                 // Fallback to xPersonal if nPersonalInfo is null but ControlNo exists
+    //                 $xPersonal = null;
+    //                 if (!$info && $submission->ControlNo) {
+    //                     $xPersonal = DB::table('xPersonal')
+    //                         ->where('ControlNo', $submission->ControlNo)
+    //                         ->select('Firstname', 'Middlename', 'Surname')
+    //                         ->first();
+    //                 }
+
+    //                 $name = null;
+    //                 if ($info) {
+    //                     $name = trim("{$info->firstname} {$info->middlename} {$info->lastname}");
+    //                 } elseif ($xPersonal) {
+    //                     $name = trim("{$xPersonal->Firstname} {$xPersonal->Middlename} {$xPersonal->Surname}");
+    //                 }
+
+    //                  $service = xService::where('submission_id',$submission->id)->first();
+
+
+
+    //                 return [
+    //                     'submission_id' => $submission->id,
+    //                     'control_no'    => $submission->ControlNo,
+    //                     'name'          => $name,
+    //                     'salary_grade'  => $jobPost->SalaryGrade,
+    //                     'ItemNo'        => $jobPost->ItemNo,
+    //                     'designation'   => $jobPost->Position,
+    //                     'effectiveDate' => $service->effectiveDate ?? null
+    //                 ];
+    //                 }),
+    //             ];
+    //         });
+
+    //     return response()->json([
+    //         'success'       => true,
+    //         'publication_date' => $publicationDate,
+    //         'total_jobposts'   => $jobPosts->count(),
+    //         'data'             => $jobPosts,
+    //     ]);
+    // }
     public function appointed(Request $request)
     {
         $validated = $request->validate([
-            'publication_date' => 'required|date_format:Y-m-d'
+            'publication_date' => 'required|date_format:Y-m-d',
+            'effective_date'   => 'required|date_format:Y-m-d'
         ]);
 
-        $publicationDate = \Carbon\Carbon::parse($validated['publication_date'])->toDateString();
+        $publicationDate = Carbon::parse($validated['publication_date'])->toDateString();
+        $effectiveDate   = Carbon::parse($validated['effective_date'])->toDateString();
 
         $jobPosts = JobBatchesRsp::with(['submissions' => function ($query) {
             $query->where('status', 'Hired')
-                ->with('nPersonalInfo'); // include applicant info if needed
+                ->with('nPersonalInfo');
         }])
             ->whereDate('post_date', $publicationDate)
             ->get()
-            ->map(function ($jobPost) {
-                return [
-                    'job_post_id'  => $jobPost->id,
+            ->map(function ($jobPost) use ($effectiveDate) {
 
-                    'office'       => $jobPost->Office,
-                    'office2'       => $jobPost->Office2,
-                    'group'       => $jobPost->Group,
-                    'division'       => $jobPost->Division,
-                    'section'       => $jobPost->Section,
-                    'unit'       => $jobPost->Unit,
-                    'post_date'    => $jobPost->post_date,
-                    'end_date'     => $jobPost->end_date,
-                    'status'       => $jobPost->status,
-
-                'hired_applicants' => $jobPost->submissions->map(function ($submission) use ($jobPost) {
+                $hiredApplicants = $jobPost->submissions->map(function ($submission) use ($jobPost, $effectiveDate) {
                     $info = $submission->nPersonalInfo;
 
-                    // Fallback to xPersonal if nPersonalInfo is null but ControlNo exists
                     $xPersonal = null;
                     if (!$info && $submission->ControlNo) {
                         $xPersonal = DB::table('xPersonal')
@@ -662,6 +725,16 @@ class ReportController extends Controller
                         $name = trim("{$xPersonal->Firstname} {$xPersonal->Middlename} {$xPersonal->Surname}");
                     }
 
+                    // ✅ Filter xService by effective_date directly here
+                    $service = xService::where('submission_id', $submission->id)
+                        ->whereDate('effectiveDate', $effectiveDate)
+                        ->first();
+
+                    // ✅ Skip this applicant if no matching service record
+                    if (!$service) {
+                        return null;
+                    }
+
                     return [
                         'submission_id' => $submission->id,
                         'control_no'    => $submission->ControlNo,
@@ -669,14 +742,33 @@ class ReportController extends Controller
                         'salary_grade'  => $jobPost->SalaryGrade,
                         'ItemNo'        => $jobPost->ItemNo,
                         'designation'   => $jobPost->Position,
+                        'effectiveDate' => Carbon::parse($service->effectiveDate)->format('M d, Y'),
                     ];
-                    }),
+                })
+                    ->filter()  // ← remove nulls (applicants with no matching effectiveDate)
+                    ->values(); // ← re-index
+
+                return [
+                    'job_post_id'      => $jobPost->id,
+                    'office'           => $jobPost->Office,
+                    'office2'          => $jobPost->Office2,
+                    'group'            => $jobPost->Group,
+                    'division'         => $jobPost->Division,
+                    'section'          => $jobPost->Section,
+                    'unit'             => $jobPost->Unit,
+                    'post_date'        => $jobPost->post_date,
+                    'end_date'         => $jobPost->end_date,
+                    'status'           => $jobPost->status,
+                    'hired_applicants' => $hiredApplicants,
                 ];
-            });
+            })
+            ->filter(fn($jobPost) => $jobPost['hired_applicants']->isNotEmpty()) // ← remove job posts with no matches
+            ->values();
 
         return response()->json([
-            'success'       => true,
-            'publication_date' => $publicationDate,
+            'success'          => true,
+            'publication_date' => Carbon::parse($publicationDate)->format('M d, Y'),
+            'effective_date'   => Carbon::parse($effectiveDate)->format('M d, Y'),
             'total_jobposts'   => $jobPosts->count(),
             'data'             => $jobPosts,
         ]);

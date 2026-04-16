@@ -2176,7 +2176,7 @@ class ApplicantApplicationService
 
         $missing = [];
 
-        if (empty($lastname))    $missing[] = 'Last Name';
+        if (empty($lastname))    $missing[] = 'SurName';
         if (empty($firstname))   $missing[] = 'First Name';
         if (empty($email))       $missing[] = 'Email Address';
         if (empty($dateOfBirth)) $missing[] = 'Date of Birth';

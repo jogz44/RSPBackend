@@ -136,6 +136,7 @@ class UsersController extends Controller
             'username' => $user->username,
             'position' => $user->position,
             'active' => $user->active,
+            'enable' => $user->enable,
             'rspControl' => $user->rspControl,
 
             // ⭐ ADDED STATISTICS

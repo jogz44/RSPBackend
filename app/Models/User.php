@@ -31,7 +31,8 @@ class User extends Authenticatable
         'must_change_password',
         'password_changed_at',
         'representative',
-        'role_type'
+        'role_type',
+        'enable'
 
     ];
 
@@ -46,6 +47,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'active' => 'boolean', // Cast active as a boolean
+        'enable' => 'boolean', // Cast active as a boolean
         'must_change_password' => 'boolean',
         'password_changed_at' => 'datetime',
     ];

@@ -47,6 +47,8 @@ class RaterService
             'must_change_password' => true, // ← Force password change
             'role_type' => $validated['role'],
             'representative' => $validated['representative'],
+            'enable' => $validated['enable'] ?? false, // ← default to true if missing
+
         ]);
 
         // Attach job batches
@@ -99,35 +101,41 @@ class RaterService
             'active' => $validated['active'],
             'role_type' => $validated['role_type'] ?? null,
             'representative' => $validated['representative'] ?? null,
+            'enable' => $validated['enable'] ?? false, // ← default to true if missing
         ]);
 
-        if (isset($validated['job_batches_rsp_id'])) {
-            $newJobPosts = collect($validated['job_batches_rsp_id']);
+        // Get new job posts — default to empty array if not sent (meaning: remove all)
+        $newJobPosts = collect($validated['job_batches_rsp_id'] ?? []);
 
-            foreach ($newJobPosts as $jobPostId) {
-                // Check if pivot already exists
-                $pivot = \App\Models\Job_batches_user::where('user_id', $rater->id)
-                    ->where('job_batches_rsp_id', $jobPostId)
-                    ->first();
+        // Add new assignments or keep existing ones
+        foreach ($newJobPosts as $jobPostId) {
+            $pivot = \App\Models\Job_batches_user::where('user_id', $rater->id)
+                ->where('job_batches_rsp_id', $jobPostId)
+                ->first();
 
-                if ($pivot) {
-                    // ✅ Keep existing status (complete or pending)
-                    continue;
-                } else {
-                    // 🆕 New assignment, default to pending
-                    \App\Models\Job_batches_user::create([
-                        'user_id' => $rater->id,
-                        'job_batches_rsp_id' => $jobPostId,
-                        'status' => 'pending',
-                    ]);
-                }
+            if (!$pivot) {
+                // New assignment → default to pending
+                \App\Models\Job_batches_user::create([
+                    'user_id' => $rater->id,
+                    'job_batches_rsp_id' => $jobPostId,
+                    'status' => 'pending',
+                ]);
             }
+            // If pivot exists → keep as-is (preserve complete/pending status)
+        }
 
-            // Optional: Remove assignments that are no longer selected but preserve completed ones
-            $rater->job_batches_rsp()
-                ->wherePivotNotIn('job_batches_rsp_id', $newJobPosts)
-                ->wherePivot('status', '!=', 'complete')
-                ->detach();
+        // Remove assignments no longer selected, BUT preserve completed ones
+        if ($newJobPosts->isEmpty()) {
+            // Remove ALL non-completed assignments
+            \App\Models\Job_batches_user::where('user_id', $rater->id)
+                ->where('status', '!=', 'complete')
+                ->delete();
+        } else {
+            // Remove only the deselected ones that are not complete
+            \App\Models\Job_batches_user::where('user_id', $rater->id)
+                ->whereNotIn('job_batches_rsp_id', $newJobPosts->toArray())
+                ->where('status', '!=', 'complete')
+                ->delete();
         }
 
 
@@ -779,10 +787,10 @@ class RaterService
                     'nPersonalInfo_id' => 'nullable|exists:nPersonalInfo,id',
                     'ControlNo' => 'nullable|string|max:255',
                     'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id',
-                    'education_score' => 'required|numeric|min:0|max:100',
-                    'experience_score' => 'required|numeric|min:0|max:100',
-                    'training_score' => 'required|numeric|min:0|max:100',
-                    'performance_score' => 'required|numeric|min:0|max:100',
+                    'education_score' => 'nullable|numeric|min:0|max:100',
+                    'experience_score' => 'nullable|numeric|min:0|max:100',
+                    'training_score' => 'nullable|numeric|min:0|max:100',
+                    'performance_score' => 'nullable|numeric|min:0|max:100',
                     'behavioral_score' => 'nullable|numeric|min:0|max:100',
                     'exam_score' => 'nullable|numeric|min:0|max:100',
                     'exam_percentage' => 'nullable|numeric|min:0|max:100',
@@ -808,11 +816,11 @@ class RaterService
                     'nPersonalInfo_id' => $validated['nPersonalInfo_id'],
                     'ControlNo' => $validated['ControlNo'],
                     'job_batches_rsp_id' => $validated['job_batches_rsp_id'],
-                    'education_score' => $validated['education_score'],
-                    'experience_score' => $validated['experience_score'],
-                    'training_score' => $validated['training_score'],
-                    'performance_score' => $validated['performance_score'],
-                    'behavioral_score' => $validated['behavioral_score'],
+                    'education_score' => $validated['education_score'] ?? 0,                   // ← default 0
+                    'experience_score' => $validated['experience_score'] ?? 0,
+                    'training_score' => $validated['training_score'] ?? 0,
+                    'performance_score' => $validated['performance_score'] ?? 0,
+                    'behavioral_score' => $validated['behavioral_score'] ,
                     'exam_score'      => $validated['exam_score'] ?? null,
                     'exam_percentage' => $validated['exam_percentage'] ?? null,
                     'total_qs' => $validated['total_qs'],

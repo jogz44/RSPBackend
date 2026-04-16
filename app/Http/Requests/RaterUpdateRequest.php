@@ -25,7 +25,8 @@ class RaterUpdateRequest extends FormRequest
             'job_batches_rsp_id' => 'nullable|array',
             'job_batches_rsp_id.*' => 'exists:job_batches_rsp,id',
             'office' => 'required|string|max:255',
-            'active' => 'required|boolean',
+            'active' => 'nullable|boolean',
+            'enable' => 'nullable|boolean',
             'representative' => 'required|string|max:255',
             'role_type' => 'nullable|string|max:255',
         ];

@@ -137,7 +137,7 @@ class ApplicantHiringService
             // Update plantilla structure
             // $SepDate_service  = $request->input('SepDate');
             // $SepCause_service = $request->input('SepCause');
-            $this->updatePlantillaStructure($jobPost, $finalControlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause, $fromDate);
+            $this->updatePlantillaStructure($jobPost, $finalControlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause, $fromDate, $submissionId);
 
             // ✅ Send email notification to the hired applicant
             $externalApplicant = DB::table('xPersonalAddt')
@@ -518,7 +518,7 @@ class ApplicantHiringService
         }
     }
 
-    private function updatePlantillaStructure($jobPost, $controlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause, $fromDate)
+    private function updatePlantillaStructure($jobPost, $controlNo, $SepDate_service, $SepCause_service,$sepdate, $sepcause, $vicename, $vicecause, $fromDate, $submissionId)
     {
 
         $tblStructureDetails_ID = $jobPost->tblStructureDetails_ID;
@@ -651,6 +651,7 @@ class ApplicantHiringService
             'Steps'        => 1,
             'Charges'      => '',
             'effectiveDate'      => $fromDate->format('Y-m-d H:i:s'),
+            'submission_id' => $submissionId
         ]);
 
         $structure = DB::table('tblStructureDetails')
