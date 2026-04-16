@@ -56,6 +56,13 @@ class ApplicantApplicationService
             // $excelData = $this->parseExcelData($excelFile);
 
 
+            // Validate required PDS fields before anything else
+            $validationError = $this->validatePdsRequiredFields($excelData);
+            if ($validationError !== null) {
+                return response()->json($validationError, 422);
+            }
+
+
 
             // ➤ ADD THE MATCHING CHECK HERE
             $excelEmail = strtolower(trim($excelData['personal_info']['email_address']));
@@ -2155,5 +2162,49 @@ class ApplicantApplicationService
             // Log::warning('isOfficialPdsFile failed: ' . $e->getMessage());
             return false;
         }
+    }
+
+
+    private function validatePdsRequiredFields(array $excelData): ?array
+    {
+        $info = $excelData['personal_info'] ?? [];
+
+        $lastname    = trim((string)($info['lastname']    ?? ''));
+        $firstname   = trim((string)($info['firstname']   ?? ''));
+        $email       = trim((string)($info['email_address'] ?? ''));
+        $dateOfBirth = trim((string)($info['date_of_birth'] ?? ''));
+
+        $missing = [];
+
+        if (empty($lastname))    $missing[] = 'Last Name';
+        if (empty($firstname))   $missing[] = 'First Name';
+        if (empty($email))       $missing[] = 'Email Address';
+        if (empty($dateOfBirth)) $missing[] = 'Date of Birth';
+
+        if (!empty($missing)) {
+            return [
+                'success' => false,
+                'message' => 'The PDS file is missing the following required fields: ' . implode(', ', $missing) . '. Please completely fill out the PDS file before uploading.',
+            ];
+        }
+
+        // Validate email format
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return [
+                'success' => false,
+                'message' => 'The email address in the PDS file is invalid. Please check and correct it.',
+            ];
+        }
+
+        // Validate date can actually be parsed
+        $parsedDate = $this->parseBirthDate($dateOfBirth);
+        if ($parsedDate === null) {
+            return [
+                'success' => false,
+                'message' => 'The Date of Birth in the PDS file has an unrecognized format. Please ensure it follows DD/MM/YY format.',
+            ];
+        }
+
+        return null; // null = all good
     }
 }
