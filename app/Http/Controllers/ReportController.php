@@ -605,11 +605,80 @@ class ReportController extends Controller
 
 
     // applicant raking per jobp post
-    public function applicantRanking($jobpostId, Request $request) 
+    public function applicantRanking($jobpostId, Request $request)
     {
 
         $result = $this->reportService->ranking($jobpostId, $request);
 
         return $result;
+    }
+
+
+    // list of the applicant newly appointed & promoted
+    public function appointed(Request $request)
+    {
+        $validated = $request->validate([
+            'publication_date' => 'required|date_format:Y-m-d'
+        ]);
+
+        $publicationDate = \Carbon\Carbon::parse($validated['publication_date'])->toDateString();
+
+        $jobPosts = JobBatchesRsp::with(['submissions' => function ($query) {
+            $query->where('status', 'Hired')
+                ->with('nPersonalInfo'); // include applicant info if needed
+        }])
+            ->whereDate('post_date', $publicationDate)
+            ->get()
+            ->map(function ($jobPost) {
+                return [
+                    'job_post_id'  => $jobPost->id,
+
+                    'office'       => $jobPost->Office,
+                    'office2'       => $jobPost->Office2,
+                    'group'       => $jobPost->Group,
+                    'division'       => $jobPost->Division,
+                    'section'       => $jobPost->Section,
+                    'unit'       => $jobPost->Unit,
+                    'post_date'    => $jobPost->post_date,
+                    'end_date'     => $jobPost->end_date,
+                    'status'       => $jobPost->status,
+
+                'hired_applicants' => $jobPost->submissions->map(function ($submission) use ($jobPost) {
+                    $info = $submission->nPersonalInfo;
+
+                    // Fallback to xPersonal if nPersonalInfo is null but ControlNo exists
+                    $xPersonal = null;
+                    if (!$info && $submission->ControlNo) {
+                        $xPersonal = DB::table('xPersonal')
+                            ->where('ControlNo', $submission->ControlNo)
+                            ->select('Firstname', 'Middlename', 'Surname')
+                            ->first();
+                    }
+
+                    $name = null;
+                    if ($info) {
+                        $name = trim("{$info->firstname} {$info->middlename} {$info->lastname}");
+                    } elseif ($xPersonal) {
+                        $name = trim("{$xPersonal->Firstname} {$xPersonal->Middlename} {$xPersonal->Surname}");
+                    }
+
+                    return [
+                        'submission_id' => $submission->id,
+                        'control_no'    => $submission->ControlNo,
+                        'name'          => $name,
+                        'salary_grade'  => $jobPost->SalaryGrade,
+                        'ItemNo'        => $jobPost->ItemNo,
+                        'designation'   => $jobPost->Position,
+                    ];
+                    }),
+                ];
+            });
+
+        return response()->json([
+            'success'       => true,
+            'publication_date' => $publicationDate,
+            'total_jobposts'   => $jobPosts->count(),
+            'data'             => $jobPosts,
+        ]);
     }
 }

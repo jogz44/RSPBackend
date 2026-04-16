@@ -266,13 +266,31 @@ class JobBatchesRspController extends Controller
     // }
 
 
-
-
     // fetch job post based on the post date all position
     public function jobPostPostDate()
     {
         $dates = JobBatchesRsp::select('post_date')
             ->whereIn('status', ['Republished', 'rated', 'Unoccupied','assessed'])
+            ->distinct()
+            ->orderBy('post_date', 'desc')
+            ->get();
+
+        $formattedDate = $dates->map(function ($item) {
+            return [
+                // 'date'      => $item->post_date, // RAW date (for API logic)
+                'date' => Carbon::parse($item->post_date)->format('M d, Y'), // UI only
+            ];
+        });
+
+        return response()->json($formattedDate);
+    }
+
+
+    // fetch job Occupied
+    public function jobPostPublicationOccupied()
+    {
+        $dates = JobBatchesRsp::select('post_date')
+            ->where('status', 'Occupied')
             ->distinct()
             ->orderBy('post_date', 'desc')
             ->get();

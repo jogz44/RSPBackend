@@ -239,12 +239,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/', [JobBatchesRspController::class, 'storeJobPost']);   //  create a new job post
         Route::post('/republished', [JobBatchesRspController::class, 'republished']);   // republish job-batches-rsp
+
         Route::put('/jobpost/{JobPostingId}', [JobBatchesRspController::class, 'jobpostUnoccupied']);   // update the  job-post status to unoccupied there is no applicant hired
         // Route::delete('/{id}', [JobBatchesRspController::class, 'destroy']); // delete job post
         Route::get('/{PositionID}/{ItemNo}', [JobBatchesRspController::class, 'show']);
         Route::get('/applicant/view/{id}', [JobBatchesRspController::class, 'getJobPostApplicant']); // fetching the applicant per job post
         Route::post('/applicant/evaluation/{applicantId}', [SubmissionController::class, 'evaluation']); // qualified or unqualified of the applicant
         Route::post('/update/{job_post_id}', [JobBatchesRspController::class, 'updateJobPost']); // updating the job post start date and end date
+        Route::get('/applicant/view/{id}', [JobBatchesRspController::class, 'getJobPostApplicant']); // fetching the applicant per job post
+
     });
 
 
@@ -294,6 +297,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     Route::prefix('report')->group(function () {
+        Route::get('/job-publication', [JobBatchesRspController::class, 'jobPostPublicationOccupied']); // updating the job post start date and end date
+
         Route::get('/job-post', [ReportController::class, 'getJobPost']);
         Route::get('/job-post/{jobpostId}', [ReportController::class, 'getApplicantJobPost']);
         Route::get('/applicant-final-score/{jobpostId}', [ReportController::class, 'reportApplicantFinalScore']); // final summary of rating qulification standard
@@ -312,7 +317,8 @@ Route::middleware('auth:sanctum')->group(function () {
         //get the all rank of the applicant per job post
         Route::get('/applicant/per-position/{jobpostId}', [ReportController::class, 'applicantRanking']); // generate appliicant ranking per job post
 
-        // Route::get('/job/list', [JobBatchesRspController::class, 'jobPostList']);   //  create a new job post
+        //list of the appointed applicant base on the publication
+        Route::post('/list-of-appointed', [ReportController::class, 'appointed']);
 
     });
 
