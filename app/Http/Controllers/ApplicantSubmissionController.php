@@ -6,6 +6,7 @@ use App\Http\Requests\ApplicantApplicationRequest;
 use App\Http\Requests\EmployeeStoreApplicationRequest;
 use App\Models\Submission;
 use App\Services\ApplicantApplicationService;
+use App\Services\ApplicantService;
 use App\Services\EmployeeService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -19,11 +20,13 @@ class ApplicantSubmissionController extends Controller
 
     protected $applicantApplicationService;
     protected $employeeService;
+    protected $applicantService;
 
-    public function __construct(EmployeeService $employeeService, ApplicantApplicationService $applicantApplicationService)
+    public function __construct(EmployeeService $employeeService, ApplicantApplicationService $applicantApplicationService,ApplicantService $applicantService)
     {
         $this->employeeService = $employeeService;
         $this->applicantApplicationService = $applicantApplicationService;
+        $this->applicantService = $applicantService;
     }
 
 
@@ -252,6 +255,15 @@ class ApplicantSubmissionController extends Controller
         $images = $request->file('images') ?? []; // ['education' => [...], 'training' => [...]]
 
         $result = $this->employeeService->employeeApplicant($validated, $images);
+
+        return $result;
+    }
+
+    // applicant photo
+    public function applicantPhoto($nPersonalInfoId)
+    {
+
+        $result = $this->applicantService->getApplicantPhoto($nPersonalInfoId);
 
         return $result;
     }

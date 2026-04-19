@@ -206,7 +206,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('applicant')->group(function () {
         // routes/api.php
-        Route::get('/photo/{nPersonalInfoId}', [ApplicantExamScoreController::class, 'getApplicantPhoto']);
+        Route::get('/photo/{nPersonalInfoId}', [ApplicantExamScoreController::class, 'applicantPhoto']);
         Route::get('/list-no-exam', [ApplicantExamScoreController::class, 'listOfApplicantWithOutExamScore']); // for external applicant with zip file
 
         Route::get('/schedule-exam', [ScheduleController::class, 'applicantListExam']); // applicant dont have yet schedule for examination
