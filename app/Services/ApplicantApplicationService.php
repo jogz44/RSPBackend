@@ -1336,25 +1336,8 @@ class ApplicantApplicationService
 
         return $declarations;
     }
-    /**
-     * Helper: Parse Excel date
-     */
-    // private function parseExcelDate($value)
-    // {
-    //     if (empty($value)) {
-    //         return null;
-    //     }
 
-    //     try {
-    //         if (is_numeric($value)) {
-    //             return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
-    //         } else {
-    //             return \Carbon\Carbon::parse($value)->format('Y-m-d');
-    //         }
-    //     } catch (\Exception $e) {
-    //         return null;
-    //     }
-    // }
+    // date convert to dd/mm/yy
     private function parseExcelDate($value)
     {
         if (empty($value)) {
@@ -1362,22 +1345,77 @@ class ApplicantApplicationService
         }
 
         try {
-            // Excel numeric date
-            if (is_numeric($value)) {
-                return Date::excelToDateTimeObject($value)
-                    ->format('d/m/Y'); // DD/MM/YYYY
+            // ✅ Detect "present" keyword → return today's date
+            if (is_string($value) && strtolower(trim($value)) === 'present') {
+                return Carbon::now()->format('d/m/Y');
             }
 
-            // Explicitly expect DD/MM/YYYY
-            return Carbon::createFromFormat('d/m/Y', trim($value))
-                ->format('d/m/Y');
-        } catch (\Exception $e) {
-            // Optional: log error
-            // Log::warning('Invalid date format', ['value' => $value]);
+            // Excel numeric date
+            if (is_numeric($value)) {
+                return Date::excelToDateTimeObject($value)->format('d/m/Y');
+            }
 
-            return null;
+            $value = trim($value);
+
+            $formatsToTry = [
+                'd/m/Y',   // 21/04/2026  ← your target format (try first)
+                'm/d/Y',   // 04/21/2026  ← US format
+                'Y/m/d',   // 2026/04/21
+                'd-m-Y',   // 21-04-2026
+                'm-d-Y',   // 04-21-2026
+                'Y-m-d',   // 2026-04-21
+                'd.m.Y',   // 21.04.2026
+                'm.d.Y',   // 04.21.2026
+                'd/m/y',   // 21/04/26
+                'm/d/y',   // 04/21/26
+            ];
+
+            foreach ($formatsToTry as $format) {
+                try {
+                    $date = Carbon::createFromFormat($format, $value);
+                    if ($date && $date->format($format) === $value) {
+                        return $date->format('d/m/Y');
+                    }
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+
+            // Last resort
+            $date = Carbon::parse($value);
+            if ($date) {
+                return $date->format('d/m/Y');
+            }
+        } catch (\Exception $e) {
+            Log::warning('Could not parse date', ['value' => $value]);
         }
+
+        return null;
     }
+    
+    // private function parseExcelDate($value)
+    // {
+    //     if (empty($value)) {
+    //         return null;
+    //     }
+
+    //     try {
+    //         // Excel numeric date
+    //         if (is_numeric($value)) {
+    //             return Date::excelToDateTimeObject($value)
+    //                 ->format('d/m/Y'); // DD/MM/YYYY
+    //         }
+
+    //         // Explicitly expect DD/MM/YYYY
+    //         return Carbon::createFromFormat('d/m/Y', trim($value))
+    //             ->format('d/m/Y');
+    //     } catch (\Exception $e) {
+    //         // Optional: log error
+    //         // Log::warning('Invalid date format', ['value' => $value]);
+
+    //         return null;
+    //     }
+    // }
 
 
     /**
