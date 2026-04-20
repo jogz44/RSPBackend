@@ -243,22 +243,42 @@ class ApplicantApplicationService
         }
     }
 
-    // store applicant applicantion excel file
+    // store  manual applicant applicantion excel file
     public function applicantApplicationManual($validated, $excelFile, $zipFile)
     {
         // args $excelfile and $zipfile
         try {
 
-            // Step 1: Read and parse Excel WITHOUT saving to database
+            // // Step 1: Read and parse Excel WITHOUT saving to database
 
-            // $excelData = $this->parseExcelData($excelFile);
+            // // $excelData = $this->parseExcelData($excelFile);
+            // $spreadsheet = IOFactory::load($excelFile->getPathname());
+
+            // // ✅ Pass the object — NOT the file path
+            // if (!$this->isOfficialPdsFile($spreadsheet)) {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => 'Invalid file. Please upload only the official PDS file provided by the system.',
+            //     ], 422);
+            // }
+
+
+            // // ✅ Step 2: Parse using the same spreadsheet object — no re-loading
+            // $excelData = $this->parseExcelData($spreadsheet);
+            // // $excelData = $this->parseExcelData($excelFile);
+
+
+            // //check if the applicant are employee or not
+            // // if applicant are employee return response you are not allowed to apply
+            // // go to erms
+
             $spreadsheet = IOFactory::load($excelFile->getPathname());
 
             // ✅ Pass the object — NOT the file path
             if (!$this->isOfficialPdsFile($spreadsheet)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid file. Please upload only the official PDS file provided by the system.',
+                    'message' => 'Invalid Excel File. Please upload only the official PDS file provided by the system.',
                 ], 422);
             }
 
@@ -268,9 +288,11 @@ class ApplicantApplicationService
             // $excelData = $this->parseExcelData($excelFile);
 
 
-            //check if the applicant are employee or not
-            // if applicant are employee return response you are not allowed to apply
-            // go to erms
+            // Validate required PDS fields before anything else
+            $validationError = $this->validatePdsRequiredFields($excelData);
+            if ($validationError !== null) {
+                return response()->json($validationError, 422);
+            }
 
             // ✅ Normalize input to UPPERCASE to match xPersonal format
             $firstname = strtoupper(trim($excelData['personal_info']['firstname']));
@@ -2164,7 +2186,7 @@ class ApplicantApplicationService
         }
     }
 
-
+    // validation for the excel required lastname,firstname,date_of_birth,email
     private function validatePdsRequiredFields(array $excelData): ?array
     {
         $info = $excelData['personal_info'] ?? [];
