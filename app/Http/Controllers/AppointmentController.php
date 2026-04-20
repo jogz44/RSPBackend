@@ -31,6 +31,14 @@ class AppointmentController extends Controller
 
         return $this->hiringService->hireApplicant($submissionId,$request);
     }
+    
+    public function rollbackHire($submissionId, Request $request)
+    {
+
+        // Call the service method
+
+        return $this->hiringService->rollbackHire($submissionId, $request);
+    }
 
     public function appiontment(Request $request)
     {

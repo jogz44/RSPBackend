@@ -21,18 +21,7 @@ class ApplicantHiringService
      // hire an employee
     public function hireApplicant($submissionId,$request)
     {
-        // $submissionId = (int) $submissionId;
-        // Log::info('hireApplicant called', [
-        //     'submissionId' => $submissionId,
-        //     'type' => gettype($submissionId),
-        //     'request_all' => $request->all(),
-        // ]);
-        // if ($submissionId <= 0) {
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'Invalid submission ID.',
-        //     ], 400);
-        // }
+
 
         DB::beginTransaction();
         try {
@@ -102,27 +91,49 @@ class ApplicantHiringService
 
                 $existingControlNo = $applicant->control_no ?? $applicant->controlno ?? $applicant->ControlNo ?? $submission->ControlNo ?? null;
 
+                // ✅ If no ControlNo on model, check xPersonal by name before generating
+                if (!$existingControlNo) {
+                    $existingInDB = DB::table('xPersonal')
+                        ->where('Surname',    $applicant->lastname)
+                        ->where('Firstname',  $applicant->firstname)
+                        ->where('Middlename', $applicant->middlename)
+                        ->first();
+
+                    if ($existingInDB) {
+                        // Reuse existing ControlNo — skip all inserts
+                        $existingControlNo = $existingInDB->ControlNo;
+                    }
+                }
+
                 $finalControlNo = $existingControlNo ?? $this->generateControlNo();
 
-                if (!$existingControlNo) {
-                    $this->insertPersonalInfo($applicant, $family,  $personal_declarations, $finalControlNo);
-                    $this->insertxPersonalAddt($applicant,$family, $personal_declarations, $finalControlNo);
-                    $this->insertChildren($applicant->children, $finalControlNo);
-                    $this->insertWorkExperience($applicant->work_experience, $finalControlNo);
-                    $this->insertEligibility($applicant->eligibity, $finalControlNo);
-                    $this->insertEducation($applicant->education, $finalControlNo);
-                    $this->insertVoluntaryWork($applicant->voluntary_work, $finalControlNo);
-                    $this->insertTraining($applicant->training, $finalControlNo);
-                    $this->insertSkills($applicant->skills, $finalControlNo);
-                    $this->insertNonAcademic($applicant->skills, $finalControlNo);
-                    $this->insertOrganization($applicant->skills, $finalControlNo);
-                    $this->insertReferences($applicant->references, $finalControlNo);
-                    $this->insertPWD($personal_declarations, $finalControlNo);
+                $alreadyInXPersonal = DB::table('xPersonal')
+                    ->where('ControlNo', $finalControlNo)
+                    ->exists();
+                    
+                // $existingControlNo
+                if (!$alreadyInXPersonal) {
+                    $this->insertPersonalInfo($applicant, $family,  $personal_declarations, $finalControlNo, $submissionId);
+                    $this->insertxPersonalAddt($applicant,$family, $personal_declarations, $finalControlNo, $submissionId);
+                    $this->insertChildren($applicant->children, $finalControlNo, $submissionId);
+                    $this->insertWorkExperience($applicant->work_experience, $finalControlNo, $submissionId);
+                    $this->insertEligibility($applicant->eligibity, $finalControlNo, $submissionId);
+                    $this->insertEducation($applicant->education, $finalControlNo, $submissionId);
+                    $this->insertVoluntaryWork($applicant->voluntary_work, $finalControlNo, $submissionId);
+                    $this->insertTraining($applicant->training, $finalControlNo, $submissionId);
+                    $this->insertSkills($applicant->skills, $finalControlNo, $submissionId);
+                    $this->insertNonAcademic($applicant->skills, $finalControlNo, $submissionId);
+                    $this->insertOrganization($applicant->skills, $finalControlNo, $submissionId);
+                    $this->insertReferences($applicant->references, $finalControlNo, $submissionId);
+                    $this->insertPWD($personal_declarations, $finalControlNo, $submissionId);
                 }
             }
 
             // Update job post and submission status
             $jobPost = JobBatchesRsp::findOrFail($submission->job_batches_rsp_id);
+
+            $prevSubmissionStatus = $submission->status;
+            $prevJobPostStatus    = $jobPost->status;
 
             if ($jobPost->status === 'Occupied') {
                 return response()->json([
@@ -171,6 +182,19 @@ class ApplicantHiringService
                     ->log("{$user->name} hired applicant (ControlNo: {$finalControlNo}) for job post {$jobPost->id}.");
             }
 
+            // save the for the rollback just in case
+            DB::table('hire_rollbacks')->insert([
+                'controlNo'  => $finalControlNo,
+                'submission_id'        => $submissionId,
+                'job_batches_rsp_id'   => $jobPost->id,
+                'prev_submission_status'  => $prevSubmissionStatus,
+                'prev_job_post_status'    => $prevJobPostStatus,
+
+                'expired_at'           => Carbon::now()->addDays(3),
+                'created_at'           => Carbon::now(),
+                'updated_at'           => Carbon::now(),
+            ]);
+
 
             DB::commit();
 
@@ -199,28 +223,30 @@ class ApplicantHiringService
         return str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
     }
 
-    private function insertPersonalInfo($applicant, $family,  $personal_declarations, $controlNo)
+    private function insertPersonalInfo($applicant, $family,  $personal_declarations, $controlNo,$submissionId)
     {
         DB::table('xPersonal')->insert([
             'ControlNo'    => $controlNo,
-            'Surname'      => $applicant->lastname,
-            'Firstname'    => $applicant->firstname,
-            'Middlename'   => $applicant->middlename ?? null,
-            'Sex'          => $applicant->sex,
-            'CivilStatus'  => $applicant->civil_status ?? null,
-            'BirthDate'    => $applicant->date_of_birth,
-            'BirthPlace'   => $applicant->place_of_birth ?? null,
-            'Address'      => trim(($applicant->residential_house ?? null) . ' ' .
-                             ($applicant->Rpurok ?? null) . ' ' .
-                            ($applicant->residential_street ?? null) . ' ' .
-                            ($applicant->residential_barangay ?? null) . ' ' .
-                            ($applicant->residential_city ?? null) . ' ' .
-                            ($applicant->residential_province ?? null)),
-            'Citizenship'  => $applicant->citizenship ?? null,
-            'Religion'     => $applicant->religion ?? null,
+            'Surname'      => $this->upper($applicant->lastname),
+            'Firstname'    =>  $this->upper($applicant->firstname),
+            'Middlename'   =>  $this->upper($applicant->middlename),
+            'Sex'          =>  $this->upper($applicant->sex),
+            'CivilStatus'  => $this->upper($applicant->civil_status),
+            'BirthDate'    => $this->upper($applicant->date_of_birth),
+            'BirthPlace'   => $this->upper($applicant->place_of_birth),
+            'Address'      => $this->upper(trim(($applicant->residential_house) . ' ' .
+                             ($applicant->Rpurok) . ' ' .
+                            ($applicant->residential_street) . ' ' .
+                            ($applicant->residential_barangay) . ' ' .
+                            ($applicant->residential_city) . ' ' .
+                            ($applicant->residential_province))),
+
+
+            'Citizenship'  => $this->upper($applicant->citizenship),
+            'Religion'     => $this->upper($applicant->religion),
             'Heights'      => $applicant->height ?? null,
             'Weights'      => $applicant->weight ?? null,
-            'BloodType'    => $applicant->blood_type ?? null,
+            'BloodType'    => $this->upper($applicant->blood_type),
             'TelNo'        => $applicant->telephone_number ?? null,
             'TINNo'        => $applicant->tin_no ?? null,
             'GSISNo'       => $applicant->gsis_no ?? null,
@@ -228,11 +254,11 @@ class ApplicantHiringService
             'SSSNo'        => $applicant->sss_no ?? null,
             'PHEALTHNo'    => $applicant->philhealth_no ?? null,
             'Pics' => $applicant->image_path ?? null,
-            'FatherName'   => $family->father_lastname ?? null,
-            'MotherName'   => $family->mother_lastname ?? null,
-            'MaidenName'   => $family->spouse_middlename ?? null,
-            'SpouseName'   => $family->spouse_name ?? null,
-            'Occupation'   => $family->spouse_occupation ?? null,
+            'FatherName'   => $this->upper($family->father_lastname),
+            'MotherName'   => $this->upper($family->mother_lastname),
+            'MaidenName'   => $this->upper($family->spouse_middlename),
+            'SpouseName'   => $this->upper($family->spouse_name),
+            'Occupation'   => $this->upper($family->spouse_occupation),
            // need to fix identify the  what is the q-r
             // 34
             'Q1' =>  $personal_declarations->{'question_34a'} ?? 'No',
@@ -266,7 +292,7 @@ class ApplicantHiringService
             'R6' =>  $personal_declarations->{'response_38a'}   ?? null,
 
 
-
+            'submission_id' => $submissionId
 
 
 
@@ -279,7 +305,7 @@ class ApplicantHiringService
         ]);
     }
 
-    private function insertPWD( $personal_declarations, $controlNo)
+    private function insertPWD( $personal_declarations, $controlNo, $submissionId)
     {
         DB::table('xPWD')->insert([
             'Controlno'    => $controlNo,
@@ -290,7 +316,7 @@ class ApplicantHiringService
             'Learning'    => $personal_declarations->Learning,
             'Mental'    => $personal_declarations->Mental,
             'Visual'    => $personal_declarations->Visual,
-
+            'submission_id' => $submissionId
 
 
 
@@ -298,7 +324,7 @@ class ApplicantHiringService
     }
 
 
-    private function insertxPersonalAddt($applicant,$family,$personal_declarations, $controlNo)
+    private function insertxPersonalAddt($applicant,$family,$personal_declarations, $controlNo, $submissionId)
     {
         DB::table('xPersonalAddt')->insert([
             'ControlNo'    => $controlNo,
@@ -306,17 +332,17 @@ class ApplicantHiringService
             'EmailAdd'    => $applicant->email_address,
             'CellphoneNo'    => $applicant->cellphone_number,
 
-            'SpouseFirstname'    => $family->spouse_firstname,
-            'SpouseMiddlename'   => $family->spouse_middlename,
-            'SpouseEmployer'    => $family->spouse_employer,
-            'SpouseEmpAddress'    => $family->spouse_employer_address,
+            'SpouseFirstname'    => $this->upper($family->spouse_firstname),
+            'SpouseMiddlename'   => $this->upper($family->spouse_middlename),
+            'SpouseEmployer'    => $this->upper($family->spouse_employer),
+            'SpouseEmpAddress'    => $this->upper($family->spouse_employer_address),
             'SpouseEmpTel'    => $family->spouse_employer_telephone,
 
-            'FatherFirstname'   => $family->father_firstname,
-            'FatherMiddlename'   => $family->father_middlename,
+            'FatherFirstname'   => $this->upper($family->father_firstname),
+            'FatherMiddlename'   => $this->upper($family->father_middlename),
 
-            'MotherFirstname'    => $family->mother_firstname,
-            'MotherMiddlename'     => $family->mother_middlename,
+            'MotherFirstname'    => $this->upper($family->mother_firstname),
+            'MotherMiddlename'     => $this->upper($family->mother_middlename),
 
             'datefiled' =>  $personal_declarations->{'response_35b_date'}  ?? null,
 
@@ -350,24 +376,24 @@ class ApplicantHiringService
 
 
 
-            'Rhouse' => $applicant->residential_house?? '',
-            'Rstreet'      =>  $applicant->residential_street ?? '',
-            'Rpurok'      => $applicant->Rpurok ?? '',
-            'Rsubdivision'      =>  $applicant->residential_subdivision ?? '',
-            'Rbarangay'      =>  $applicant->residential_barangay ?? '',
-            'Rprovince'      =>  $applicant->residential_province ?? '',
-            'Rregion'      =>  $applicant->residential_region ?? '',
-            'Rcity'      =>  $applicant->residential_city ?? '',
+            'Rhouse' => $this->upper($applicant->residential_house),
+            'Rstreet'      =>  $this->upper($applicant->residential_street),
+            'Rpurok'      =>$this->upper( $applicant->Rpurok),
+            'Rsubdivision'      =>  $this->upper($applicant->residential_subdivision),
+            'Rbarangay'      =>  $this->upper($applicant->residential_barangay),
+            'Rprovince'      =>  $this->upper($applicant->residential_province),
+            'Rregion'      =>  $this->upper($applicant->residential_region),
+            'Rcity'      =>  $this->upper($applicant->residential_city),
             'Rzip'      =>  $applicant->residential_zip ?? '',
 
-            'Pregion'      => $applicant->permanent_region ?? '',
-            'Phouse'      => $applicant->permanent_house ?? '',
-            'Ppurok'      => $applicant->Ppurok ?? '',
-            'Pstreet'      => $applicant->permanent_street ?? '',
-            'Psubdivision'      => $$applicant->permanent_subdivision ?? '',
-            'Pbarangay'      => $applicant->permanent_barangay ?? '',
-            'Pcity'      => $applicant->permanent_city ?? '',
-            'Pprovince'      => $applicant->permanent_province ?? '',
+            'Pregion'      => $this->upper($applicant->permanent_region),
+            'Phouse'      =>$this->upper($applicant->permanent_house),
+            'Ppurok'      => $this->upper($applicant->Ppurok),
+            'Pstreet'      => $this->upper($applicant->permanent_street),
+            'Psubdivision'      => $this->upper($$applicant->permanent_subdivision ),
+            'Pbarangay'      => $this->upper($applicant->permanent_barangay),
+            'Pcity'      =>$this->upper( $applicant->permanent_city),
+            'Pprovince'      => $this->upper($applicant->permanent_province),
             'Pzip'      => $applicant->permanent_zip ?? '',
 
             'local'      => 0,
@@ -377,143 +403,154 @@ class ApplicantHiringService
 
             'countrydetails'      => '',
             'datefiled'      => '',
-            'gender'      => $applicant->gender_prefer,
-            'citizenshipStatus'      => $applicant->citizenship_status,
+            'gender'      =>$this->upper( $applicant->gender_prefer),
+            'citizenshipStatus'      => $this->upper($applicant->citizenship_status),
             'birthcountry'      => '',
+            'submission_id' => $submissionId
 
 
         ]);
     }
 
-    private function insertChildren($children, $controlNo)
+    private function insertChildren($children, $controlNo, $submissionId)
     {
         foreach ($children ?? [] as $child) {
             DB::table('xChildren')->insert([
                 'ControlNo' => $controlNo,
-                'ChildName' => $child->child_name,
+                'ChildName' =>  $this->upper($child->child_name),
                 'BirthDate' => $child->birth_date,
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertWorkExperience($experiences, $controlNo)
+    private function insertWorkExperience($experiences, $controlNo, $submissionId)
     {
         foreach ($experiences ?? [] as $exp) {
             DB::table('xExperience')->insert([
                 'CONTROLNO'  => $controlNo,
                 'WFrom'      => $exp->work_date_from,
                 'WTo'        => $exp->work_date_to,
-                'WPosition'  => $exp->position_title,
-                'WCompany'   => $exp->department,
+                'WPosition'  =>  $this->upper($exp->position_title),
+                'WCompany'   =>  $this->upper($exp->department),
                 'WSalary'    => $exp->monthly_salary,
                 'WGrade'     => $exp->salary_grade,
-                'Status'     => $exp->status_of_appointment,
-                'WGov'       => $exp->government_service,
+                'Status'     =>  $this->upper($exp->status_of_appointment),
+                'WGov'       =>  $this->upper($exp->government_service),
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertEligibility($eligibilities, $controlNo)
+    private function insertEligibility($eligibilities, $controlNo, $submissionId)
     {
         foreach ($eligibilities ?? [] as $eli) {
             DB::table('xCivilService')->insert([
                 'ControlNo'   => $controlNo,
-                'CivilServe'  => $eli->eligibility,
+                'CivilServe'  =>  $this->upper($eli->eligibility),
                 'Dates'       => $eli->date_of_examination,
                 'Rates'       => $eli->rating,
-                'Place'       => $eli->place_of_examination,
+                'Place'       =>  $this->upper($eli->place_of_examination),
                 'LNumber'     => $eli->license_number,
                 'LDate'       => $eli->date_of_validity,
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertEducation($educations, $controlNo)
+    private function insertEducation($educations, $controlNo, $submissionId)
     {
         foreach ($educations ?? [] as $edu) {
             DB::table('xEducation')->insert([
                 'ControlNo'   => $controlNo,
-                'Education'   => substr($edu->level, 0, 20),
-                'School'      => substr($edu->school_name, 0, 50),
-                'Degree'      => substr($edu->degree, 0, 50),
+                'Education'   =>  $this->upper($edu->level),
+                'School'      =>  $this->upper($edu->school_name),
+                'Degree'      =>  $this->upper($edu->degree),
                 'NumUnits'    => is_numeric($edu->highest_units) ? (float) $edu->highest_units : 0.0,
-                'YearLevel'   => substr((string) ($edu->year_graduated ?? ''), 0, 4),
-                'DateAttend'  => substr($edu->attendance_from . ' - ' . $edu->attendance_to, 0, 15),
-                'Honors'      => substr((string) ($edu->scholarship ?? ''), 0, 30),
+                'YearLevel'   => $edu->year_graduated ?? '',
+                'DateAttend'  => $edu->attendance_from . ' - ' . $edu->attendance_to,
+                'Honors'      =>  $this->upper($edu->scholarship),
                 'Graduated'   => $edu->attendance_to,
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertVoluntaryWork($works, $controlNo)
+    private function insertVoluntaryWork($works, $controlNo, $submissionId)
     {
         foreach ($works ?? [] as $work) {
             DB::table('xNGO')->insert([
                 'CONTROLNO'   => $controlNo,
-                'OrgName'     => $work->organization_name,
+                'OrgName'     =>  $this->upper($work->organization_name),
                 'DateFrom'    => $work->inclusive_date_from,
                 'DateTo'      => $work->inclusive_date_to,
                 'NoHours'     => $work->number_of_hours,
                 'OrgPosition' => $work->position,
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertTraining($trainings, $controlNo)
+    private function insertTraining($trainings, $controlNo, $submissionId)
     {
         foreach ($trainings ?? [] as $train) {
             if (!$train) continue;
             DB::table('xTrainings')->insert([
                 'ControlNo'   => $controlNo,
-                'Training'    => $train->training_title ?? '',
+                'Training'    =>  $this->upper($train->training_title),
                 'Dates'       => ($train->inclusive_date_from ?? '') . ' - ' . ($train->inclusive_date_to ?? ''),
                 'NumHours'    => $train->number_of_hours ?? 0,
-                'Conductor'   => $train->conducted_by ?? '',
+                'Conductor'   =>  $this->upper($train->conducted_by),
                 'DateFrom'    => $train->inclusive_date_from ?? null,
                 'DateTo'      => $train->inclusive_date_to ?? null,
-                'Type'        => $train->type ?? '',
+                'Type'        =>  $this->upper($train->type),
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertSkills($skills, $controlNo)
+    private function insertSkills($skills, $controlNo, $submissionId)
     {
         foreach ($skills ?? [] as $skill) {
             DB::table('xSkills')->insert([
                 'ControlNo' => $controlNo,
-                'Skills'    => $skill->skill,
+                'Skills'    =>  $this->upper($skill->skill),
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertNonAcademic($academics, $controlNo)
+    private function insertNonAcademic($academics, $controlNo, $submissionId)
     {
         foreach ($academics ?? [] as $acad) {
             DB::table('xNonAcademic')->insert([
                 'ControlNo'   => $controlNo,
-                'NonAcademic' => $acad->non_academic ?? '',
+                'NonAcademic' =>  $this->upper($acad->non_academic),
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertOrganization($organizations, $controlNo)
+    private function insertOrganization($organizations, $controlNo, $submissionId)
     {
         foreach ($organizations ?? [] as $org) {
             DB::table('xOrganization')->insert([
                 'ControlNo'     => $controlNo,
-                'Organization'  => $org->organization ?? '',
+                'Organization'  =>  $this->upper($org->organization),
+                'submission_id' => $submissionId
             ]);
         }
     }
 
-    private function insertReferences($references, $controlNo)
+    private function insertReferences($references, $controlNo, $submissionId)
     {
         foreach ($references ?? [] as $ref) {
             DB::table('xReference')->insert([
                 'ControlNo' => $controlNo,
-                'Names'     => $ref->full_name,
-                'Address'   => $ref->address,
+                'Names'     =>  $this->upper($ref->full_name),
+                'Address'   =>  $this->upper($ref->address),
                 'TelNo'     => $ref->contact_number,
+                'submission_id' => $submissionId
             ]);
         }
     }
@@ -686,10 +723,11 @@ class ApplicantHiringService
             // 'group',//
             'unitcode' =>     $UnitCode ?? null,
             'unit' => $jobPost->Unit ?? null,
-            'sepdate' => $sepdate,
-            'sepcause' => $sepcause,
-            'vicename' => $vicename,
-            'vicecause' => $vicecause
+            'sepdate' =>  $this->upper($sepdate),
+            'sepcause' =>  $this->upper($sepcause),
+            'vicename' =>  $this->upper($vicename),
+            'vicecause' =>  $this->upper($vicecause),
+            'submission_id' => $submissionId
 
         ]);
 
@@ -698,7 +736,151 @@ class ApplicantHiringService
             'ControlNo'     => $controlNo, //1
             'post_date' =>$jobPost->post_date,
             'end_date' => $jobPost->end_date,
-            'job_batches_rsp_id' =>$jobPost->id
+            'job_batches_rsp_id' =>$jobPost->id,
+            'submission_id' => $submissionId
         ]);
+    }
+
+    // force Capital Letter
+    private function upper($value)
+    {
+        return strtoupper(trim($value ?? ''));
+    }
+
+    public function rollbackHire(int $submissionId, Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $rollback = DB::table('hire_rollbacks')
+                ->where('submission_id', $submissionId)
+                ->first();
+
+            if (!$rollback) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No rollback record found for this submission.',
+                ], 404);
+            }
+
+            if (Carbon::now()->isAfter($rollback->expired_at)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rollback window has expired (3 days).',
+                ], 403);
+            }
+
+            // Restore submission status
+            Submission::where('id', $submissionId)
+                ->update(['status' => $rollback->prev_submission_status]);
+
+            // Restore job post status
+            JobBatchesRsp::where('id', $rollback->job_batches_rsp_id)
+                ->update(['status' => $rollback->prev_job_post_status]);
+
+            // Table 1
+           DB::table('xPersonal')
+           ->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xPWD')
+                ->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xPersonalAddt')
+                ->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xChildren')
+                ->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xExperience')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+
+            DB::table('xCivilService')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xEducation')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+
+            DB::table('xNGO')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xTrainings')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xSkills')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xNonAcademic')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xOrganization')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            DB::table('xNonAcademic')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+
+            DB::table('posting_date')->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+
+            // Remove the xService row created during hire
+            DB::table('xService')
+                ->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            // Remove tempRegAppointmentReorg entry for this hire
+            DB::table('tempRegAppointmentReorg')
+                ->where('ControlNo',  $rollback->controlNo)
+                ->where('submission_id',  $rollback->submission_id)
+                ->delete();
+
+            // Delete rollback record (one-time use)
+            DB::table('hire_rollbacks')
+                ->where('submission_id', $submissionId)
+                ->delete();
+
+            // Activity log
+            // $user = Auth::user();
+            // if ($user) {
+            //     activity($user->username)
+            //         ->causedBy($user)
+            //         ->withProperties(['submission_id' => $submissionId])
+            //         ->log("{$user->name} rolled back hire for submission #{$submissionId}.");
+            // }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hire successfully rolled back.',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Rollback failed.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 }
