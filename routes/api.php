@@ -160,6 +160,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('structure-details')->group(function () {
         Route::post('/update-funded', [StructureDetailController::class, 'updateFunded']);
         // Route::post('/update-pageno', [StructureDetailController::class, 'updatePageNo']);
+        // Route::post('/funded/request', [StructureDetailController::class, 'requestFunded']);           // any user
+        // Route::post('/funded/approve/{fundedRequestsId}', [StructureDetailController::class, 'approveFunded']);      // admin only
+        // Route::get('/funded/pending', [StructureDetailController::class, 'getPendingRequests']);        // admin only
     });
 
     Route::prefix('plantillaData')->group(function () {
