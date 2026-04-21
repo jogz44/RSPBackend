@@ -233,6 +233,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/submissions/manual', [ApplicantSubmissionController::class, 'applicantStoreApplicationManual']); // for applicant manual
 
 
+        Route::post('/qs/edit', [ApplicantSubmissionController::class, 'applicantQsEdit']); // for applicant manual
+
     });
 
     Route::prefix('job-batches-rsp')->group(function () {

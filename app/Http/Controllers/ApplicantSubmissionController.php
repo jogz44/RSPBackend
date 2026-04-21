@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ApplicantApplicationRequest;
+use App\Http\Requests\applicantQsEditRequest;
 use App\Http\Requests\EmployeeStoreApplicationRequest;
 use App\Models\Submission;
 use App\Services\ApplicantApplicationService;
@@ -266,5 +267,17 @@ class ApplicantSubmissionController extends Controller
         $result = $this->applicantService->getApplicantPhoto($nPersonalInfoId);
 
         return $result;
+    }
+
+    // edit qs of applicant
+    public function applicantQsEdit(applicantQsEditRequest $request){
+
+     $validated = $request->validated();
+
+    $result = $this->applicantService->qsEdit($validated);
+
+
+    return $result;
+
     }
 }

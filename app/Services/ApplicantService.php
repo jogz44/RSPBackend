@@ -3,6 +3,17 @@
 namespace App\Services;
 
 use App\Models\criteria\criteria_rating;
+use App\Models\excel\Children;
+use App\Models\excel\Civil_service_eligibity;
+use App\Models\excel\Education_background;
+use App\Models\excel\Learning_development;
+use App\Models\excel\nFamily;
+use App\Models\excel\nPersonal_info;
+use App\Models\excel\Personal_declarations;
+use App\Models\excel\references;
+use App\Models\excel\skill_non_academic;
+use App\Models\excel\Voluntary_work;
+use App\Models\excel\Work_experience;
 use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
@@ -1003,6 +1014,227 @@ class ApplicantService
         return response()->json(['error' => 'Image not found'], 404);
     }
 
+
+    // EDIT THE APPLICANT QS
+    public function qsEdit($validated)
+    {
+        DB::transaction(function () use ($validated) {
+
+            // --- Personal Information ---
+            if (isset($validated['personal_info_id'])) {
+                nPersonal_info::where('id', $validated['personal_info_id'])
+                    ->update(collect($validated)->only([
+                        'lastname',
+                        'firstname',
+                        'middlename',
+                        'name_extension',
+                        'date_of_birth',
+                        'sex',
+                        'place_of_birth',
+                        'height',
+                        'weight',
+                        'blood_type',
+                        'gsis_no',
+                        'pagibig_no',
+                        'philhealth_no',
+                        'sss_no',
+                        'tin_no',
+                        'civil_status',
+                        'citizenship',
+                        'citizenship_status',
+                        'telephone_number',
+                        'cellphone_number',
+                        'email_address',
+                        'agency_employee_no',
+                        'umId',
+                        'philSys',
+                        'pwd',
+                        'gender_prefer',
+                        'other_specify',
+                        'image_path',
+                        'residential_house',
+                        'residential_street',
+                        'residential_subdivision',
+                        'residential_barangay',
+                        'residential_city',
+                        'residential_province',
+                        'residential_zip',
+                        'Rpurok',
+                        'permanent_house',
+                        'permanent_street',
+                        'permanent_subdivision',
+                        'permanent_barangay',
+                        'permanent_city',
+                        'permanent_province',
+                        'permanent_zip',
+                        'Ppurok',
+                    ])->toArray());
+            }
+
+            // --- Family ---
+            if (isset($validated['family_id'])) {
+                nFamily::where('id', $validated['family_id'])
+                    ->update(collect($validated)->only([
+                        'spouse_name',
+                        'spouse_firstname',
+                        'spouse_middlename',
+                        'spouse_extension',
+                        'spouse_occupation',
+                        'spouse_employer',
+                        'spouse_employer_address',
+                        'spouse_employer_telephone',
+                        'father_lastname',
+                        'father_firstname',
+                        'father_middlename',
+                        'father_extension',
+                        'mother_lastname',
+                        'mother_firstname',
+                        'mother_middlename',
+                        'mother_maidenname',
+                    ])->toArray());
+            }
+            // --- personal declarations ---
+            if (isset($validated['personal_declaration_id'])) {
+                Personal_declarations::where('id', $validated['personal_declaration_id'])
+                    ->update(collect($validated)->only([
+                    // Q34
+
+                    'question_34a',
+
+                    'question_34b',
+                    'response_34', // resoon
+
+                    // Q35
+                    'question_35a',
+                    'response_35a', //reason
+
+                    'question_35b',
+                    'response_35b_date', //reason
+                    'response_35b_status', //reason
+
+                    // Q36
+                    'question_36',
+                    'response_36', //reason
+
+                    // Q37
+                    'question_37',
+                    'response_37', //reason
+
+                    // Q38
+                    'question_38a',
+                    'response_38a', //reason
+
+                    'question_38b',
+                    'response_38b', //reason
+
+                    // Q39
+                    'question_39',
+                    'response_39', //reason
+
+                    // Q40
+                    'question_40a',
+                    'response_40a', //reason
+
+                    'question_40b',
+                    'response_40b', //reason
+
+                    'question_40c',
+                    'response_40c', //reason
+
+                    'chronic',
+                    'Psychosocial',
+                    'Orthopedic',
+                    'Communication',
+                    'Learning',
+                    'Mental',
+                    'Visual',
+
+                ])->toArray());
+            }
+
+            // --- Children (loop through array) ---
+            if (isset($validated['children'])) {
+                foreach ($validated['children'] as $child) {
+                    if (isset($child['id'])) {
+                        Children::where('id', $child['id'])
+                            ->update(collect($child)->except('id')->toArray());
+                    }
+                }
+            }
+
+            // --- Eligibility ---
+            if (isset($validated['eligibilities'])) {
+                foreach ($validated['eligibilities'] as $item) {
+                    if (isset($item['id'])) {
+                        Civil_service_eligibity::where('id', $item['id'])
+                            ->update(collect($item)->except('id')->toArray());
+                    }
+                }
+            }
+
+            // --- Education ---
+            if (isset($validated['educations'])) {
+                foreach ($validated['educations'] as $item) {
+                    if (isset($item['id'])) {
+                        Education_background::where('id', $item['id'])
+                            ->update(collect($item)->except('id')->toArray());
+                    }
+                }
+            }
+
+            // --- Training ---
+            if (isset($validated['trainings'])) {
+                foreach ($validated['trainings'] as $item) {
+                    if (isset($item['id'])) {
+                        Learning_development::where('id', $item['id'])
+                            ->update(collect($item)->except('id')->toArray());
+                    }
+                }
+            }
+
+            // --- Skills ---
+            if (isset($validated['skills'])) {
+                foreach ($validated['skills'] as $item) {
+                    if (isset($item['id'])) {
+                        skill_non_academic::where('id', $item['id'])
+                            ->update(collect($item)->except('id')->toArray());
+                    }
+                }
+            }
+
+            // --- Voluntary Work ---
+            if (isset($validated['voluntary_works'])) {
+                foreach ($validated['voluntary_works'] as $item) {
+                    if (isset($item['id'])) {
+                        Voluntary_work::where('id', $item['id'])
+                            ->update(collect($item)->except('id')->toArray());
+                    }
+                }
+            }
+
+            // --- Work Experience ---
+            if (isset($validated['work_experiences'])) {
+                foreach ($validated['work_experiences'] as $item) {
+                    if (isset($item['id'])) {
+                        Work_experience::where('id', $item['id'])
+                            ->update(collect($item)->except('id')->toArray());
+                    }
+                }
+            }
+
+            // --- references ---
+            if (isset($validated['references'])) {
+                foreach ($validated['references'] as $item) {
+                    if (isset($item['id'])) {
+                        references::where('id', $item['id'])
+                            ->update(collect($item)->except('id')->toArray());
+                    }
+                }
+            }
+        });
+
+        return response()->json(['message' => 'Updated successfully'], 200);
+    }
 
 
 }
