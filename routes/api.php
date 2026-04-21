@@ -185,6 +185,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('dashboard')->group(function () {
         Route::get('/', [DashboardController::class, 'totalApplicantStatus']);
+        Route::get('/summary-by-office', [DashboardController::class, 'applicantSummaryByOffice']);
+        Route::get('/job-post', [DashboardController::class, 'jobPost']);
+        Route::get('/publication-date', [DashboardController::class, 'publicationDate']);
         // Route::get('/plantilla/status', [DashboardController::class, 'getNumberOfPlantillaData']);
         // Route::get('/job/status', [DashboardController::class, 'job_post_status']);
     });
@@ -301,7 +304,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('report')->group(function () {
         Route::get('/job-publication', [JobBatchesRspController::class, 'jobPostPublicationOccupied']); // updating the job post start date and end date
 
-        Route::get('/job-post', [ReportController::class, 'getJobPost']);
+        // Route::get('/job-post', [ReportController::class, 'getJobPost']);
         Route::get('/job-post/{jobpostId}', [ReportController::class, 'getApplicantJobPost']);
         Route::get('/applicant-final-score/{jobpostId}', [ReportController::class, 'reportApplicantFinalScore']); // final summary of rating qulification standard
         Route::get('/placement-list/{office}', [ReportController::class, 'placementList']);
