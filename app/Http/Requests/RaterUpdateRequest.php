@@ -27,7 +27,7 @@ class RaterUpdateRequest extends FormRequest
             'office' => 'required|string|max:255',
             'active' => 'nullable|boolean',
             'enable' => 'nullable|boolean',
-            'representative' => 'required|string|max:255',
+            'representative' => 'nullable|string|max:255',
             'role_type' => 'nullable|string|max:255',
         ];
     }
