@@ -676,9 +676,9 @@ class ApplicantApplicationService
         // Determine sex
         $sex = null;
         if ($isMale === true || $isMale === 'TRUE') {
-            $sex = 'Male';
+            $sex = 'MALE';
         } elseif ($isFemale === true || $isFemale === 'TRUE') {
-            $sex = 'Female';
+            $sex = 'FEMALE';
         } else {
             $sex = 'prefer not to say';
         }
@@ -686,13 +686,13 @@ class ApplicantApplicationService
 
         $citizen = null;
         if ($filipino === true || $filipino === 'TRUE') {
-            $citizen = 'Filipino';
+            $citizen = 'FILIPINO';
         } elseif ($by_birth === true || $by_birth === 'TRUE') {
-            $citizen = 'by birth';
+            $citizen = 'BY BIRTH';
         } elseif ($dual_citizenship === true || $dual_citizenship === 'TRUE') {
-            $citizen = 'Dual Citizenship';
+            $citizen = 'DUAL CITIZENSHIP';
         } elseif ($by_naturalization === true || $by_naturalization === 'TRUE') {
-            $citizen = 'by naturalization';
+            $citizen = 'BY NATURALIZATION';
         } else {
             $citizen = null;
         }
@@ -725,18 +725,18 @@ class ApplicantApplicationService
         }
 
         return [
-            'lastname' => $sheet->getCell('D10')->getValue(),
-            'firstname' => $sheet->getCell('D11')->getValue(),
+            'lastname' => $this->upper($sheet->getCell('D10')->getValue()),
+            'firstname' => $this->upper($sheet->getCell('D11')->getValue()),
             'middlename' => $sheet->getCell('D12')->getValue(),
-            'name_extension' => $sheet->getCell('L11')->getValue(),
+            'name_extension' => $this->upper($sheet->getCell('L11')->getValue()),
             'sex' => $sex,
             'civil_status' => $civil_status,
             'citizenship' => $citizen,
             'date_of_birth' => $date_of_birth,
-            'place_of_birth' => $sheet->getCell('D15')->getValue(),
+            'place_of_birth' => $this->upper($sheet->getCell('D15')->getValue()),
             'height' => $sheet->getCell('D21')->getValue(),
             'weight' => $sheet->getCell('D23')->getValue(),
-            'blood_type' => $sheet->getCell('D24')->getValue(),
+            'blood_type' => $this->upper($sheet->getCell('D24')->getValue()),
             // 'gsis_no' => $sheet->getCell('D26')->getValue(), // CHANGE TO  umid id no
             'umId' => $sheet->getCell('D26')->getValue(), // CHANGE TO  umid id no
 
@@ -747,22 +747,22 @@ class ApplicantApplicationService
 
             'tin_no' => $sheet->getCell('D32')->getValue(),
             'image_path' => $imagePath,
-            'residential_house' => $sheet->getCell('I17')->getValue(),
-            'Rpurok' => $sheet->getCell('K17')->getValue(),
-            'residential_street' => $sheet->getCell('M17')->getValue(),
-            'residential_subdivision' => $sheet->getCell('I19')->getValue(),
-            'residential_barangay' => $sheet->getCell('L19')->getValue(),
-            'residential_city' => $sheet->getCell('I21')->getValue(),
-            'residential_province' => $sheet->getCell('L21')->getValue(),
-            'residential_zip' => $sheet->getCell('I23')->getValue(),
+            'residential_house' => $this->upper($sheet->getCell('I17')->getValue()),
+            'Rpurok' => $this->upper($sheet->getCell('K17')->getValue()),
+            'residential_street' => $this->upper($sheet->getCell('M17')->getValue()),
+            'residential_subdivision' => $this->upper($sheet->getCell('I19')->getValue()),
+            'residential_barangay' => $this->upper($sheet->getCell('L19')->getValue()),
+            'residential_city' => $this->upper($sheet->getCell('I21')->getValue()),
+            'residential_province' => $this->upper($sheet->getCell('L21')->getValue()),
+            'residential_zip' => $this->upper($sheet->getCell('I23')->getValue()),
 
-            'Ppurok' => $sheet->getCell('K24')->getValue(),
-            'permanent_house' => $sheet->getCell('I24')->getValue(),
-            'permanent_street' => $sheet->getCell('M24')->getValue(),
-            'permanent_subdivision' => $sheet->getCell('I26')->getValue(),
-            'permanent_barangay' => $sheet->getCell('L26')->getValue(),
-            'permanent_city' => $sheet->getCell('I28')->getValue(),
-            'permanent_province' => $sheet->getCell('L28')->getValue(),
+            'Ppurok' => $this->upper($sheet->getCell('K24')->getValue()),
+            'permanent_house' => $this->upper($sheet->getCell('I24')->getValue()),
+            'permanent_street' => $this->upper($sheet->getCell('M24')->getValue()),
+            'permanent_subdivision' => $this->upper($sheet->getCell('I26')->getValue()),
+            'permanent_barangay' => $this->upper($sheet->getCell('L26')->getValue()),
+            'permanent_city' => $this->upper($sheet->getCell('I28')->getValue()),
+            'permanent_province' => $this->upper($sheet->getCell('L28')->getValue()),
             'permanent_zip' => $sheet->getCell('I30')->getValue(),
             'telephone_number' => $sheet->getCell('I31')->getValue(),
             'cellphone_number' => $sheet->getCell('I32')->getValue(),
@@ -771,8 +771,8 @@ class ApplicantApplicationService
             'agency_employee_no' => $sheet->getCell('D33')->getValue(),
 
 
-            'gender_prefer' => $sheet->getCell('D35')->getValue(),
-            'other_specify' => $sheet->getCell('I35')->getValue(),
+            'gender_prefer' => $this->upper($sheet->getCell('D35')->getValue()),
+            'other_specify' => $this->upper($sheet->getCell('I35')->getValue()),
             // 'purok' => $sheet->getCell('K17')->getValue(),
         ];
     }
@@ -784,26 +784,26 @@ class ApplicantApplicationService
     {
         // Adjust based on your family sheet structure
         return [
+            //   $this->upper()
+            'spouse_name' =>  $this->upper($sheet->getCell('D2')->getValue()),
+            'spouse_firstname' =>  $this->upper($sheet->getCell('D3')->getValue()),
+            'spouse_occupation' =>  $this->upper($sheet->getCell('D5')->getValue()),
+            'spouse_employer' =>  $this->upper($sheet->getCell('D6')->getValue()),
+            'spouse_extension' =>  $this->upper($sheet->getCell('I3')->getValue()),
+            'spouse_middlename' =>  $this->upper($sheet->getCell('D4')->getValue()),
+            'spouse_employer_address' =>  $this->upper($sheet->getCell('D7')->getValue()),
+            'spouse_employer_telephone' =>  $this->upper($sheet->getCell('D8')->getValue()),
 
-            'spouse_name' => $sheet->getCell('D2')->getValue(),
-            'spouse_firstname' => $sheet->getCell('D3')->getValue(),
-            'spouse_occupation' => $sheet->getCell('D5')->getValue(),
-            'spouse_employer' => $sheet->getCell('D6')->getValue(),
-            'spouse_extension' => $sheet->getCell('I3')->getValue(),
-            'spouse_middlename' => $sheet->getCell('D4')->getValue(),
-            'spouse_employer_address' => $sheet->getCell('D7')->getValue(),
-            'spouse_employer_telephone' => $sheet->getCell('D8')->getValue(),
-
-            'father_lastname' => $sheet->getCell('D9')->getValue(),
-            'father_firstname' => $sheet->getCell('D10')->getValue(),
-            'father_middlename' => $sheet->getCell('D11')->getValue(),
-            'father_extension' => $sheet->getCell('I10')->getValue(),
+            'father_lastname' =>  $this->upper($sheet->getCell('D9')->getValue()),
+            'father_firstname' =>  $this->upper($sheet->getCell('D10')->getValue()),
+            'father_middlename' =>  $this->upper($sheet->getCell('D11')->getValue()),
+            'father_extension' =>  $this->upper($sheet->getCell('I10')->getValue()),
 
 
-            'mother_lastname' => $sheet->getCell('D13')->getValue(),
-            'mother_firstname' => $sheet->getCell('D14')->getValue(),
-            'mother_middlename' => $sheet->getCell('D15')->getValue(),
-            'mother_maidenname' => $sheet->getCell('D12')->getValue(),
+            'mother_lastname' =>  $this->upper($sheet->getCell('D13')->getValue()),
+            'mother_firstname' =>  $this->upper($sheet->getCell('D14')->getValue()),
+            'mother_middlename' => $this->upper($sheet->getCell('D15')->getValue()),
+            'mother_maidenname' =>  $this->upper($sheet->getCell('D12')->getValue()),
             // Add other family fields based on your sheet
         ];
     }
@@ -848,7 +848,7 @@ class ApplicantApplicationService
             }
 
             $childRecord = [
-                'child_name' => $childName,
+                'child_name' => $this->upper($childName),
                 'birth_date' => $formattedDate,
             ];
 
@@ -885,9 +885,10 @@ class ApplicantApplicationService
             // }
 
             $education[] = [
-                'level' => $level,
-                'school_name'    => $sheet->getCell("B{$rowIndex}")->getValue(),
-                'degree' => $sheet->getCell("C{$rowIndex}")->getValue(),
+                // $this->upper()
+                'level' => $this->upper($level),
+                'school_name'    => $this->upper($sheet->getCell("B{$rowIndex}")->getValue()),
+                'degree' => $this->upper($sheet->getCell("C{$rowIndex}")->getValue()),
                 // 'attendance_from' => $this->parseExcelDate($sheet->getCell("D{$rowIndex}")->getValue()),
                 // 'attendance_to' => $this->parseExcelDate($sheet->getCell("E{$rowIndex}")->getValue()),
                 'attendance_from' => $sheet->getCell("D{$rowIndex}")->getValue(),
@@ -895,7 +896,7 @@ class ApplicantApplicationService
                 'highest_units' => $this->sanitizeNumericValue($sheet->getCell("F{$rowIndex}")->getValue()),
                 'year_graduated' => $this->sanitizeNumericValue($sheet->getCell("G{$rowIndex}")->getValue()),
                 // 'graduated' => $sheet->getCell("G{$rowIndex}")->getValue(),
-                'scholarship' => $sheet->getCell("H{$rowIndex}")->getValue(),
+                'scholarship' => $this->upper($sheet->getCell("H{$rowIndex}")->getValue()),
             ];
         }
 
@@ -940,7 +941,7 @@ class ApplicantApplicationService
             }
 
             $eligibilityRecord = [
-                'eligibility' => $eligibilityName,
+                'eligibility' => $this->upper($eligibilityName),
                 'rating' => $this->sanitizeNumericValue($rating),
                 'date_of_examination' => $this->parseExcelDate($dateExam),
                 'place_of_examination' => $placeExam,
@@ -984,12 +985,12 @@ class ApplicantApplicationService
             $workExperience[] = [
                 'work_date_from' => $work_date_from,
                 'work_date_to' => $work_date_to,
-                'position_title' => $sheet->getCell("C{$rowIndex}")->getValue(),
-                'department' => $sheet->getCell("D{$rowIndex}")->getValue(),
+                'position_title' => $this->upper($sheet->getCell("C{$rowIndex}")->getValue()),
+                'department' => $this->upper($sheet->getCell("D{$rowIndex}")->getValue()),
                 'monthly_salary' => $this->sanitizeNumericValue($sheet->getCell("E{$rowIndex}")->getValue()),
                 'salary_grade' => $sheet->getCell("F{$rowIndex}")->getValue(),
-                'status_of_appointment' => $sheet->getCell("G{$rowIndex}")->getValue(),
-                'government_service' => $sheet->getCell("H{$rowIndex}")->getValue(),
+                'status_of_appointment' => $this->upper($sheet->getCell("G{$rowIndex}")->getValue()),
+                'government_service' =>  $this->upper($sheet->getCell("H{$rowIndex}")->getValue()),
 
             ];
         }
@@ -1020,12 +1021,12 @@ class ApplicantApplicationService
             }
 
             $voluntaryWork[] = [
-                'organization_name' => $orgName,
+                'organization_name' => $this->upper($orgName),
                 // 'organization_address' => $sheet->getCell("B{$rowIndex}")->getValue(),
                 'inclusive_date_from' => $this->parseExcelDate($sheet->getCell("B{$rowIndex}")->getValue()),
                 'inclusive_date_to' => $this->parseExcelDate($sheet->getCell("C{$rowIndex}")->getValue()),
                 'number_of_hours' => $this->sanitizeNumericValue($sheet->getCell("D{$rowIndex}")->getValue()),
-                'position' => $sheet->getCell("E{$rowIndex}")->getValue(),
+                'position' =>  $this->upper($sheet->getCell("E{$rowIndex}")->getValue()),
             ];
         }
 
@@ -1060,12 +1061,12 @@ class ApplicantApplicationService
             }
 
             $training[] = [
-                'training_title' => $trainingTitle,
+                'training_title' => $this->upper($trainingTitle),
                 'inclusive_date_from' => $this->parseExcelDate($sheet->getCell("B{$rowIndex}")->getValue()),
                 'inclusive_date_to' => $this->parseExcelDate($sheet->getCell("C{$rowIndex}")->getValue()),
                 'number_of_hours' => $this->sanitizeNumericValue($sheet->getCell("D{$rowIndex}")->getValue()),
-                'type' => $sheet->getCell("E{$rowIndex}")->getValue(),
-                'conducted_by' => $sheet->getCell("F{$rowIndex}")->getValue(),
+                'type' => $this->upper($sheet->getCell("E{$rowIndex}")->getValue()),
+                'conducted_by' => $this->upper($sheet->getCell("F{$rowIndex}")->getValue()),
             ];
         }
 
@@ -1096,9 +1097,9 @@ class ApplicantApplicationService
             }
 
             $skills[] = [
-                'skill' => $skill,
-                'non_academic' => $non_academic,
-                'organization' => $organization,
+                'skill' => $this->upper($skill),
+                'non_academic' => $this->upper($non_academic),
+                'organization' => $this->upper($organization),
             ];
         }
 
@@ -1140,8 +1141,8 @@ class ApplicantApplicationService
             }
 
             $referenceRecord = [
-                'full_name' => $full_name,
-                'address' => $address,
+                'full_name' => $this->upper($full_name),
+                'address' => $this->upper($address),
                 'contact_number' => $contact_number,
             ];
 
@@ -1392,7 +1393,7 @@ class ApplicantApplicationService
 
         return null;
     }
-    
+
     // private function parseExcelDate($value)
     // {
     //     if (empty($value)) {
@@ -1440,11 +1441,11 @@ class ApplicantApplicationService
      */
     private function determineCivilStatus($single, $married, $separated, $widowed, $others)
     {
-        if ($single) return 'Single';
-        if ($married) return 'Married';
-        if ($separated) return 'Separated';
-        if ($widowed) return 'Widowed';
-        if ($others) return 'Others';
+        if ($single) return 'SINGLE';
+        if ($married) return 'MARRIED';
+        if ($separated) return 'SEPARATED';
+        if ($widowed) return 'WIDOWED';
+        if ($others) return 'OTHERS';
         return null;
     }
 
@@ -2266,5 +2267,11 @@ class ApplicantApplicationService
         }
 
         return null; // null = all good
+    }
+
+    // force Capital Letter
+    private function upper($value)
+    {
+        return strtoupper(trim($value ?? ''));
     }
 }
