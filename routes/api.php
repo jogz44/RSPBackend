@@ -333,8 +333,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/export/applicant/{job_post_id}', [ExportApplicantController::class, 'fetchApplicantAppliedOldJobPost']); // fetching all job post
 
-    Route::post('/hire/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
-    Route::post('/hire/rollback/{submissionId}', [AppointmentController::class, 'rollbackHire']); // hire an applicant external or internal
+    Route::prefix('hire')->group(function () {
+        Route::post('/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
+        Route::post('/rollback/{submissionId}', [AppointmentController::class, 'rollbackHire']); // hire an applicant external or internal
+
+    });
 
     // Route::get('/plantilla/status', [DashboardController::class, 'getNumberOfPlantillaData']);
     Route::get('/activity_log', [LogController::class, 'activityLogs']); // logs
