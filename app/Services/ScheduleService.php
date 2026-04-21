@@ -106,6 +106,27 @@ class ScheduleService
             ]);
         }
 
+
+        $user = Auth::user();
+
+        if ($user instanceof \App\Models\User) {
+            activity('Interview Email')
+                ->causedBy($user)
+                ->withProperties([
+                    'name'        => $user->name,
+                    'username'    => $user->username,
+                    'batch_name'  => $batchName,
+                    'date_interview'   => $validated['date_interview'],
+                 'time_interview'   => $validated['time_interview'],
+                'venue_interview'  => $venue,
+                    'total_sent'  => $count,
+                    'ip'          => request()->ip(),
+                    'user_agent'  => request()->header('User-Agent'),
+                ])
+                ->log("{$user->name} sent Interview invitations for batch '{$batchName}' on {$date} at {$timeFormatted} to {$count} applicant(s).");
+        }
+
+
         return response()->json([
             'success' => true,
             'message' => "Interview invitations successfully sent to {$count} applicant(s).",
@@ -365,6 +386,25 @@ class ScheduleService
         // ✅ Mark schedule as cancelled
         $schedule->delete();
 
+        // Activity log
+        $user = Auth::user();
+
+        if ($user instanceof \App\Models\User) {
+            activity('Interview Cancellation') // was 'Examination Email'
+                ->causedBy($user)
+                ->withProperties([
+                    'name'             => $user->name,
+                    'username'         => $user->username,
+                    'date_interview'   => $date,
+                    'time_interview'   => $timeFormatted,
+                    'venue_interview'  => $venue, // ✅ was 'venue_exam'
+                    'total_sent'       => $count,
+                    'ip'               => request()->ip(),
+                    'user_agent'       => request()->header('User-Agent'),
+                ])
+                ->log("{$user->name} sent cancellation of interview on {$date} at {$timeFormatted} to {$count} applicant(s).");
+        }
+
         return response()->json([
             'success' => true,
             'message' => "Interview cancellation notices sent to {$count} applicant(s).",
@@ -449,6 +489,27 @@ class ScheduleService
                 'email'    => $email,
                 'activity' => 'Examination invitations',
             ]);
+        }
+
+        // Activity log
+
+        $user = Auth::user();
+
+        if ($user instanceof \App\Models\User) {
+            activity('Examination Email')
+                ->causedBy($user)
+                ->withProperties([
+                    'name'        => $user->name,
+                    'username'    => $user->username,
+                    'batch_name'  => $batchName,
+                    'date_exam'   => $validated['date_exam'],
+                    'time_exam'   => $validated['time_exam'],
+                    'venue_exam'  => $venue,
+                    'total_sent'  => $count,
+                    'ip'          => request()->ip(),
+                    'user_agent'  => request()->header('User-Agent'),
+                ])
+                ->log("{$user->name} sent examination invitations for batch '{$batchName}' on {$date} at {$timeFormatted} to {$count} applicant(s).");
         }
 
         return response()->json([
@@ -716,6 +777,24 @@ class ScheduleService
 
         // ✅ Mark schedule as cancelled
         $schedule->delete();
+
+        $user = Auth::user();
+
+        if ($user instanceof \App\Models\User) {
+            activity('Examination Cancellation') // was 'Examination Email'
+                ->causedBy($user)
+                ->withProperties([
+                    'name'             => $user->name,
+                    'username'         => $user->username,
+                    'date_exam'   => $date,
+                    'time_exam'   => $timeFormatted,
+                    'venue_exam'  => $venue, // ✅ was 'venue_exam'
+                    'total_sent'       => $count,
+                    'ip'               => request()->ip(),
+                    'user_agent'       => request()->header('User-Agent'),
+                ])
+                ->log("{$user->name} sent cancellation of Examination on {$date} at {$timeFormatted} to {$count} applicant(s).");
+        }
 
         return response()->json([
             'success' => true,

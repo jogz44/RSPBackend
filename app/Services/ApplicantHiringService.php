@@ -110,7 +110,7 @@ class ApplicantHiringService
                 $alreadyInXPersonal = DB::table('xPersonal')
                     ->where('ControlNo', $finalControlNo)
                     ->exists();
-                    
+
                 // $existingControlNo
                 if (!$alreadyInXPersonal) {
                     $this->insertPersonalInfo($applicant, $family,  $personal_declarations, $finalControlNo, $submissionId);
@@ -747,6 +747,7 @@ class ApplicantHiringService
         return strtoupper(trim($value ?? ''));
     }
 
+    // roll back the applicant also the jobpost
     public function rollbackHire(int $submissionId, Request $request)
     {
         DB::beginTransaction();
@@ -859,14 +860,26 @@ class ApplicantHiringService
                 ->where('submission_id', $submissionId)
                 ->delete();
 
+    
+
             // Activity log
-            // $user = Auth::user();
-            // if ($user) {
-            //     activity($user->username)
-            //         ->causedBy($user)
-            //         ->withProperties(['submission_id' => $submissionId])
-            //         ->log("{$user->name} rolled back hire for submission #{$submissionId}.");
-            // }
+            $user = Auth::user();
+
+            if ($user instanceof \App\Models\User) {
+                activity('Hire Rollback')
+                    ->causedBy($user)
+                    ->withProperties([
+                        'name'                  => $user->name,
+                        'username'              => $user->username,
+                        'submission_id'         => $submissionId,
+                        'control_no'            => $rollback->controlNo,
+                        'prev_submission_status' => $rollback->prev_submission_status,
+                        'prev_job_post_status'  => $rollback->prev_job_post_status,
+                        'ip'                    => request()->ip(),
+                        'user_agent'            => request()->header('User-Agent'),
+                    ])
+                    ->log("{$user->name} rolled back hire for submission #{$submissionId} with ControlNo {$rollback->controlNo}.");
+            }
 
             DB::commit();
 
