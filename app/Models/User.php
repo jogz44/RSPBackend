@@ -32,7 +32,8 @@ class User extends Authenticatable
         'password_changed_at',
         'representative',
         'role_type',
-        'enable'
+        'enable',
+        'user_role'
 
     ];
 

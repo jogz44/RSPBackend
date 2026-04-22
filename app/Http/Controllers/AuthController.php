@@ -41,6 +41,7 @@ class AuthController extends Controller
             'password' => Hash::make($request->password), // Don't forget to hash!
             'position' => $request->position,
             'active' => $request->active,
+            'user_role' => $request->user_role,
             'role_id' => 1, // Set appropriate role
             'remember_token' => Str::random(32)
            ]);
@@ -293,6 +294,7 @@ class AuthController extends Controller
                 'name' => 'required|string|max:255',
                 'position' => 'required|string|max:255',
                 'active' => 'required|boolean',
+                'user_role' => 'required|string|max:255',
                 'permissions.viewDashboardstat' => 'boolean',
                 'permissions.viewPlantillaAccess' => 'boolean',
                 'permissions.modifyPlantillaAccess' => 'boolean',
@@ -330,6 +332,7 @@ class AuthController extends Controller
             $user->username = $validatedData['username'];
             $user->position = $validatedData['position'];
             $user->active = $validatedData['active'];
+            $user->user_role = $validatedData['user_role'];
 
             // Only update password if provided
             if ($request->filled('password')) {

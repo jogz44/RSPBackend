@@ -79,6 +79,7 @@ class UsersController extends Controller
             'username' => $user->username,
             'position' => $user->position,
             'active' => $user->active,
+            'user_role' => $user->user_role,
             'permissions' => [
                 'viewDashboardstat' => optional($user->rspControl)->viewDashboardstat ?? false,
                 'viewPlantillaAccess' => optional($user->rspControl)->viewPlantillaAccess ?? false,

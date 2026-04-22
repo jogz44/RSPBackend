@@ -337,6 +337,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/export/applicant/{job_post_id}', [ExportApplicantController::class, 'fetchApplicantAppliedOldJobPost']); // fetching all job post
 
     Route::prefix('hire')->group(function () {
+        
         Route::post('/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
         Route::post('/rollback/{submissionId}', [AppointmentController::class, 'rollbackHire']); // hire an applicant external or internal
 

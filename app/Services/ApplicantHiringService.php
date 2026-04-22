@@ -126,6 +126,7 @@ class ApplicantHiringService
                     $this->insertOrganization($applicant->skills, $finalControlNo, $submissionId);
                     $this->insertReferences($applicant->references, $finalControlNo, $submissionId);
                     $this->insertPWD($personal_declarations, $finalControlNo, $submissionId);
+                    $this->insertxPersonalDiversity($applicant, $personal_declarations, $finalControlNo, $submissionId);
                 }
             }
 
@@ -318,11 +319,46 @@ class ApplicantHiringService
             'Visual'    => $personal_declarations->Visual,
             'submission_id' => $submissionId
 
-
-
         ]);
     }
 
+    private function insertxPersonalDiversity($applicant, $personal_declarations, $controlNo, $submissionId)
+    {
+        // Map boolean fields to their text labels
+        $pwdLabels = [
+            'Visual'       => 'Visual Disability',
+            'Mental'       => 'Mental Disability',
+            'Learning'     => 'Learning Disability',
+            'Communication' => 'Communication Disability',
+            'Orthopedic'   => 'Orthopedic Disability',
+            'Psychosocial' => 'Psychosocial Disability',
+            'chronic'      => 'Disability Caused by Chronic Illness',
+        ];
+
+        // Collect all PWD types where the value is truthy (1 / true)
+        $pwdTypes = [];
+        foreach ($pwdLabels as $field => $label) {
+            if (!empty($personal_declarations->$field)) {
+                $pwdTypes[] = $label;
+            }
+        }
+
+        // Join multiple disabilities with comma, or fallback to 'N/A'
+        $pwd = !empty($pwdTypes) ? implode(', ', $pwdTypes) : 'N/A';
+
+        $soloParent = (strtoupper($personal_declarations->{'question_40c'} ?? 'NO') === 'YES') ? 1 : 0;
+
+
+        DB::table('xPersonalDiversity')->insert([
+            'controlno'      => $controlNo,
+            'Religion'       => $this->upper($applicant->religion),
+            // 'ethnicity'      => $personal_declarations->ethnicity ?? 'N/A', // fix: was using Psychosocial
+            'indigenousGroup' => $personal_declarations->{'response_40a'}  ?? null,
+            'PWD'            => $pwd,
+            'SoloParent'     => $soloParent,
+            'submission_id'  => $submissionId,
+        ]);
+    }
 
     private function insertxPersonalAddt($applicant,$family,$personal_declarations, $controlNo, $submissionId)
     {
@@ -390,7 +426,7 @@ class ApplicantHiringService
             'Phouse'      =>$this->upper($applicant->permanent_house),
             'Ppurok'      => $this->upper($applicant->Ppurok),
             'Pstreet'      => $this->upper($applicant->permanent_street),
-            'Psubdivision'      => $this->upper($$applicant->permanent_subdivision ),
+            'Psubdivision'      => $this->upper($applicant->permanent_subdivision ),
             'Pbarangay'      => $this->upper($applicant->permanent_barangay),
             'Pcity'      =>$this->upper( $applicant->permanent_city),
             'Pprovince'      => $this->upper($applicant->permanent_province),
@@ -855,12 +891,20 @@ class ApplicantHiringService
                 ->where('submission_id',  $rollback->submission_id)
                 ->delete();
 
+
+            // Delete rollback record (one-time use)
+            DB::table('xPersonalDiversity')
+                ->where('submission_id', $submissionId)
+                ->delete();
+
+
             // Delete rollback record (one-time use)
             DB::table('hire_rollbacks')
                 ->where('submission_id', $submissionId)
                 ->delete();
 
-    
+
+
 
             // Activity log
             $user = Auth::user();

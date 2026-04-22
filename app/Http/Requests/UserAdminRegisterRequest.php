@@ -27,6 +27,7 @@ class UserAdminRegisterRequest extends FormRequest
             'password' => 'required|string|min:3',
             'position' => 'required|string|max:255',
             'active' => 'required|boolean',
+            'user_role' => 'required|string',
 
             // Optional permission flags
             'permissions.isFunded' => 'boolean',
