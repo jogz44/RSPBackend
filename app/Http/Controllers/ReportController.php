@@ -217,7 +217,7 @@ class ReportController extends Controller
         $no = 1;
 
         foreach ($jobs as $job) {
-            $qs = DB::table('yDesignationQS2')
+            $qs = DB::table('yDesignationQS')
                 ->where('PositionID', $job->PositionID)
                 ->first();
 
