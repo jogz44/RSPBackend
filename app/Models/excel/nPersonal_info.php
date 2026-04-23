@@ -70,6 +70,9 @@ class nPersonal_info extends Model
         'other_specify',
         'Ppurok',
         'Rpurok',
+
+        'ethnic_group',
+        'ethnic_specify'
     ];
 
     // protected $casts = [

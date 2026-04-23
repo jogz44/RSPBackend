@@ -723,6 +723,14 @@ class ApplicantApplicationService
                 break;
             }
         }
+        $genderPrefer = $this->upper($sheet->getCell('D35')->getValue());
+        $otherSpecify = $this->upper($sheet->getCell('I35')->getValue());
+
+
+        // 'ethnic_group',
+        // 'ethnic_specify'
+        $ethnic_group = $this->upper($sheet->getCell('D36')->getValue());
+        $ethnic_specify = $this->upper($sheet->getCell('I36')->getValue());
 
         return [
             'lastname' => $this->upper($sheet->getCell('D10')->getValue()),
@@ -771,9 +779,17 @@ class ApplicantApplicationService
             'agency_employee_no' => $sheet->getCell('D33')->getValue(),
 
 
-            'gender_prefer' => $this->upper($sheet->getCell('D35')->getValue()),
-            'other_specify' => $this->upper($sheet->getCell('I35')->getValue()),
+            // 'gender_prefer' => $this->upper($sheet->getCell('D35')->getValue()), // Other(please specify)
+            // 'other_specify' => $this->upper($sheet->getCell('I35')->getValue()), //
             // 'purok' => $sheet->getCell('K17')->getValue(),
+
+            'gender_prefer' => str_contains($genderPrefer, 'OTHER(PLEASE SPECIFY)')
+                ? $otherSpecify
+                : $genderPrefer,
+
+            'ethnic_group' => str_contains($ethnic_group, 'OTHER')
+                ? $ethnic_specify
+                : $ethnic_group,
         ];
     }
 

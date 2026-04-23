@@ -352,7 +352,7 @@ class ApplicantHiringService
         DB::table('xPersonalDiversity')->insert([
             'controlno'      => $controlNo,
             'Religion'       => $this->upper($applicant->religion),
-            // 'ethnicity'      => $personal_declarations->ethnicity ?? 'N/A', // fix: was using Psychosocial
+            'ethnicity'      => $this->upper($applicant->ethnic_group),
             'indigenousGroup' => $personal_declarations->{'response_40a'}  ?? null,
             'PWD'            => $pwd,
             'SoloParent'     => $soloParent,
