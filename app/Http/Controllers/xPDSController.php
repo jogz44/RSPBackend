@@ -35,7 +35,6 @@ class xPDSController extends Controller
             ];
 
             return Response::json($data, 200);
-
         } catch (\Exception $e) {
             return Response::json([
                 'error' => 'An error occurred',
@@ -82,43 +81,7 @@ class xPDSController extends Controller
         return [$userArray];
     }
 
-    // private function getCombinedUserData($controlNo)
-    // {
-    //     // Fetch all user-related data in one query using joins
-    //     $user = DB::connection('sqlsrv')
-    //         ->table('xPersonal')
-    //         ->leftJoin('xPWD', 'xPersonal.ControlNo', '=', 'xPWD.ControlNo')
-    //         ->leftJoin('xPersonalAddt', 'xPersonal.ControlNo', '=', 'xPersonalAddt.ControlNo')
-    //         ->leftJoin('xPersonalDiversity', 'xPersonal.ControlNo', '=', 'xPersonalDiversity.ControlNo')
-    //         ->where('xPersonal.ControlNo', $controlNo)
-    //         ->select([
-    //             'xPersonal.*',
-    //             'xPWD.*',
-    //             'xPersonalAddt.*',
-    //             'xPersonalDiversity.*'
-    //         ])
-    //         ->first();
-
-    //     if (!$user) {
-    //         return [];
-    //     }
-
-    //     $userArray = (array)$user;
-
-    //     // Children are multiple records, so fetch separately
-    //     $children = DB::connection('sqlsrv')
-    //         ->table('xChildren')
-    //         ->where('ControlNo', $controlNo)
-    //         ->select('ChildName', 'BirthDate', 'PMID')
-    //         ->get()
-    //         ->toArray();
-
-    //     $userArray['children'] = $children;
-
-    //     return [$userArray];
-    // }
-
-
+   
     private function getUserData($controlNo)
     {
         $result = DB::connection('sqlsrv')
@@ -175,32 +138,34 @@ class xPDSController extends Controller
         $result = DB::connection('sqlsrv')
             ->table('xEducation')
             ->select([
-            'PMID as id',   // 👈 rename here
-            'ControlNo',
-            'Education',
-            'School',
-            'Codes',
-            'Degree',
-            'NumUnits',
-            'YearLevel',
-            'DateAttend',
-            'Honors',
-            'Graduated',
-            'Orders',
-            // 'Honors',
+                'PMID as id',   // 👈 rename here
+                'ControlNo',
+                'Education',
+                'School',
+                'Codes',
+                'Degree',
+                'NumUnits',
+                'YearLevel',
+                'DateAttend',
+                'Honors',
+                'Graduated',
+                'Orders',
+                // 'Honors',
 
-            // add other columns you need
-        ])
+                // add other columns you need
+            ])
             ->where('ControlNo', $controlNo)
             ->orderBy('Orders')
             ->get()
             ->map(function ($row) {
-            $row->id = (int) $row->id;
-            return $row;
-        });
+                $row->id = (int) $row->id;
+                return $row;
+            });
 
         return $this->convertToArray($result);
     }
+
+
 
     private function getEligibilityData($controlNo)
     {
@@ -230,10 +195,11 @@ class xPDSController extends Controller
 
     private function getExperienceData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
+        // xExperience records
+        $experience = DB::connection('sqlsrv')
             ->table('xExperience')
             ->select([
-                'ID as id',   // 👈 rename here
+                'ID as id',
                 'CONTROLNO',
                 'WFrom',
                 'WTo',
@@ -243,12 +209,70 @@ class xPDSController extends Controller
                 'WGrade',
                 'Status',
                 'WGov',
-
             ])
             ->where('ControlNo', $controlNo)
-            ->get();
+            ->get()
+            ->map(fn($row) => [
+                'id'       => $row->id,
+                'WFrom'    => $row->WFrom,
+                'WTo'      => $row->WTo,
+                'WPosition' => $this->upper($row->WPosition),
+                'WCompany' => $this->upper($row->WCompany),
+                'WSalary'  => $row->WSalary ? '₱ ' . number_format($row->WSalary, 2) : '₱ 0.00',
+                'WGrade'   => $row->WGrade,
+                'Status'   => $this->upper($row->Status),
+                'WGov'     => $this->upper($row->WGov),
+                'source'   => 'xExperience',
+            ]);
 
-        return $this->convertToArray($result);
+        $latestService = DB::connection('sqlsrv')
+            ->table('xService')
+            ->where('ControlNo', $controlNo)
+            ->orderByDesc('PMID')
+            ->first();
+
+        // xService records — mapped to xExperience format
+        $service = DB::connection('sqlsrv')
+            ->table('xService')
+            ->select([
+                'PMID as id',
+                'ControlNo',
+                'FromDate',
+                'ToDate',
+                'Designation',
+                'Office',
+                'Branch',
+                'RateDay',
+                'RateMon',
+                'Grades',
+                'Steps',
+                'Status',
+            ])
+            ->where('ControlNo', $controlNo)
+            ->get()
+            ->map(fn($row) => [
+                'id'        => $row->id,
+                'WFrom'     => $row->FromDate ? \Carbon\Carbon::parse($row->FromDate)->format('m/d/Y') : null,
+
+                // If this is the latest record AND ToDate is in the future → show "Present"
+                'WTo'       => ($row->id === $latestService->PMID && \Carbon\Carbon::parse($row->ToDate)->isFuture())
+                    ? 'PRESENT'
+                    : ($row->ToDate ? \Carbon\Carbon::parse($row->ToDate)->format('m/d/Y') : null),
+
+                'WPosition' => $row->Designation,
+                'WCompany'  => trim($row->Office . '/' . $row->Branch),
+                // CONTRACTUAL: RateDay x 22, others: RateMon
+                'WSalary'   => $row->Status === 'CONTRACTUAL'
+                    ? '₱ ' . number_format($row->RateDay * 22, 2)
+                    : ($row->RateMon ? '₱ ' . number_format($row->RateMon, 2) : '₱ 0.00'),
+                'WGrade'    => trim($row->Grades . '-' . $row->Steps),
+                'Status'    => $row->Status,
+                'WGov' => ($row->Status === 'CONTRACTUAL' || $row->Status === 'HONORARIUM') ? 'NO' : 'YES',
+                'source'    => 'xService',
+            ]);
+
+        // ✅ Merge both collections and convert to array
+        return $experience->merge($service)->values()->toArray();
     }
 
     private function getVoluntaryData($controlNo)
@@ -281,9 +305,9 @@ class xPDSController extends Controller
             ->where('ControlNo', $controlNo)
             ->get()
             ->map(function ($row) {
-            $row->id = (int) $row->id;
-            return $row;
-        });
+                $row->id = (int) $row->id;
+                return $row;
+            });
 
         return $this->convertToArray($result);
     }
@@ -336,5 +360,11 @@ class xPDSController extends Controller
     private function convertToArray($data)
     {
         return json_decode(json_encode($data), true);
+    }
+
+    // force Capital Letter
+    private function upper($value)
+    {
+        return strtoupper(trim($value ?? ''));
     }
 }
