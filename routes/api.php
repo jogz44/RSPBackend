@@ -114,7 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [UsersController::class, 'getAuthenticatedrater']); // dashboard of rater
         Route::post('/logout', [RaterAuthController::class, 'logoutRater']);
         Route::get('/users', [AuthController::class, 'getAllUsers']);
-        Route::get('/', [UsersController::class, 'getAuthenticatedrater']);
+        // Route::get('/', [UsersController::class, 'getAuthenticatedrater']);
         Route::delete('/{id}', [RaterAuthController::class, 'deleteUser']);
 
         Route::get('/show/{jobpostId}', [RaterController::class, 'fetchApplicant']);// fetch applicant have rating score
