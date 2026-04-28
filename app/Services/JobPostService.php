@@ -66,10 +66,10 @@ class JobPostService
         // Only fetch jobs where end_post is today or later (still active)
         $today = Carbon::today();
         $activeJobs = JobBatchesRsp::whereDate('post_date', '<=', $today)
-        ->
-        whereDate('end_date', '>=', $today)
-            ->orderBy('post_date', 'asc')
-            ->whereNotIn('status', ['Unoccupied', 'Occupied', 'Republished'])
+        ->whereDate('end_date', '>=', $today)
+        // ->orderBy('post_date', 'asc')
+        ->whereNotIn('status', ['Unoccupied', 'Occupied', 'Republished'])
+             ->orderBy('Position', 'asc')
             ->get();
 
         return response()->json($activeJobs);
@@ -80,6 +80,7 @@ class JobPostService
     {
         // 🔹 Fetch job posts EXCLUDING republished ones
         $jobPosts = JobBatchesRsp::select('id', 'Position', 'post_date', 'Office', 'PositionID', 'ItemNo', 'status', 'end_date', 'tblStructureDetails_ID')
+           ->orderBy('Position', 'asc')
             ->whereRaw('LOWER(status) != ?', ['republished']) // ✅ exclude republished
             ->withCount([
                 'submissions as total_applicants',
@@ -134,7 +135,8 @@ class JobPostService
 
         // 🔄 Reload updated list (still excluding republished)
         $jobPosts = JobBatchesRsp::select('id', 'Position', 'post_date', 'Office', 'PositionID', 'ItemNo', 'status', 'end_date', 'tblStructureDetails_ID')
-            ->whereRaw('LOWER(status) != ?', ['republished']) // ✅ exclude republished again
+           ->orderBy('Position', 'asc')    
+        ->whereRaw('LOWER(status) != ?', ['republished']) // ✅ exclude republished again
             ->withCount([
                 'submissions as total_applicants',
                 'submissions as qualified_count' => function ($query) {
