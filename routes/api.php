@@ -39,6 +39,7 @@ use Illuminate\Support\Facades\Route;
 
 
 
+Route::get('/applicant/pds-image/{filename}', [JobBatchesRspController::class, 'proxyPdsImage']);
 
 // email verification
 Route::post('/verify-code', [VerificationController::class, 'verifyCode']); // verify the code
@@ -240,6 +241,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
         Route::post('/qs/edit', [ApplicantSubmissionController::class, 'applicantQsEdit']); // for applicant manual
+
+        Route::get('/internal-image-pds/{controlNo}', [JobBatchesRspController::class, 'getInternalPdsImage']);
+        // Route::get('/pds-image/{filename}', [JobBatchesRspController::class, 'proxyPdsImage']);
 
     });
 
