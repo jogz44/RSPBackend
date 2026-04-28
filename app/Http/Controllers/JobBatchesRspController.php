@@ -2,17 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\JobPostRepublishedRequest;
 use App\Http\Requests\JobPostStoreRequest;
 use App\Http\Requests\JobPostUpdateRequest;
+use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
+
 use App\Models\xService;
 use App\Services\ApplicantService;
 use App\Services\JobPostService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Calculation\Web\Service;
 
 
 
@@ -26,10 +33,9 @@ class JobBatchesRspController extends Controller
             'status' => 'required|string|in:Unoccupied',
         ]);
 
-        $result = $jobPostService->unoccupied($validated,$JobPostingId);
+        $result = $jobPostService->unoccupied($validated, $JobPostingId);
 
         return $result;
-
     }
 
     //  this function fetching the only didnt meet the end_date
@@ -48,13 +54,12 @@ class JobBatchesRspController extends Controller
         $result = $jobPostService->jobPostList();
 
         return $result;
-
     }
 
     // filter the job post
     public function jobPostFiltered($postDate = null, $endDate = null, Request $request, JobPostService $jobPostService)
     {
-        $result = $jobPostService->filter($postDate,$endDate,$request);
+        $result = $jobPostService->filter($postDate, $endDate, $request);
 
         return $result;
     }
@@ -97,12 +102,11 @@ class JobBatchesRspController extends Controller
     // get the applicant base on the job post id
     public function getJobPostApplicant($id, JobPostService $jobPostService, Request $request)
     {
-         // args id = jobpostId
+        // args id = jobpostId
 
-        $result = $jobPostService->applicant($id,$request);
+        $result = $jobPostService->applicant($id, $request);
 
         return $result;
-
     }
 
 
@@ -202,10 +206,9 @@ class JobBatchesRspController extends Controller
         // Validate basic fields for job batch
         $jobValidated = $request->validated();
 
-        $result = $jobPostService->store($jobValidated,$request);
+        $result = $jobPostService->store($jobValidated, $request);
 
         return $result;
-
     }
 
     // updating job post
@@ -214,11 +217,9 @@ class JobBatchesRspController extends Controller
         // 1️⃣ Validate job batch fields
         $jobValidated = $request->validated();
 
-      $result = $jobPostService->update($jobValidated,$jobBatchId,$request);
+        $result = $jobPostService->update($jobValidated, $jobBatchId, $request);
 
-      return $result;
-
-
+        return $result;
     }
 
     // republished the job post
@@ -227,7 +228,7 @@ class JobBatchesRspController extends Controller
         // validation
         $validated = $request->validated();
 
-        $result = $jobPostService->republished($validated,$request);
+        $result = $jobPostService->republished($validated, $request);
 
         return $result;
     }
@@ -241,13 +242,12 @@ class JobBatchesRspController extends Controller
         $result = $applicantService->getApplicantPds($id);
 
         return $result;
-
     }
 
     // fetch the  jobpost with rated and occupied position
     public function jobPostCompleteStatus()
     {
-        $jobs = JobBatchesRsp::select('id as jobpostId', 'Office', 'Position','status', 'post_date', 'end_date')
+        $jobs = JobBatchesRsp::select('id as jobpostId', 'Office', 'Position', 'status', 'post_date', 'end_date')
             ->whereIn('status', ['Republished', 'rated', 'Unoccupied', 'Occupied'])
             ->get();
 
@@ -269,7 +269,7 @@ class JobBatchesRspController extends Controller
     public function jobPostPostDate()
     {
         $dates = JobBatchesRsp::select('post_date')
-            ->whereIn('status', ['Republished', 'rated', 'Unoccupied','assessed'])
+            ->whereIn('status', ['Republished', 'rated', 'Unoccupied', 'assessed'])
             ->distinct()
             ->orderBy('post_date', 'desc')
             ->get();
@@ -353,5 +353,113 @@ class JobBatchesRspController extends Controller
             'success' => true,
             'data'    => $result,
         ]);
-}
+    }
+
+    //  // proxy
+    // public function proxyPdsImage($filename, ApplicantService $applicantService)
+    // {
+    //    $data =  $this->$applicantService->proxyPdsImage($filename);
+
+
+    //    return $data;
+    // }
+
+
+    // public function getInternalPdsImage($controlNo)
+    // {
+    //     $training    = $this->getTrainingImage($controlNo);
+    //     $education   = $this->getEducationImage($controlNo);
+    //     $experience  = $this->getExperienceImage($controlNo);
+    //     $eligibility = $this->getEligibilityImage($controlNo);
+
+    //     $baseUrl = config('app.network_share_img_pds.base_url'); // e.g. http://10.0.1.26:82/Pics
+
+    //     $buildUrls = function ($records) use ($baseUrl) {
+    //         return collect($records)->map(function ($record) use ($baseUrl) {
+    //             $data = (array) $record;
+    //             if (!empty($record->img)) {
+    //                 $data['image_url']        = "{$baseUrl}/{$record->img}";
+    //                 $data['image_url_access'] = config('app.url') . '/api/pds-image/' . $record->img; // http://192.168.8.182:8000/api/pds-image/97cba103f6478a078a7b.png
+    //             } else {
+    //                 $data['image_url']        = null;
+    //                 $data['image_url_access'] = null;
+    //             }
+    //             return $data;
+    //         })->values();
+    //     };
+
+    //     return response()->json([
+    //         'control_no'          => $controlNo,
+    //         'training_images'     => $buildUrls($training),
+    //         'education_images'    => $buildUrls($education),
+    //         'experience_images'   => $buildUrls($experience),
+    //         'eligibility_images'  => $buildUrls($eligibility),
+    //     ]);
+    // }
+
+
+
+    // // training images — all records
+    // private function getTrainingImage($controlNo)
+    // {
+    //     return DB::table('tblPDSUpdatesTrainings')
+    //         ->select('ID', 'Controlno', 'Training', 'img', 'status')
+    //         ->where('Controlno', $controlNo)
+    //         ->where('status', 'ACCEPTED')
+    //         ->get();
+    // }
+
+    // // education images — all records
+    // private function getEducationImage($controlNo)
+    // {
+    //     return DB::table('tblPDSUpdatesEducation')
+    //         ->select('ID', 'ControlNo', 'School', 'img', 'status')
+    //         ->where('ControlNo', $controlNo)
+    //         ->where('status', 'ACCEPTED')
+    //         ->get();
+    // }
+
+    // // experience images — all records
+    // private function getExperienceImage($controlNo)
+    // {
+    //     return DB::table('tblPDSUpdatesWorkExperience')
+    //         ->select('ID', 'controlno', 'Wposition', 'img', 'status')
+    //         ->where('ControlNo', $controlNo)
+    //         ->where('status', 'ACCEPTED')
+    //         ->get();
+    // }
+
+    // // eligibility images — all records
+    // private function getEligibilityImage($controlNo)
+    // {
+    //     return DB::table('tblPDSUpdatesCivilService')
+    //         ->select('ID', 'controlno', 'CivilServe', 'img', 'status')
+    //         ->where('ControlNo', $controlNo)
+    //         ->where('status', 'ACCEPTED')
+    //         ->get();
+    // }
+
+    
+    // training images — all records
+    public function getInternalPdsImage($controlNo, ApplicantService $applicantService)
+    {
+        return $applicantService->getInternalPdsImage($controlNo);
+    }
+
+
+    // PROXY the image using my app url
+    public function proxyPdsImage($filename)
+    {
+        $baseUrl = config('app.network_share_img_pds.base_url');
+        $imageUrl = "{$baseUrl}/{$filename}";
+
+        $response = Http::get($imageUrl);
+
+        if (!$response->successful()) {
+            return response()->json(['message' => 'Image not found'], 404);
+        }
+
+        return response($response->body(), 200)
+            ->header('Content-Type', $response->header('Content-Type'));
+    }
 }
