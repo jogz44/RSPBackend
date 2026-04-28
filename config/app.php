@@ -44,6 +44,17 @@ return [
         'username' => env('NETWORK_SHARE_USERNAME'),
         'password' => env('NETWORK_SHARE_PASSWORD'),
     ],
+
+    'network_share_img_pds' => [
+        'host_image'     => env('NETWORK_SHARE_HOST_IMAGE'),
+        'name_image'     => env('NETWORK_SHARE_NAME_IMAGE'),
+        'sub_image'     => env('NETWORK_SHARE_SUBDIR_IMAGE'),
+        'base_url'   => env('NETWORK_SHARE_BASE_URL_IMAGE'), // ← add this
+        'username_image' => env('NETWORK_SHARE_USERNAME_IMAGE'),
+        'password_image' => env('NETWORK_SHARE_PASSWORD_IMAGE'),
+
+
+    ],
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode
