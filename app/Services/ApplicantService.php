@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 
 class ApplicantService
 {
@@ -290,6 +291,16 @@ class ApplicantService
         $eligibilityImages = [];
         $experienceImages  = [];
 
+        if ($submission->ControlNo) {
+            $internalImages = $this->getInternalPdsImage($submission->ControlNo);
+            $internalData   = $internalImages->getData(true);
+
+            $trainingImages    = $internalData['training_images']    ?? [];
+            $educationImages   = $internalData['education_images']   ?? [];
+            $eligibilityImages = $internalData['eligibility_images'] ?? [];
+            $experienceImages  = $internalData['experience_images']  ?? [];
+        }
+
         // ✅ Use ControlNo folder for internal employees, nPersonalInfo_id for external
         // ✅ Use ControlNo folder for internal employees, nPersonalInfo_id for external
         $folderKey = $submission->ControlNo ?? ($info['id'] ?? $submission->nPersonalInfo_id ?? null);
@@ -421,8 +432,8 @@ class ApplicantService
         $perPage = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
 
         // $jobpost = JobBatchesRsp::findOrFail($jobpostId);
-        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences','performances','exams'])
-        ->where('job_batches_rsp_id', $jobpostId)->get();
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams'])
+            ->where('job_batches_rsp_id', $jobpostId)->get();
 
         $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
             ->whereHas('user', fn($q) => $q->where('active', 1))
@@ -1097,59 +1108,59 @@ class ApplicantService
             if (isset($validated['personal_declaration_id'])) {
                 Personal_declarations::where('id', $validated['personal_declaration_id'])
                     ->update(collect($validated)->only([
-                    // Q34
+                        // Q34
 
-                    'question_34a',
+                        'question_34a',
 
-                    'question_34b',
-                    'response_34', // resoon
+                        'question_34b',
+                        'response_34', // resoon
 
-                    // Q35
-                    'question_35a',
-                    'response_35a', //reason
+                        // Q35
+                        'question_35a',
+                        'response_35a', //reason
 
-                    'question_35b',
-                    'response_35b_date', //reason
-                    'response_35b_status', //reason
+                        'question_35b',
+                        'response_35b_date', //reason
+                        'response_35b_status', //reason
 
-                    // Q36
-                    'question_36',
-                    'response_36', //reason
+                        // Q36
+                        'question_36',
+                        'response_36', //reason
 
-                    // Q37
-                    'question_37',
-                    'response_37', //reason
+                        // Q37
+                        'question_37',
+                        'response_37', //reason
 
-                    // Q38
-                    'question_38a',
-                    'response_38a', //reason
+                        // Q38
+                        'question_38a',
+                        'response_38a', //reason
 
-                    'question_38b',
-                    'response_38b', //reason
+                        'question_38b',
+                        'response_38b', //reason
 
-                    // Q39
-                    'question_39',
-                    'response_39', //reason
+                        // Q39
+                        'question_39',
+                        'response_39', //reason
 
-                    // Q40
-                    'question_40a',
-                    'response_40a', //reason
+                        // Q40
+                        'question_40a',
+                        'response_40a', //reason
 
-                    'question_40b',
-                    'response_40b', //reason
+                        'question_40b',
+                        'response_40b', //reason
 
-                    'question_40c',
-                    'response_40c', //reason
+                        'question_40c',
+                        'response_40c', //reason
 
-                    'chronic',
-                    'Psychosocial',
-                    'Orthopedic',
-                    'Communication',
-                    'Learning',
-                    'Mental',
-                    'Visual',
+                        'chronic',
+                        'Psychosocial',
+                        'Orthopedic',
+                        'Communication',
+                        'Learning',
+                        'Mental',
+                        'Visual',
 
-                ])->toArray());
+                    ])->toArray());
             }
 
             // --- Children (loop through array) ---
@@ -1237,4 +1248,87 @@ class ApplicantService
     }
 
 
+
+
+    // get the internalPds
+     function getInternalPdsImage($controlNo)
+    {
+        $training    = $this->getTrainingImage($controlNo);
+        $education   = $this->getEducationImage($controlNo);
+        $experience  = $this->getExperienceImage($controlNo);
+        $eligibility = $this->getEligibilityImage($controlNo);
+
+        $baseUrl = config('app.network_share_img_pds.base_url'); //
+        $buildUrls = function ($records) use ($baseUrl) {
+            return collect($records)
+                ->filter(fn($record) => !empty($record->img))
+                ->map(fn($record) => config('app.url') . '/api/applicant/pds-image/' . $record->img)
+                ->values();
+        };
+        return response()->json([
+            'control_no'          => $controlNo,
+            'training_images'     => $buildUrls($training),
+            'education_images'    => $buildUrls($education),
+            'experience_images'   => $buildUrls($experience),
+            'eligibility_images'  => $buildUrls($eligibility),
+        ]);
+    }
+
+
+
+    // training images — all records
+    private function getTrainingImage($controlNo)
+    {
+        return DB::table('tblPDSUpdatesTrainings')
+            ->select('ID', 'Controlno', 'Training', 'img', 'status')
+            ->where('Controlno', $controlNo)
+            ->where('status', 'ACCEPTED')
+            ->get();
+    }
+
+    // education images — all records
+    private function getEducationImage($controlNo)
+    {
+        return DB::table('tblPDSUpdatesEducation')
+            ->select('ID', 'ControlNo', 'School', 'img', 'status')
+            ->where('ControlNo', $controlNo)
+            ->where('status', 'ACCEPTED')
+            ->get();
+    }
+
+    // experience images — all records
+    private function getExperienceImage($controlNo)
+    {
+        return DB::table('tblPDSUpdatesWorkExperience')
+            ->select('ID', 'controlno', 'Wposition', 'img', 'status')
+            ->where('ControlNo', $controlNo)
+            ->where('status', 'ACCEPTED')
+            ->get();
+    }
+
+    // eligibility images — all records
+    private function getEligibilityImage($controlNo)
+    {
+        return DB::table('tblPDSUpdatesCivilService')
+            ->select('ID', 'controlno', 'CivilServe', 'img', 'status')
+            ->where('ControlNo', $controlNo)
+            ->where('status', 'ACCEPTED')
+            ->get();
+    }
+
+    // // proxy using my app url
+    // public function proxyPdsImage($filename)
+    // {
+    //     $baseUrl = config('app.network_share_img_pds.base_url'); // 
+    //     $imageUrl = "{$baseUrl}/{$filename}";
+
+    //     $response = Http::get($imageUrl);
+
+    //     if (!$response->successful()) {
+    //         return response()->json(['message' => 'Image not found'], 404);
+    //     }
+
+    //     return response($response->body(), 200)
+    //         ->header('Content-Type', $response->header('Content-Type'));
+    // }
 }
