@@ -186,11 +186,18 @@ class xPDSController extends Controller
             ->where('ControlNo', $controlNo)
             ->get()
             ->map(function ($row) {
-                $row->id = (int) $row->id;
-                return $row;
-            });
 
-        return $this->convertToArray($result);
+            $row->id = (int) $row->id;
+
+            // ✅ format LDate here
+            $row->LDate = $row->LDate
+                ? \Carbon\Carbon::parse($row->LDate)->format('d/m/Y')
+                : null;
+
+            return $row;
+        });
+
+    return $this->convertToArray($result);
     }
 
     private function getExperienceData($controlNo)
@@ -252,12 +259,12 @@ class xPDSController extends Controller
             ->get()
             ->map(fn($row) => [
                 'id'        => $row->id,
-                'WFrom'     => $row->FromDate ? \Carbon\Carbon::parse($row->FromDate)->format('m/d/Y') : null,
+                'WFrom'     => $row->FromDate ? \Carbon\Carbon::parse($row->FromDate)->format('d/m/Y') : null,
 
                 // If this is the latest record AND ToDate is in the future → show "Present"
                 'WTo'       => ($row->id === $latestService->PMID && \Carbon\Carbon::parse($row->ToDate)->isFuture())
                     ? 'PRESENT'
-                    : ($row->ToDate ? \Carbon\Carbon::parse($row->ToDate)->format('m/d/Y') : null),
+                    : ($row->ToDate ? \Carbon\Carbon::parse($row->ToDate)->format('d/m/Y') : null),
 
                 'WPosition' => $row->Designation,
                 'WCompany'  => trim($row->Office . '/' . $row->Branch),
@@ -302,15 +309,26 @@ class xPDSController extends Controller
 
 
             ])
-            ->where('ControlNo', $controlNo)
-            ->get()
-            ->map(function ($row) {
-                $row->id = (int) $row->id;
-                return $row;
-            });
+           ->where('ControlNo', $controlNo)
+        ->get()
+        ->map(function ($row) {
 
-        return $this->convertToArray($result);
-    }
+            $row->id = (int) $row->id;
+
+            // ✅ format dates here
+            $row->DateFrom = $row->DateFrom
+                ? \Carbon\Carbon::parse($row->DateFrom)->format('d/m/Y')
+                : null;
+
+            $row->DateTo = $row->DateTo
+                ? \Carbon\Carbon::parse($row->DateTo)->format('d/m/Y')
+                : null;
+
+            return $row;
+        });
+
+    return $this->convertToArray($result);
+}
 
     private function getSkillsData($controlNo)
     {
