@@ -10,9 +10,10 @@ use App\Services\ApplicantApplicationService;
 use App\Services\ApplicantService;
 use App\Services\EmployeeService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
-
 use Illuminate\Http\Request; // ✅ CORRECT
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 
 class ApplicantSubmissionController extends Controller
@@ -94,7 +95,7 @@ class ApplicantSubmissionController extends Controller
         return response()->json($schedule);
     }
 
-      // fetch the applicant details he applied
+    // fetch the applicant details he applied
     public function getApplicantDetails(Request $request)
     {
         $validated = $request->validate([
@@ -353,13 +354,48 @@ class ApplicantSubmissionController extends Controller
     }
 
     // internal employee applicant application image
+    // public function employeeStoreApplicantApplication(EmployeeStoreApplicationRequest $request)
+    // {
+    //     $validated = $request->validated();
+
+    //     $images = $request->file('images') ?? []; // ['education' => [...], 'training' => [...]]
+
+    //     $result = $this->employeeService->employeeApplicant($validated, $images);
+
+    //     return $result;
+    // }
+
     public function employeeStoreApplicantApplication(EmployeeStoreApplicationRequest $request)
     {
+        //  Get PHP limits
+        $maxFileUploads = (int) ini_get('max_file_uploads');
+
+        //  Count actual files received by PHP
+        $receivedFiles = 0;
+        foreach ($request->allFiles()['images'] ?? [] as $category => $files) {
+            $receivedFiles += count((array) $files);
+        }
+
+        // Throw error if files were silently dropped
+        // This happens when PHP drops files before Laravel sees them
+        $expectedFiles = 0;
+        foreach ($request->input('images', []) as $category => $files) {
+            $expectedFiles += count((array) $files);
+        }
+        if ($receivedFiles < $expectedFiles || $receivedFiles >= $maxFileUploads) {
+            $errorMessage = "File upload limit reached. PHP only allows {$maxFileUploads} files per request. You sent {$receivedFiles} files (some may have been dropped). Please split your uploads into smaller batches of " . ($maxFileUploads - 1) . " files or less.";
+
+            return response()->json([
+                'message' => $errorMessage,
+                'errors' => [
+                    'file' => [$errorMessage]
+                ]
+            ], 422);
+        }
+
         $validated = $request->validated();
-
-        $images = $request->file('images') ?? []; // ['education' => [...], 'training' => [...]]
-
-        $result = $this->employeeService->employeeApplicant($validated, $images);
+        $images    = $request->file('images') ?? [];
+        $result    = $this->employeeService->employeeApplicant($validated, $images);
 
         return $result;
     }
