@@ -629,7 +629,7 @@ class ReportController extends Controller
         return  $result;
     }
 
-   // fetch job post based on the post date all position
+    // fetch job post based on the post date all position
     public function listDate()
     {
         $dates = JobBatchesRsp::select('post_date')
@@ -647,20 +647,33 @@ class ReportController extends Controller
         return response()->json($formattedDate);
     }
 
-       // fetch the list of job publication
+    // fetch the list of job publication
     public function jobPublication(Request $request)
     {
 
         $validated = $request->validate([
-              'post_date' => 'required|date_format:Y-m-d'
+            'post_date' => 'required|date_format:Y-m-d'
         ]);
-        
-    $dates = JobBatchesRsp::where('post_date', $validated['post_date'])
-      
+
+        $jobPost = JobBatchesRsp::where('post_date', $validated['post_date'])
+
             ->get();
 
 
-        return response()->json($dates);
+        $jobPost = $jobPost->map(function ($job) {
+
+        $salary = DB::table('tblSalarySchedule')
+            ->where('Grade', $job->SalaryGrade)
+            ->where('Steps', 1)
+            ->first();
+
+        $job->monthly_salary = $salary 
+            ? '₱' . number_format($salary->Salary, 2) 
+            : null;
+
+        return $job;
+    });
+
+    return response()->json($jobPost);
     }
-    
 }

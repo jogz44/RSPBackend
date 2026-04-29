@@ -334,6 +334,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // list of job post publication
        Route::get('/list-date/publication', [ReportController::class, 'listDate']);
+       // request job post list base on the publication date send
         Route::post('/publication-job', [ReportController::class, 'jobPublication']);
 
     });
