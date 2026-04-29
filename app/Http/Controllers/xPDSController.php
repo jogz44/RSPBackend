@@ -84,8 +84,7 @@ class xPDSController extends Controller
    
     private function getUserData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xPersonal')
+        $result = DB::table('xPersonal')
             ->where('ControlNo', $controlNo)
             ->get();
 
@@ -94,8 +93,7 @@ class xPDSController extends Controller
 
     private function getPWDData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xPWD')
+        $result = DB::table('xPWD')
             ->where('ControlNo', $controlNo)
             ->first();
 
@@ -104,8 +102,7 @@ class xPDSController extends Controller
 
     private function getPersonalAddtData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xPersonalAddt')
+        $result = DB::table('xPersonalAddt')
             ->where('ControlNo', $controlNo)
             ->first();
 
@@ -114,8 +111,7 @@ class xPDSController extends Controller
 
     private function getPersonalDiversityData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xPersonalDiversity')
+        $result = DB::table('xPersonalDiversity')
             ->where('ControlNo', $controlNo)
             ->first();
 
@@ -124,8 +120,7 @@ class xPDSController extends Controller
 
     private function getChildrenData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xChildren')
+        $result = DB::table('xChildren')
             ->where('ControlNo', $controlNo)
             ->select('ChildName', 'BirthDate', 'PMID')
             ->get();
@@ -135,8 +130,7 @@ class xPDSController extends Controller
 
     private function getEducationData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xEducation')
+        $result = DB::table('xEducation')
             ->select([
                 'PMID as id',   // 👈 rename here
                 'ControlNo',
@@ -169,8 +163,7 @@ class xPDSController extends Controller
 
     private function getEligibilityData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xCivilService')
+        $result = DB::table('xCivilService')
             ->select([
                 'PMID as id',   // 👈 rename here
                 'ControlNo',
@@ -203,8 +196,7 @@ class xPDSController extends Controller
     private function getExperienceData($controlNo)
     {
         // xExperience records
-        $experience = DB::connection('sqlsrv')
-            ->table('xExperience')
+        $experience = DB::table('xExperience')
             ->select([
                 'ID as id',
                 'CONTROLNO',
@@ -232,15 +224,13 @@ class xPDSController extends Controller
                 'source'   => 'xExperience',
             ]);
 
-        $latestService = DB::connection('sqlsrv')
-            ->table('xService')
+        $latestService = DB::table('xService')
             ->where('ControlNo', $controlNo)
             ->orderByDesc('PMID')
             ->first();
 
         // xService records — mapped to xExperience format
-        $service = DB::connection('sqlsrv')
-            ->table('xService')
+        $service = DB::table('xService')
             ->select([
                 'PMID as id',
                 'ControlNo',
@@ -284,8 +274,7 @@ class xPDSController extends Controller
 
     private function getVoluntaryData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xNGO')
+        $result = DB::table('xNGO')
             ->where('ControlNo', $controlNo)
             ->get();
 
@@ -294,8 +283,7 @@ class xPDSController extends Controller
 
     private function getTrainingData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xTrainings')
+        $result = DB::table('xTrainings')
             ->select([
                 'PMID as id',   // 👈 rename here
                 'ControlNo',
@@ -332,8 +320,7 @@ class xPDSController extends Controller
 
     private function getSkillsData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xSkills')
+        $result = DB::table('xSkills')
             ->where('ControlNo', $controlNo)
             ->select('ID', 'ControlNo', 'Skills')
             ->get();
@@ -343,8 +330,7 @@ class xPDSController extends Controller
 
     private function getAcademicData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xNonAcademic')
+        $result = DB::table('xNonAcademic')
             ->where('ControlNo', $controlNo)
             ->get();
 
@@ -353,8 +339,7 @@ class xPDSController extends Controller
 
     private function getOrganizationData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xOrganization')
+        $result = DB::table('xOrganization')
             ->where('ControlNo', $controlNo)
             ->get();
 
@@ -363,8 +348,7 @@ class xPDSController extends Controller
 
     private function getReferenceData($controlNo)
     {
-        $result = DB::connection('sqlsrv')
-            ->table('xReference')
+        $result = DB::table('xReference')
             ->where('ControlNo', $controlNo)
             ->select('ControlNo', 'Names', 'Address', 'TelNo', 'PMID')
             ->get();
