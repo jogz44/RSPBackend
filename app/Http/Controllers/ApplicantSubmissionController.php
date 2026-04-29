@@ -23,7 +23,7 @@ class ApplicantSubmissionController extends Controller
     protected $employeeService;
     protected $applicantService;
 
-    public function __construct(EmployeeService $employeeService, ApplicantApplicationService $applicantApplicationService,ApplicantService $applicantService)
+    public function __construct(EmployeeService $employeeService, ApplicantApplicationService $applicantApplicationService, ApplicantService $applicantService)
     {
         $this->employeeService = $employeeService;
         $this->applicantApplicationService = $applicantApplicationService;
@@ -94,9 +94,7 @@ class ApplicantSubmissionController extends Controller
         return response()->json($schedule);
     }
 
-
-
-    // fetch the applicant details he applied
+      // fetch the applicant details he applied
     public function getApplicantDetails(Request $request)
     {
         $validated = $request->validate([
@@ -107,20 +105,28 @@ class ApplicantSubmissionController extends Controller
 
         $firstname     = trim(strtolower($validated['firstname']));
         $lastname      = trim(strtolower($validated['lastname']));
-        $date_of_birth = \Carbon\Carbon::parse($validated['date_of_birth'])->toDateString();
+
+        // ✅ Strip time portion — "1996-01-17 " or "1996-01-17 00:00:00" → "1996-01-17"
+        $date_of_birth = \Carbon\Carbon::parse(trim($validated['date_of_birth']))->format('Y-m-d');
+
+        // ✅ sqlsrv strips quotes from ALL ? bindings in whereRaw — embed as quoted literals instead
+        $sqlDate      = "'{$date_of_birth}'";       // '1996-01-17'
+        $sqlFirstname = "'{$firstname}'";            // 'alexandria'
+        $sqlLastname  = "'{$lastname}'";             // 'hartmann'
 
         // ── External applicants (nPersonalInfo_id is NOT NULL) ──────────────────
         $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
             ->whereNotNull('nPersonalInfo_id')
-            ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
-                $query->whereDate('date_of_birth', $date_of_birth)
-                    ->where(function ($q) use ($firstname, $lastname) {
-                        $q->where(function ($q2) use ($firstname, $lastname) {
-                            $q2->whereRaw('LOWER(TRIM(firstname)) = ?', [$firstname])
-                                ->whereRaw('LOWER(TRIM(lastname)) = ?', [$lastname]);
-                        })->orWhere(function ($q2) use ($firstname, $lastname) {
-                            $q2->whereRaw('LOWER(TRIM(firstname)) = ?', [$lastname])
-                                ->whereRaw('LOWER(TRIM(lastname)) = ?', [$firstname]);
+            ->whereHas('nPersonalInfo', function ($query) use ($sqlFirstname, $sqlLastname, $sqlDate) {
+                $query
+                    ->whereRaw("TRY_CAST(date_of_birth AS DATE) = TRY_CAST({$sqlDate} AS DATE)")
+                    ->where(function ($q) use ($sqlFirstname, $sqlLastname) {
+                        $q->where(function ($q2) use ($sqlFirstname, $sqlLastname) {
+                            $q2->whereRaw("LOWER(TRIM(firstname)) = {$sqlFirstname}")
+                                ->whereRaw("LOWER(TRIM(lastname))  = {$sqlLastname}");
+                        })->orWhere(function ($q2) use ($sqlFirstname, $sqlLastname) {
+                            $q2->whereRaw("LOWER(TRIM(firstname)) = {$sqlLastname}")
+                                ->whereRaw("LOWER(TRIM(lastname))  = {$sqlFirstname}");
                         });
                     });
             })
@@ -135,18 +141,19 @@ class ApplicantSubmissionController extends Controller
                 return $item;
             });
 
-        // ── Internal applicants (nPersonalInfo_id IS NULL, name from xPersonal) ─
+        // ── Internal applicants (nPersonalInfo_id IS NULL) ───────────────────────
         $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
             ->whereNull('nPersonalInfo_id')
-            ->whereHas('xPersonal', function ($query) use ($firstname, $lastname, $date_of_birth) {
-                $query->whereDate('BirthDate', $date_of_birth)
-                    ->where(function ($q) use ($firstname, $lastname) {
-                        $q->where(function ($q2) use ($firstname, $lastname) {
-                            $q2->whereRaw('LOWER(TRIM(Firstname)) = ?', [$firstname])
-                                ->whereRaw('LOWER(TRIM(Surname)) = ?', [$lastname]);
-                        })->orWhere(function ($q2) use ($firstname, $lastname) {
-                            $q2->whereRaw('LOWER(TRIM(Firstname)) = ?', [$lastname])
-                                ->whereRaw('LOWER(TRIM(Surname)) = ?', [$firstname]);
+            ->whereHas('xPersonal', function ($query) use ($sqlFirstname, $sqlLastname, $sqlDate) {
+                $query
+                    ->whereRaw("TRY_CAST(BirthDate AS DATE) = TRY_CAST({$sqlDate} AS DATE)")
+                    ->where(function ($q) use ($sqlFirstname, $sqlLastname) {
+                        $q->where(function ($q2) use ($sqlFirstname, $sqlLastname) {
+                            $q2->whereRaw("LOWER(TRIM(Firstname)) = {$sqlFirstname}")
+                                ->whereRaw("LOWER(TRIM(Surname))   = {$sqlLastname}");
+                        })->orWhere(function ($q2) use ($sqlFirstname, $sqlLastname) {
+                            $q2->whereRaw("LOWER(TRIM(Firstname)) = {$sqlLastname}")
+                                ->whereRaw("LOWER(TRIM(Surname))   = {$sqlFirstname}");
                         });
                     });
             })
@@ -156,27 +163,20 @@ class ApplicantSubmissionController extends Controller
             ])
             ->get()
             ->map(function ($item) {
-                $item->applicant_type = 'internal';
-                $item->personal_info  = $item->xPersonal
+                $item->applicant_type  = 'internal';
+                $item->personal_info   = $item->xPersonal
                     ? [
                         'firstname'     => $item->xPersonal->Firstname,
                         'lastname'      => $item->xPersonal->Surname,
                         'date_of_birth' => \Carbon\Carbon::parse($item->xPersonal->BirthDate)->format('m/d/Y'),
                     ]
                     : null;
-                $item->n_personal_info = $item->xPersonal  // ← mirrors external's n_personal_info
-                    ? [
-                        'firstname'     => $item->xPersonal->Firstname,
-                        'lastname'      => $item->xPersonal->Surname,
-                        'date_of_birth' => \Carbon\Carbon::parse($item->xPersonal->BirthDate)->format('m/d/Y'),
-                    ]
-                    : null;
-                unset($item->xPersonal);
-                unset($item->x_personal);
+                $item->n_personal_info = $item->personal_info;
+                unset($item->xPersonal, $item->x_personal);
                 return $item;
             });
 
-        // ── Merge both result sets ───────────────────────────────────────────────
+        // ── Merge ────────────────────────────────────────────────────────────────
         $applicants = $external->merge($internal);
 
         if ($applicants->isEmpty()) {
@@ -198,6 +198,110 @@ class ApplicantSubmissionController extends Controller
             'data'    => $applicants,
         ]);
     }
+
+
+    // // fetch the applicant details he applied
+    // public function getApplicantDetails(Request $request)
+    // {
+    //     $validated = $request->validate([
+    //         'firstname'     => 'required|string',
+    //         'lastname'      => 'required|string',
+    //         'date_of_birth' => 'required|date',
+    //     ]);
+
+    //     $firstname     = trim(strtolower($validated['firstname']));
+    //     $lastname      = trim(strtolower($validated['lastname']));
+    //     $date_of_birth = \Carbon\Carbon::parse($validated['date_of_birth'])->toDateString();
+
+    //     // ── External applicants (nPersonalInfo_id is NOT NULL) ──────────────────
+    //     $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
+    //         ->whereNotNull('nPersonalInfo_id')
+    //         ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
+    //             $query->whereDate('date_of_birth', $date_of_birth)
+    //                 ->where(function ($q) use ($firstname, $lastname) {
+    //                     $q->where(function ($q2) use ($firstname, $lastname) {
+    //                         $q2->whereRaw('LOWER(TRIM(firstname)) = ?', [$firstname])
+    //                             ->whereRaw('LOWER(TRIM(lastname)) = ?', [$lastname]);
+    //                     })->orWhere(function ($q2) use ($firstname, $lastname) {
+    //                         $q2->whereRaw('LOWER(TRIM(firstname)) = ?', [$lastname])
+    //                             ->whereRaw('LOWER(TRIM(lastname)) = ?', [$firstname]);
+    //                     });
+    //                 });
+    //         })
+    //         ->with([
+    //             'nPersonalInfo:id,firstname,lastname,date_of_birth',
+    //             'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
+    //         ])
+    //         ->get()
+    //         ->map(function ($item) {
+    //             $item->applicant_type = 'external';
+    //             $item->personal_info  = $item->nPersonalInfo;
+    //             return $item;
+    //         });
+
+    //     // ── Internal applicants (nPersonalInfo_id IS NULL, name from xPersonal) ─
+    //     $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
+    //         ->whereNull('nPersonalInfo_id')
+    //         ->whereHas('xPersonal', function ($query) use ($firstname, $lastname, $date_of_birth) {
+    //             $query->whereDate('BirthDate', $date_of_birth)
+    //                 ->where(function ($q) use ($firstname, $lastname) {
+    //                     $q->where(function ($q2) use ($firstname, $lastname) {
+    //                         $q2->whereRaw('LOWER(TRIM(Firstname)) = ?', [$firstname])
+    //                             ->whereRaw('LOWER(TRIM(Surname)) = ?', [$lastname]);
+    //                     })->orWhere(function ($q2) use ($firstname, $lastname) {
+    //                         $q2->whereRaw('LOWER(TRIM(Firstname)) = ?', [$lastname])
+    //                             ->whereRaw('LOWER(TRIM(Surname)) = ?', [$firstname]);
+    //                     });
+    //                 });
+    //         })
+    //         ->with([
+    //             'xPersonal',
+    //             'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
+    //         ])
+    //         ->get()
+    //         ->map(function ($item) {
+    //             $item->applicant_type = 'internal';
+    //             $item->personal_info  = $item->xPersonal
+    //                 ? [
+    //                     'firstname'     => $item->xPersonal->Firstname,
+    //                     'lastname'      => $item->xPersonal->Surname,
+    //                     'date_of_birth' => \Carbon\Carbon::parse($item->xPersonal->BirthDate)->format('m/d/Y'),
+    //                 ]
+    //                 : null;
+    //             $item->n_personal_info = $item->xPersonal  // ← mirrors external's n_personal_info
+    //                 ? [
+    //                     'firstname'     => $item->xPersonal->Firstname,
+    //                     'lastname'      => $item->xPersonal->Surname,
+    //                     'date_of_birth' => \Carbon\Carbon::parse($item->xPersonal->BirthDate)->format('m/d/Y'),
+    //                 ]
+    //                 : null;
+    //             unset($item->xPersonal);
+    //             unset($item->x_personal);
+    //             return $item;
+    //         });
+
+    //     // ── Merge both result sets ───────────────────────────────────────────────
+    //     $applicants = $external->merge($internal);
+
+    //     if ($applicants->isEmpty()) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'No applicant found with the provided details.',
+    //             'input'   => [
+    //                 'firstname'     => $validated['firstname'],
+    //                 'lastname'      => $validated['lastname'],
+    //                 'date_of_birth' => $date_of_birth,
+    //             ],
+    //         ], 404);
+    //     }
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Applicants retrieved successfully.',
+    //         'count'   => $applicants->count(),
+    //         'data'    => $applicants,
+    //     ]);
+    // }
 
     public function index()
     {
@@ -270,14 +374,14 @@ class ApplicantSubmissionController extends Controller
     }
 
     // edit qs of applicant
-    public function applicantQsEdit(applicantQsEditRequest $request){
+    public function applicantQsEdit(applicantQsEditRequest $request)
+    {
 
-     $validated = $request->validated();
+        $validated = $request->validated();
 
-    $result = $this->applicantService->qsEdit($validated);
+        $result = $this->applicantService->qsEdit($validated);
 
 
-    return $result;
-
+        return $result;
     }
 }
