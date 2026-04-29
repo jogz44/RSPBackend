@@ -628,4 +628,39 @@ class ReportController extends Controller
 
         return  $result;
     }
+
+   // fetch job post based on the post date all position
+    public function listDate()
+    {
+        $dates = JobBatchesRsp::select('post_date')
+            ->distinct()
+            ->orderBy('post_date', 'desc')
+            ->get();
+
+        $formattedDate = $dates->map(function ($item) {
+            return [
+                // 'date'      => $item->post_date, // RAW date (for API logic)
+                'date' => Carbon::parse($item->post_date)->format('M d, Y'), // UI only
+            ];
+        });
+
+        return response()->json($formattedDate);
+    }
+
+       // fetch the list of job publication
+    public function jobPublication(Request $request)
+    {
+
+        $validated = $request->validate([
+              'post_date' => 'required|date_format:Y-m-d'
+        ]);
+        
+    $dates = JobBatchesRsp::where('post_date', $validated['post_date'])
+      
+            ->get();
+
+
+        return response()->json($dates);
+    }
+    
 }

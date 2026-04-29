@@ -332,6 +332,10 @@ Route::middleware('auth:sanctum')->group(function () {
         //list of the appointed applicant base on the publication
         Route::post('/list-of-appointed', [ReportController::class, 'appointed']);
 
+        // list of job post publication
+       Route::get('/list-date/publication', [ReportController::class, 'listDate']);
+        Route::post('/publication-job', [ReportController::class, 'jobPublication']);
+
     });
 
     Route::post('/submissions/multiple', [ExportApplicantController::class, 'exportApplicant']); // store applicant multiple on jobpost usong export
