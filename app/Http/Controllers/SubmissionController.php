@@ -19,9 +19,9 @@ class SubmissionController extends Controller
     protected $submissionService;
 
     public function __construct(SubmissionService $submissionService)
-        {
-            $this->submissionService = $submissionService;
-        }
+    {
+        $this->submissionService = $submissionService;
+    }
 
     // deleting applicant on the job_post he/she applicant
     public function delete($id)
@@ -47,23 +47,53 @@ class SubmissionController extends Controller
     {
         $validated = $request->validated();
 
-        $result = $this->submissionService->status($validated,$id,$request);
+        $result = $this->submissionService->status($validated, $id, $request);
 
         return $result;
     }
 
 
     // getting the image of the internal applicant
-    public function getImageInternalApplicant($submissionId){
-
-    $data = $this->submissionService->proxyImage($submissionId);
-
-
-    return $data;
-
-
+    public function getImageInternalApplicant($submissionId)
+    {
+        $data = $this->submissionService->proxyImage($submissionId);
+        return $data;
     }
 
 
+    // delete applicant submission
+    public function deleteApplicantSubmission($submissionId, Request $request)
+    {
+        $submission = Submission::where('id',$submissionId)->where('status','pending')->first(); // use find() instead of findOrFail()
 
+      
+        if (!$submission) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Submission id  not found or is not pending.',
+            ], 404);
+        }
+        
+        $submission->delete();
+
+     
+        $user = Auth::user();
+        if ($user instanceof \App\Models\User) {
+            activity('Deleted Applicant Submission')
+                ->causedBy($user)
+                ->performedOn($submission) // ✅ now a Model, not a Builder
+                ->withProperties([
+                    'submission_id' => $submissionId,
+                    'ip'            => $request->ip(),
+                    'user_agent'    => $request->header('User-Agent'),
+                ])
+                ->log("{$user->name} deleted submission ID {$submissionId}.");
+        }
+
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Submission deleted successfully.',
+        ]);
+    }
 }

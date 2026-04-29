@@ -245,6 +245,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/internal-image-pds/{controlNo}', [JobBatchesRspController::class, 'getInternalPdsImage']);
         // Route::get('/pds-image/{filename}', [JobBatchesRspController::class, 'proxyPdsImage']);
 
+        // delete the submission of the applicant
+        Route::delete('/delete/submission/{submissionId}', [SubmissionController::class, 'deleteApplicantSubmission']);  
+
+
     });
 
     Route::prefix('job-batches-rsp')->group(function () {
