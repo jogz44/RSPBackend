@@ -85,6 +85,11 @@ class ScheduleService
                 ]
             ))->onQueue('emails'));
 
+            // added true so that it will show on the applied that what is status on the he applied
+            $submission->update([
+                'is_emailed' => true
+            ]);
+
             // ✅ Send SMS
             $this->dispatchSms(
                 contactNumber: $contactNumber,
@@ -469,6 +474,11 @@ class ScheduleService
                     'ItemNo'      => $ItemNo,
                 ]
             ))->onQueue('emails'));
+
+              // added true so that it will show on the applied that what is status on the he applied
+            $submission->update([
+                 'is_emailed' => true
+            ]);
 
             // ✅ Send SMS
             $this->dispatchSms(
@@ -1090,6 +1100,11 @@ class ScheduleService
                         'date' => now()->format('F d, Y'),
                     ]
                 ))->onQueue('emails'));
+
+                // added true so that it will show on the applied that what is status on the he applied
+                $submission->update([
+                        'is_emailed' => true
+                    ]);
 
                 // ✅ Send SMS — unqualified notification
                 $this->dispatchSmsUnqualified(

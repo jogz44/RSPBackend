@@ -28,7 +28,11 @@ class EmployeeController extends Controller
             'data' => $employeeApplications->map(function ($submission) {
                 return [
                     'submission_id' => $submission->id,
-                    'status'        => $submission->status,
+                    // 'status'        => $submission->status,
+                         // SHOW ONLY IF EMAILED
+                    'status' => $submission->is_emailed  // added condition to fetch that status of the applicant email first before the status
+                                    ? $submission->status
+                                    : 'Pending',
                     'position'      => $submission->jobPost->Position ?? null,
                     'office'        => $submission->jobPost->Office ?? null,
                     'applied_at'    => $submission->created_at,
