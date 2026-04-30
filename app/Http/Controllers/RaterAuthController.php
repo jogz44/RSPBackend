@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\RatersRegisterRequest;
 use App\Http\Requests\RaterUpdateRequest;
 use App\Models\User;
+use App\Services\ActivityLogService;
 use App\Services\RaterService;
 
 use Illuminate\Http\Request;
@@ -16,38 +17,49 @@ use Illuminate\Support\Facades\Validator;
 class RaterAuthController extends Controller
 {
 
+    protected  $activityLogService;
+    protected  $raterService;
+
+    public function __construct(ActivityLogService $activityLogService,RaterService $raterService)
+    {
+        $this->activityLogService = $activityLogService;
+        $this->raterService = $raterService;
+
+    }
+
+
     //create account and register rater account
-    public function createRaterAccount(RatersRegisterRequest $request, RaterService $raterService)
+    public function createRaterAccount(RatersRegisterRequest $request)
     {
         $validated = $request->validated();
 
-        $result = $raterService->create($validated,$request);
+        $result = $this->raterService->create($validated,$request);
 
         return $result;
     }
 
     // updating account rater
-    public function updateRater(RaterUpdateRequest $request, $id, RaterService $raterService)
+    public function updateRater(RaterUpdateRequest $request, $id)
     {
         $validated = $request->validated();
 
-        $result = $raterService->update($validated,$id,$request);
+        $result =  $this->raterService->update($validated,$id,$request);
 
         return $result;
     }
 
 
     // login function for rater
-    public function loginRater(Request $request, RaterService $raterService)
+    public function loginRater(Request $request)
     {
-        $result = $raterService->login($request);
+        $result = $this->raterService->login($request);
 
         return $result;
     }
 
 
     // change password for the rater
-    public function updateRaterPassword(Request $request, RaterService $raterService)
+    public function updateRaterPassword(Request $request)
     {
 
         // Validate request
@@ -56,7 +68,7 @@ class RaterAuthController extends Controller
             'new_password' => 'required|min:8|confirmed',
         ]);
 
-        $result = $raterService->updatePassword($validated,$request);
+        $result =  $this->raterService->updatePassword($validated,$request);
 
         return $result;
     }
@@ -117,29 +129,13 @@ class RaterAuthController extends Controller
             $user->tokens()->delete();
         }
 
-        $cookie = cookie()->forget('rater_token');
+        // activity logs
+        $this->activityLogService->logRaterLogOut($user);
 
-
-        // ✅ Fix: Ensure the correct type for Spatie activity log
-        if ($user instanceof \App\Models\User) {
-            activity('Logout')
-                ->causedBy($user)
-                ->performedOn($user)
-                ->withProperties([
-                'rater_name' => $user->name,
-                'rater_username' => $user->username,
-                    'role' => $user->role?->role_name,
-                    'office' => $user->office,
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->header('User-Agent'),
-                ])
-                ->log("Rater {$user->name} logout successfully.");
-
-        }
         return response([
             'status' => true,
             'message' => 'Logout Successfully',
-        ])->withCookie($cookie);
+        ]);
 
 
     }

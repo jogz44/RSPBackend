@@ -112,7 +112,7 @@ class ActivityLogService
     }
 
     //  update user activity logs
-      public function logUserUpdated($updatedBy, $user): void
+    public function logUserUpdated($updatedBy, $user): void
     {
         $this->log(
             'User Management',
@@ -130,28 +130,87 @@ class ActivityLogService
         );
     }
 
-  
+
     // ================================= ADMIN AUTH =============================== \\
 
 
     // ================================= RATER AUTH =============================== \\
 
 
+    //  rater create account activity logs
+    public function logRaterCreateAccount($createdBy, $rater): void
+    {
+        $this->log(
+            'Rater Account Created',
+            $createdBy,
+            $rater,
+            [
+                'created_by' => $createdBy?->name,
+                'new_rater_name' => $rater->name,
+                'username' => $rater->username,
+                'position' => $rater->position,
+                'office' => $rater->office,
+                'role' => 'Rater',
+            ],
+            "'Rater {$rater->name} was Created successfully by '{$createdBy?->name}"
+        );
+    }
+
     //  rater login activity logs
-    public function logRaterLogin($user): void
+    public function logRaterLogin($rater): void
     {
         $this->log(
             'Rater Login',
-            $user,
-            $user,
+            $rater,
+            $rater,
             [
-                'username' => $user->username,
-                'role'     => $user->role?->name,
-                'office'   => $user->office,
+                'rater_name' => $rater->name,
+                'rater_username' => $rater->username,
+                'role' => $rater->role?->role_name,
+                'office' => $rater->office,
             ],
-            "'{$user->name}' logged in successfully."
+            "'{$rater->name}' rater logged in successfully."
+
         );
     }
+
+    //  rater logout  activity logs
+    public function logRaterLogOut($rater): void
+    {
+        $this->log(
+            'Rater Logout',
+            $rater,
+            $rater,
+            [
+                'rater_name' => $rater->name,
+                'rater_username' => $rater->username,
+                'role' => $rater->role?->role_name,
+                'office' => $rater->office,
+            ],
+            "'{$rater->name}' rater logout successfully."
+
+        );
+    }
+
+
+    //  rater updating his password activity logs
+    public function logRaterUpdatePassword($rater): void
+    {
+        $this->log(
+            'Rater update password',
+            $rater,
+            $rater,
+            [
+                'rater_name' => $rater->name,
+                'rater_username' => $rater->username,
+                'role' => $rater->role?->role_name,
+                'office' => $rater->office,
+            ],
+            "'Rater {$rater->name} changed their password."
+
+        );
+    }
+
 
 
 
