@@ -66,7 +66,7 @@ class UsersController extends Controller
     public function getAuthenticatedUser(Request $request)
     {
         // Get the authenticated user with relationships in a single query
-       $user = Auth::user();
+        $user = Auth::user();
 
         if (!$user) {
             return response()->json(['message' => 'Token expired or invalid'], 401);
@@ -104,7 +104,16 @@ class UsersController extends Controller
                 'viewSchedule' => optional($user->rspControl)->viewSchedule ?? false,
                 'modifySchedule' => optional($user->rspControl)->modifySchedule ?? false,
                 'viewExam' => optional($user->rspControl)->viewExam ?? false,
-                'modifyExam' => optional($user->rspControl)->modifyExam ?? false
+                'modifyExam' => optional($user->rspControl)->modifyExam ?? false,
+
+                'requestPublication' => optional($user->rspControl)->requestPublication ?? false,
+                'reportPlantillaAccess' => optional($user->rspControl)->reportPlantillaAccess ?? false,
+                'viewApplicantAccess' => optional($user->rspControl)->viewApplicantAccess ?? false,
+                'modifyApplicantAccess' => optional($user->rspControl)->modifyApplicantAccess ?? false,
+                'reportApplicantAccess' => optional($user->rspControl)->reportApplicantAccess ?? false
+
+
+
 
             ],
         ];

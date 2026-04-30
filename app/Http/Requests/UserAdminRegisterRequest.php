@@ -44,8 +44,13 @@ class UserAdminRegisterRequest extends FormRequest
             'permissions.viewSchedule' => 'boolean',
             'permissions.modifySchedule' => 'boolean',
             'permissions.viewExam' => 'boolean',
-            'permissions.modifyExam' => 'boolean'
+            'permissions.modifyExam' => 'boolean',
 
+              'permissions.requestPublication' => 'boolean',
+            'permissions.reportPlantillaAccess' => 'boolean',
+            'permissions.viewApplicantAccess' => 'boolean',
+            'permissions.modifyApplicantAccess' => 'boolean',
+            'permissions.reportApplicantAccess' => 'boolean'
 
 
 

@@ -30,7 +30,16 @@ class UserRspControl extends Model
         'viewSchedule',
         'modifySchedule',
         'viewExam',
-        'modifyExam'
+        'modifyExam',
+
+
+        'requestPublication',
+        'reportPlantillaAccess','
+        viewApplicantAccess',
+        'modifyApplicantAccess',
+        'reportApplicantAccess',
+        // 'viewExamScoreAccess',
+        // 'modifyExamScoreAccess'
     ];
 
     // In UserRspControl.php

@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Employee;
 use App\Models\Submission;
+use App\Services\ActivityLogService;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,6 +19,15 @@ use Illuminate\Support\Facades\Hash;
 class AuthController extends Controller
 
 {
+
+    protected $activityLogService;
+
+    public function __construct(ActivityLogService $activityLogService)
+    {
+        $this->activityLogService =  $activityLogService;
+    }
+
+
     public function getRole()
     {
         $data = Role::all();
@@ -36,15 +46,15 @@ class AuthController extends Controller
             DB::beginTransaction();
 
             $user = User::create([
-            'name' => $request->name,
-            'username' => $request->username,
-            'password' => Hash::make($request->password), // Don't forget to hash!
-            'position' => $request->position,
-            'active' => $request->active,
-            'user_role' => $request->user_role,
-            'role_id' => 1, // Set appropriate role
-            'remember_token' => Str::random(32)
-           ]);
+                'name' => $request->name,
+                'username' => $request->username,
+                'password' => Hash::make($request->password), // Don't forget to hash!
+                'position' => $request->position,
+                'active' => $request->active,
+                'user_role' => $request->user_role,
+                'role_id' => 1, // Set appropriate role
+                'remember_token' => Str::random(32)
+            ]);
 
             if ($request->has('permissions')) {
                 $user->rspControl()->create([
@@ -66,27 +76,25 @@ class AuthController extends Controller
                     'viewSchedule' => $request->input('permissions.viewSchedule', false),
                     'modifySchedule' => $request->input('permissions.modifySchedule', false),
                     'viewExam' => $request->input('permissions.viewExam', false),
-                    'modifyExam' => $request->input('permissions.modifyExam', false)
+                    'modifyExam' => $request->input('permissions.modifyExam', false),
+
+
+                    'requestPublication' => $request->input('permissions.requestPublication', false),
+                    'reportPlantillaAccess' => $request->input('permissions.reportPlantillaAccess', false),
+                    'viewApplicantAccess' => $request->input('permissions.viewApplicantAccess', false),
+                    'modifyApplicantAccess' => $request->input('permissions.modifyApplicantAccess', false),
+
+                    'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false)
+
+
 
                 ]);
             }
 
 
-            // ✅ Activity Log
-            activity('Register Account')
-                ->causedBy($user)  // The currently logged-in admin creating this new admin
-                ->performedOn($user)
-                ->withProperties([
-                    'created_by' => Auth::user()?->name,
-                    'new_admin_name' => $user->name,
-                    'username' => $user->username,
-                    'position' => $user->position,
-                    'active' => $user->active,
-                    'role' =>  $user->role_id,
-                    'ip' => request()->ip(),
-                    'user_agent' => request()->header('User-Agent'),
-                ])
-                ->log("'{$user->name}' was registered successfully by '" . Auth::user()?->name . "'.");
+            // Activity Log
+            $createdBy = Auth::user();
+            $this->activityLogService->logRegister($createdBy, $user);
 
             DB::commit();
 
@@ -173,23 +181,8 @@ class AuthController extends Controller
         $user->tokens()->delete();
         $token = $user->createToken('admin_token')->plainTextToken;
 
-
-
-        if ($user instanceof \App\Models\User) {
-            $user->load('role'); // make sure the role is loaded
-            activity('Login')
-                ->causedBy($user)
-                ->performedOn($user)
-                ->withProperties([
-                    'username' => $user->username,
-                    'role' => $user->role?->name,
-                    'office' => $user->office,
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->header('User-Agent'),
-                ])
-                ->log("'{$user->name}' logged in successfully.");
-        }
-
+        // activity logs
+        $this->activityLogService->logLogin($user);
 
         return response([
             'status' => true,
@@ -212,23 +205,11 @@ class AuthController extends Controller
         $user = Auth::user();
 
         if ($user) {
-            // ✅ Delete all tokens — no cookie needed
+            // Delete all tokens — no cookie needed
             $user->tokens()->delete();
-
-            if ($user instanceof \App\Models\User) {
-                activity('Logout')
-                    ->causedBy($user)
-                    ->performedOn($user)
-                    ->withProperties([
-                        'username'   => $user->username,
-                        'role'       => $user->role?->role_name,
-                        'office'     => $user->office,
-                        'ip'         => $request->ip(),
-                        'user_agent' => $request->header('User-Agent'),
-                    ])
-                    ->log("'{$user->name}' logout successfully.");
-            }
         }
+
+        $this->activityLogService->logLogOut($user);
 
         return response([
             'status'  => true,
@@ -241,7 +222,7 @@ class AuthController extends Controller
     {
         try {
             $users = User::where('role_id', 1)->with('rspControl')
-                ->select('id', 'name', 'username', 'position', 'active','user_role', 'created_at', 'updated_at')
+                ->select('id', 'name', 'username', 'position', 'active', 'user_role', 'created_at', 'updated_at')
                 ->orderBy('id', 'desc')
                 ->get();
 
@@ -311,7 +292,15 @@ class AuthController extends Controller
                 'permissions.viewSchedule' => 'boolean',
                 'permissions.modifySchedule' => 'boolean',
                 'permissions.viewExam' => 'boolean',
-                'permissions.modifyExam' => 'boolean'
+                'permissions.modifyExam' => 'boolean',
+
+                'permissions.requestPublication' => 'boolean',
+                'permissions.reportPlantillaAccess' => 'boolean',
+                'permissions.viewApplicantAccess' => 'boolean',
+                'permissions.modifyApplicantAccess' => 'boolean',
+                'permissions.reportApplicantAccess' => 'boolean'
+
+
 
 
 
@@ -364,6 +353,14 @@ class AuthController extends Controller
                         'modifySchedule' => $request->input('permissions.modifySchedule', false),
                         'viewExam' => $request->input('permissions.viewExam', false),
                         'modifyExam' => $request->input('permissions.modifyExam', false),
+                        'requestPublication' => $request->input('permissions.requestPublication', false),
+                        'reportPlantillaAccess' => $request->input('permissions.reportPlantillaAccess', false),
+                        'viewApplicantAccess' => $request->input('permissions.viewApplicantAccess', false),
+                        'modifyApplicantAccess' => $request->input('permissions.modifyApplicantAccess', false),
+
+                        'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false)
+
+
 
 
                     ]);
@@ -388,6 +385,14 @@ class AuthController extends Controller
                         'modifySchedule' => $request->input('permissions.modifySchedule', false),
                         'viewExam' => $request->input('permissions.viewExam', false),
                         'modifyExam' => $request->input('permissions.modifyExam', false),
+                        'requestPublication' => $request->input('permissions.requestPublication', false),
+                        'reportPlantillaAccess' => $request->input('permissions.reportPlantillaAccess', false),
+                        'viewApplicantAccess' => $request->input('permissions.viewApplicantAccess', false),
+                        'modifyApplicantAccess' => $request->input('permissions.modifyApplicantAccess', false),
+
+                        'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false)
+
+
 
                     ]);
                 }
@@ -396,23 +401,10 @@ class AuthController extends Controller
             DB::commit();
 
             // ➕ Activity log after successful update
-            $currentUser = Auth::user();
-            if ($currentUser instanceof \App\Models\User) {
-                activity('User Management')
-                    ->causedBy($currentUser)
-                    ->performedOn($user)
-                    ->withProperties([
-                        'updated_user_id' => $user->id,
-                        'updated_user_name' => $user->name,
-                        'username' => $user->username,
-                        'position' => $user->position,
-                        'active' => $user->active,
-                        'permissions' => $user->rspControl?->toArray(),
-                        'ip' => $request->ip(),
-                        'user_agent' => $request->header('User-Agent'),
-                    ])
-                    ->log("'{$currentUser->name}' updated user '{$user->name}' successfully.");
-            }
+            $updatedby = Auth::user();
+
+            // activity logs
+            $this->activityLogService->logUserUpdated($updatedby, $user);
 
             // Fetch updated user with permissions
             $updatedUser = User::with('rspControl')
@@ -448,7 +440,7 @@ class AuthController extends Controller
     }
 
     // Delete a user and associated rspControl data
-    public function deleteUser($id , Request $request)
+    public function deleteUser($id, Request $request)
     {
         try {
             DB::beginTransaction();
@@ -475,21 +467,8 @@ class AuthController extends Controller
 
             // ➕ Activity log after successful update
             $currentUser = Auth::user();
-            if ($currentUser instanceof \App\Models\User) {
-                activity('User Management')
-                    ->causedBy($currentUser)
-                    ->performedOn($user)
-                    ->withProperties([
-                        'updated_user_id' => $user->id,
-                        'updated_user_name' => $user->name,
-                        'username' => $user->username,
-                        'position' => $user->position,
-                        'active' => $user->active,
-                        'ip' => $request->ip(),
-                        'user_agent' => $request->header('User-Agent'),
-                    ])
-                    ->log("{$currentUser->name} delete  {$user->name} account successfully.");
-            }
+
+            $this->activityLogService->logUserDeleted($currentUser, $user);
 
             return response()->json([
                 'status' => true,
@@ -520,21 +499,8 @@ class AuthController extends Controller
 
         // ➕ Activity log after successful update
         $currentUser = Auth::user();
-        if ($currentUser instanceof \App\Models\User) {
-            activity('User Management')
-                ->causedBy($currentUser)
-                ->performedOn($user)
-                ->withProperties([
-                    'updated_user_id' => $user->id,
-                    'updated_user_name' => $user->name,
-                    'username' => $user->username,
-                    'position' => $user->position,
-                    'active' => $user->active,
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->header('User-Agent'),
-                ])
-                ->log("{$currentUser->name} reset password {$user->name} account successfully.");
-        }
+
+        $this->activityLogService->logPasswordReset($currentUser, $user);
 
         return response()->json([
             'message' => 'Password reset successfully',
