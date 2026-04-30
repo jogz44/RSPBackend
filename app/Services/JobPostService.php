@@ -18,10 +18,14 @@ class JobPostService
     /**
      * Create a new class instance.
      */
-    // public function __construct()
-    // {
-    //     //
-    // }
+    protected $activityLogService;
+
+
+    public function __construct(ActivityLogService $activityLogService)
+    {
+        //
+        $this->activityLogService = $activityLogService;
+    }
 
     // updating the job post status unoccupied
     public function unoccupied($validated, $JobPostingId)
@@ -52,6 +56,8 @@ class JobPostService
                 ])
                 ->log("{$user->name} marked job post {$jobPost->Position} as Unoccupied.");
         }
+
+        // $this->activityLogService->logCreateJobPost($user,$jobPost);
 
 
         return response()->json([
@@ -285,277 +291,13 @@ class JobPostService
 
         $user = Auth::user();
 
-        if ($user instanceof \App\Models\User) {
-            activity('Delete')
-                ->causedBy($user)
-                ->performedOn($jobBatch)
-                ->withProperties([
-                    'name'   => $user->name,
-                    'username'     => $user->username,
-                    'deleted_job'  => $jobData,         // job post details before delete
-                    'ip'           => request()->ip(),
-                    'user_agent'   => request()->header('User-Agent'),
-                ])
-                ->log("{$user->name} deleted job post ({$jobBatch->Position}).");
-        }
+        $this->activityLogService->logDeleteJobPost($user,$jobBatch);
 
         return response()->json([
             'message' => 'deleted successfully',
             'jobBatch' => $jobBatch,
         ]);
     }
-
-    // // get the applicant on the job post
-    // public function applicant($id)
-    // {
-    //     // All submissions for this job post
-    //     $qualifiedApplicants = Submission::where('job_batches_rsp_id', $id)
-    //         ->get();
-
-    //     // Count all applicants for this job post
-    //     $totalApplicants = $qualifiedApplicants->count();
-
-    //     // Count applicants with qualified OR unqualified status
-    //     $progressCount = $qualifiedApplicants->whereIn('status', ['qualified', 'unqualified'])->count();
-
-    //     $applicants = $qualifiedApplicants->map(function ($submission) use ($id) {
-    //         $info = $submission->nPersonalInfo;
-
-    //         // ✅ If no nPersonalInfo_id, fetch from Employee DB (via controlno)
-    //         if (!$info && $submission->ControlNo) {
-    //             $xPDS = new \App\Http\Controllers\xPDSController();
-    //             $employeeData = $xPDS->getPersonalDataSheet(new \Illuminate\Http\Request([
-    //                 'controlno' => $submission->ControlNo
-    //             ]));
-
-    //             $employeeJson = $employeeData->getData(true); // decode JSON response
-    //             $info = [
-    //                 'controlno' => $submission->ControlNo,
-    //                 'firstname' => $employeeJson['User'][0]['Firstname'] ?? '',
-    //                 'lastname' => $employeeJson['User'][0]['Surname'] ?? '',
-    //                 'middlename' => $employeeJson['User'][0]['MIddlename'] ?? '',
-    //                 'image_path' => $employeeJson['User'][0]['Pics'] ?? $employeeJson['User'][0]['image_path'] ?? null,
-    //             ];
-    //         }
-
-    //         // Generate image URL
-    //         $imageUrl = null;
-    //         if ($info && isset($info['image_path']) && $info['image_path']) {
-    //             if (Storage::disk('public')->exists($info['image_path'])) {
-    //                 $baseUrl = config('app.url');
-    //                 $imageUrl = $baseUrl . '/storage/' . $info['image_path'];
-    //             }
-    //         }
-
-
-    //         return [
-    //             'submission_id' => $submission->id,
-    //             'nPersonalInfo_id' => $submission->nPersonalInfo_id,
-    //             'ControlNo' => $submission->ControlNo,
-    //             'job_batches_rsp_id' => $submission->job_batches_rsp_id,
-    //             'status' => $submission->status,
-    //             'firstname' => $info['firstname'] ?? '',
-    //             'lastname' => $info['lastname'] ?? '',
-    //             'application_date' => $info['application_date']
-    //                 ?? ($info instanceof \App\Models\excel\nPersonal_info
-    //                     ? optional($info->created_at)->toDateString()
-    //                     : (!empty($info['created_at'])
-    //                         ? \Carbon\Carbon::parse($info['created_at'])->toDateString()
-    //                         : ($submission->created_at
-    //                             ? $submission->created_at->toDateString()
-    //                             : null))),
-
-
-    //             'image_url' => $imageUrl,
-
-    //         ];
-    //     });
-
-    //     return response()->json([
-    //         'status' => true,
-    //         'progress' => $progressCount . '/' . $totalApplicants,
-    //         'progress_count' => $progressCount,
-    //         'total_applicants' => $totalApplicants,
-    //         'applicants' => $applicants,
-    //     ]);
-
-    // }
-
-    // // jobpost id args
-    // public function applicant($id,$request)
-    // {
-
-    //     $search = $request->input('search');
-    //     $perPage = $request->input('per_page', 10);
-
-    //     // Eager load nPersonalInfo to avoid N+1 queries
-    //     $qualifiedApplicants = Submission::where('job_batches_rsp_id', $id)
-    //         ->with('nPersonalInfo')
-    //         ->get();
-
-    //     $totalApplicants  = $qualifiedApplicants->count();
-    //     $qualifiedCount   = $qualifiedApplicants->where('status', 'Qualified')->count();
-    //     $unqualifiedCount = $qualifiedApplicants->where('status', 'Unqualified')->count();
-    //     $assessed         = $qualifiedCount + $unqualifiedCount;
-
-    //     $internalCount = $qualifiedApplicants->filter(fn($s) => !empty($s->ControlNo))->count();
-    //     $externalCount = $qualifiedApplicants->filter(fn($s) => !empty($s->nPersonalInfo_id))->count();
-
-    //     // ✅ Get all unique ControlNos that need employee data
-    //     $controlNos = $qualifiedApplicants
-    //         ->filter(fn($s) => !$s->nPersonalInfo && !empty($s->ControlNo))
-    //         ->pluck('ControlNo')
-    //         ->unique()
-    //         ->values();
-
-    //     // ✅ Batch query VwActive instead of calling xPDS API one by one
-    //     $employeeDataMap = [];
-    //     if ($controlNos->isNotEmpty()) {
-    //         vwActive::whereIn('ControlNo', $controlNos)
-    //             ->get()
-    //             ->each(function ($employee) use (&$employeeDataMap) {
-    //                 $employeeDataMap[$employee->ControlNo] = [
-    //                     'controlno'  => $employee->ControlNo,
-    //                     'firstname'  => $employee->Firstname  ?? '',
-    //                     'lastname'   => $employee->Surname    ?? '',
-    //                     'middlename' => $employee->MIddlename ?? '',
-    //                 ];
-    //             });
-    //     }
-
-
-    //     $applicants = $qualifiedApplicants->map(
-    //         function ($submission) use ($employeeDataMap) {
-    //             $info = $submission->nPersonalInfo ?? $employeeDataMap[$submission->ControlNo] ?? null;
-
-    //             // Resolve application date
-    //             $applicationDate = match (true) {
-    //                 is_array($info) => !empty($info['application_date'])
-    //                     ? $info['application_date']
-    //                     : (!empty($info['created_at'])
-    //                         ? \Carbon\Carbon::parse($info['created_at'])->toDateString()
-    //                         : optional($submission->created_at)->toDateString()),
-
-    //                 $info instanceof \App\Models\excel\nPersonal_info
-    //                 => $info->application_date
-    //                     ?? optional($info->created_at)->toDateString()
-    //                     ?? optional($submission->created_at)->toDateString(),
-
-    //                 default => optional($submission->created_at)->toDateString(),
-    //             };
-
-    //             return [
-    //                 'submission_id'      => $submission->id,
-    //                 'nPersonalInfo_id'   => $submission->nPersonalInfo_id,
-    //                 'ControlNo'          => $submission->ControlNo,
-    //                 'job_batches_rsp_id' => $submission->job_batches_rsp_id,
-    //                 'status'             => $submission->status,
-    //                 'applicant_type'     => !empty($submission->ControlNo) ? 'internal' : 'external',
-    //                 'firstname'          => is_array($info) ? ($info['firstname'] ?? '') : ($info->firstname ?? ''),
-    //                 'lastname'           => is_array($info) ? ($info['lastname'] ?? '') : ($info->lastname ?? ''),
-    //                 'application_date'   => $applicationDate,
-    //             ];
-    //         }
-    //     );
-
-    //     return response()->json([
-    //         'status'                 => true,
-    //         'qualified_applicants'   => $qualifiedCount,
-    //         'unqualified_applicants' => $unqualifiedCount,
-    //         'assessed'               => "{$assessed}/{$totalApplicants}",
-    //         'total_applicants'       => $totalApplicants,
-    //         'internal_applicants'    => $internalCount,
-    //         'external_applicants'    => $externalCount,
-    //         'applicants'             => $applicants,
-    //     ]);
-    // }
-
-    // public function applicant($id, $request)
-    // {
-    //     $search  = $request->input('search');
-    //     $perPage = $request->input('per_page', 2);
-
-    //     // Eager load nPersonalInfo to avoid N+1 queries
-    //     $qualifiedApplicants = Submission::where('job_batches_rsp_id', $id)
-    //         ->with('nPersonalInfo')
-    //         ->get();
-
-    //     $totalApplicants  = $qualifiedApplicants->count();
-    //     $qualifiedCount   = $qualifiedApplicants->where('status', 'Qualified')->count();
-    //     $unqualifiedCount = $qualifiedApplicants->where('status', 'Unqualified')->count();
-    //     $assessed         = $qualifiedCount + $unqualifiedCount;
-
-    //     $internalCount = $qualifiedApplicants->filter(fn($s) => !empty($s->ControlNo))->count();
-    //     $externalCount = $qualifiedApplicants->filter(fn($s) => !empty($s->nPersonalInfo_id))->count();
-
-    //     // ── External applicants (linked to nPersonalInfo) ──────────────────────
-    //     // ── External applicants (linked to nPersonalInfo) ──────────────────────
-    //     $external = Submission::query()
-    //         ->where('submission.job_batches_rsp_id', $id)
-    //         ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
-    //         ->select(
-    //             'submission.id as submission_id',
-    //             'submission.nPersonalInfo_id',
-    //             DB::raw('NULL as ControlNo'),
-    //             'submission.job_batches_rsp_id',
-    //             'submission.status',
-    //             'p.firstname',
-    //             'p.lastname',
-    //             DB::raw("CAST(COALESCE(p.created_at, submission.created_at) AS DATE) as application_date"), // ✅ removed application_date column
-    //             DB::raw("'external' as applicant_type")
-    //         );
-
-    //     if ($search) {
-    //         $external->where(function ($q) use ($search) {
-    //             $q->where('p.firstname', 'like', "%{$search}%")
-    //                 ->orWhere('p.lastname', 'like', "%{$search}%")
-    //                 ->orWhereRaw("CONCAT(p.firstname,' ',p.lastname) LIKE ?", ["%{$search}%"]);
-    //         });
-    //     }
-
-    //     // ── Internal applicants (linked to xPersonal via ControlNo) ────────────
-    //     $internal = Submission::query()
-    //         ->where('submission.job_batches_rsp_id', $id)
-    //         ->whereNull('submission.nPersonalInfo_id')
-    //         ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
-    //         ->select(
-    //             'submission.id as submission_id',
-    //             DB::raw('NULL as nPersonalInfo_id'),
-    //             'submission.ControlNo',
-    //             'submission.job_batches_rsp_id',
-    //             'submission.status',
-    //             'xp.Firstname as firstname',
-    //             'xp.Surname as lastname',
-    //             DB::raw("CAST(submission.created_at AS DATE) as application_date"),
-    //             DB::raw("'internal' as applicant_type")
-    //         );
-
-    //     if ($search) {
-    //         $internal->where(function ($q) use ($search) {
-    //             $q->where('xp.Firstname', 'like', "%{$search}%")
-    //                 ->orWhere('xp.Surname', 'like', "%{$search}%")
-    //                 ->orWhereRaw("CONCAT(xp.Firstname,' ',xp.Surname) LIKE ?", ["%{$search}%"]);
-    //         });
-    //     }
-
-    //     // ── UNION ALL + paginate ────────────────────────────────────────────────
-    //     $union = $external->unionAll($internal);
-
-    //     $applicants = DB::table(DB::raw("({$union->toSql()}) as combined"))
-    //         ->mergeBindings($union->getQuery())
-    //         ->paginate($perPage);
-
-    //     return response()->json([
-    //         'status'                 => true,
-    //         'qualified_applicants'   => $qualifiedCount,
-    //         'unqualified_applicants' => $unqualifiedCount,
-    //         'assessed'               => "{$assessed}/{$totalApplicants}",
-    //         'total_applicants'       => $totalApplicants,
-    //         'internal_applicants'    => $internalCount,
-    //         'external_applicants'    => $externalCount,
-    //         'applicants'             => $applicants,
-    //     ]);
-    // }
 
 
     // jobpost id args with search and pagination
@@ -718,23 +460,7 @@ class JobPostService
         // Log activity for creating a job post
         $user = Auth::user();
 
-        if ($user instanceof \App\Models\User) {
-            activity('Create')
-                ->causedBy($user)
-                ->performedOn($jobBatch)
-                ->withProperties([
-                    'name' => $user->name,
-                    'username' => $user->username,
-                    'job_post_id' => $jobBatch->id,
-                    'position' => $jobBatch->Position ?? null,
-                    'item_no' => $jobBatch->ItemNo ?? null,
-                    'page_no' => $jobBatch->PageNo ?? null,
-                    'salary_grade' => $jobBatch->SalaryGrade ?? null,
-                    'ip' => request()->ip(),
-                    'user_agent' => request()->header('User-Agent'),
-                ])
-                ->log("{$user->name} created a new job post for position {$jobBatch->Position}.");
-        }
+        $this->activityLogService->logCreateJobPost($user,$jobBatch);
 
 
         return response()->json([
@@ -801,11 +527,15 @@ class JobPostService
             );
         }
 
+       
+
         // 7️⃣ Update plantilla and file if exists
         $plantilla = OnFundedPlantilla::firstOrNew(['job_batches_rsp_id' => $jobBatch->id]);
         $plantilla->PositionID = $jobValidated['PositionID'] ?? null;
         $plantilla->ItemNo = $jobValidated['ItemNo'] ?? null;
 
+         
+        $fileName = null; // initialize before the if block
         if ($request->hasFile('fileUpload')) {
             $file = $request->file('fileUpload');
             $fileName = time() . '_' . $file->getClientOriginalName();
@@ -816,20 +546,8 @@ class JobPostService
         $plantilla->save();
 
         $user = Auth::user();
-        activity('Update')
-            ->causedBy($user)
-            ->performedOn($jobBatch)
-            ->withProperties([
-                'name' => $user->name ?? null,
-                'username' => $user->username ?? null,
-                'job_post_id' => $jobBatch->id,
-                'updated_fields' => $jobValidated,
-                'criteria_updated' => $criteriaValidated ?? null,
-                'file_uploaded' => $request->hasFile('fileUpload') ? $fileName : 'No file uploaded',
-                'ip' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-            ])
-            ->log("{$user->name} Update  the job post for position {$jobBatch->Position}.");
+      
+        $this->activityLogService->logEditJobPost($user,$jobBatch,$jobValidated,$request,$fileName);
 
         return response()->json([
             'status' => 'success',
@@ -867,10 +585,14 @@ class JobPostService
             'Experience' => $validated['Experience'] ?? null,
         ]);
 
+
+
         // ✅ Step 7: Handle plantilla and file upload
         $file = $request->file('fileUpload');
         $fileName = time() . '_' . $file->getClientOriginalName();
         $filePath = $file->storeAs('plantilla_files', $fileName, 'public');
+
+
 
         $plantilla = OnFundedPlantilla::create([
             'job_batches_rsp_id' => $jobBatch->id,
@@ -880,21 +602,8 @@ class JobPostService
         ]);
 
         $user = Auth::user();
-        activity('Republished')
-            ->causedBy($user)
-            ->performedOn($jobBatch)
-            ->withProperties([
-                'name' => $user->name,
-                'username' => $user->username,
-                'new_job_post_id' => $jobBatch->id,
-                'old_job_post_id' => $validated['old_job_id'],
-                'criteria' => $validated,
-                'file_uploaded' => $fileName,
-                'ip' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-            ])
-            // ->log('Republished a job post');
-            ->log("{$user->name} Republished the job post for position {$jobBatch->Position}.");
+
+        $this->activityLogService->logRepublishedJobPost($user,$jobBatch,$validated,$fileName);
 
         // ✅ Step 8: Return response
         return response()->json([

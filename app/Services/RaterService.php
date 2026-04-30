@@ -23,10 +23,13 @@ class RaterService
     /**
      * Create a new class instance.
      */
-    // public function __construct()
-    // {
-    //     //
-    // }
+    protected $activityLogService;
+
+    public function __construct(ActivityLogService $activityLogService)
+    {
+        //
+        $this->activityLogService = $activityLogService;
+    }
 
 
     //create account and register rater account
@@ -54,22 +57,11 @@ class RaterService
         // Attach job batches
         $rater->job_batches_rsp()->attach($validated['job_batches_rsp_id']);
 
-        // ✅ Log the activity using Spatie Activity Log
-        activity('Create')
-            ->causedBy($authUser)               // The admin who created the rater
-            ->performedOn($rater)               // The new rater account created
-            ->withProperties([
-                'created_by' => $authUser?->name,
-                'new_rater_name' => $rater->name,
-                'username' => $rater->username,
-                'position' => $rater->position,
-                'office' => $rater->office,
-                'role' => 'Rater',
-                'assigned_job_batches' => $validated['job_batches_rsp_id'],
-                'ip' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-            ])
-            ->log("Rater {$rater->name} was Created successfully by '{$authUser?->name}'.");
+
+
+        // Activity Log
+
+        $this->activityLogService->logRaterCreateAccount($authUser, $rater);
 
         return response()->json([
             'status' => true,
@@ -142,24 +134,8 @@ class RaterService
         // Load updated relations
         $rater->load('job_batches_rsp');
 
-        // ✅ Log the update activity
-        activity('Update')
-            ->causedBy($authUser)                // The admin who made the change
-            ->performedOn($rater)                // The rater whose account was edited
-            ->withProperties([
-                'updated_by' => $authUser?->name,
-                'rater_name' => $rater->name,
-                'rater_username' => $rater->username,
-                'old_data' => $oldData,
-                'new_data' => [
-                    'office' => $rater->office,
-                    'active' => $rater->active,
-                    'job_batches_rsp_id' => $validated['job_batches_rsp_id'] ?? $oldData['job_batches_rsp_id'],
-                ],
-                'ip' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-            ])
-            ->log("Rater {$rater->name} was updated by '{$authUser?->name}'.");
+        // activity logs
+        $this->activityLogService->logRaterUpdateAssignTask($authUser,$rater,$validated,$oldData);
 
         return response()->json([
             'status' => true,
@@ -248,25 +224,9 @@ class RaterService
         $user->tokens()->delete();
 
         $token = $user->createToken('rater_token')->plainTextToken;
-        // Set the token in a secure cookie
-        // $cookie = cookie('rater_token', $token, 60 * 24, null, null, true, true, false, 'None');
 
-        //  Log the activity using Spatie Activity Log
-        // ✅ Fix: Ensure the correct type for Spatie activity log
-        if ($user instanceof \App\Models\User) {
-            activity('Login')
-                ->causedBy($user)
-                ->performedOn($user)
-                ->withProperties([
-                    'rater_name' => $user->name,
-                    'rater_username' => $user->username,
-                    'role' => $user->role?->role_name,
-                    'office' => $user->office,
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->header('User-Agent'),
-                ])
-                ->log("Rater {$user->name} logged in successfully.");
-        }
+        // activity logs
+        $this->activityLogService->logRaterLogin($user);
 
 
         return response([
@@ -311,21 +271,9 @@ class RaterService
         $rater->save();
 
 
-        // ✅ Log activity using Spatie Activitylog
-        if ($rater instanceof \App\Models\User) {
-            activity('Change Credentials')
-                ->causedBy($rater)
-                ->performedOn($rater)
-                ->withProperties([
-                    'rater_name' => $rater->name,
-                    'rater_username' => $rater->username,
-                    'role' => $rater->role?->role_name,
-                    'office' => $rater->office,
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->header('User-Agent'),
-                ])
-                ->log("Rater {$rater->name} changed their password.");
-        }
+     
+        // acivity logs
+        $this->activityLogService->logRaterUpdatePassword($rater);
 
 
         return response()->json([
@@ -378,7 +326,7 @@ class RaterService
     //  view rater details assigned jobs
     public function viewDetails($raterId)
     {
-        $rater = User::select('id', 'name', 'position', 'office','representative','role_type')
+        $rater = User::select('id', 'name', 'position', 'office', 'representative', 'role_type')
             ->with(['job_batches_rsp' => function ($query) {
                 $query->select(
                     'job_batches_rsp.id',
@@ -675,8 +623,8 @@ class RaterService
                         'name' => $user->name,
                         'username' => $user->username,
                         'office' => $user->office,
-                    'representative' => $user->representative,
-                    'role_type' => $user->role_type,
+                        'representative' => $user->representative,
+                        'role_type' => $user->role_type,
                         'pending' => $pendingCount,
                         'active' => $user->active,
                         'completed' => $completeCount,
@@ -820,7 +768,7 @@ class RaterService
                     'experience_score' => $validated['experience_score'] ?? 0,
                     'training_score' => $validated['training_score'] ?? 0,
                     'performance_score' => $validated['performance_score'] ?? 0,
-                    'behavioral_score' => $validated['behavioral_score'] ,
+                    'behavioral_score' => $validated['behavioral_score'],
                     'exam_score'      => $validated['exam_score'] ?? null,
                     'exam_percentage' => $validated['exam_percentage'] ?? null,
                     'total_qs' => $validated['total_qs'],
@@ -1063,12 +1011,12 @@ class RaterService
     public function raterWithAssignedJob($jobPostId)
     {
         try {
-            $users = User::where('role_id', 2)->where('active',1)
+            $users = User::where('role_id', 2)->where('active', 1)
                 ->with(['job_batches_rsp' => function ($q) use ($jobPostId) {
                     // Fetch only job posts assigned to the rater that are still pending
                     $q->select('job_batches_rsp.id', 'job_batches_rsp.Position', 'job_batches_rsp.post_date', 'job_batches_rsp.end_date')
                         ->wherePivot('status', 'complete')
-                        ->where('job_batches_rsp.id',$jobPostId);
+                        ->where('job_batches_rsp.id', $jobPostId);
                 }])
                 ->orderBy('created_at', 'desc')
                 ->get()
@@ -1118,7 +1066,7 @@ class RaterService
 
 
         // Get applicants with relationships
-        $submissions = Submission::where('job_batches_rsp_id',$validated['jobPostId'])
+        $submissions = Submission::where('job_batches_rsp_id', $validated['jobPostId'])
             ->with([
                 'nPersonalInfo.education',
                 'nPersonalInfo.work_experience',
@@ -1325,8 +1273,8 @@ class RaterService
 
         // ── External applicants (nPersonalInfo_id is NOT NULL) ──────────────────
         $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
-        ->whereIn('status', ['Qualified','Hired'])
-        ->whereIn('job_batches_rsp_id', $jobBatchIds)
+            ->whereIn('status', ['Qualified', 'Hired'])
+            ->whereIn('job_batches_rsp_id', $jobBatchIds)
             ->whereNotNull('nPersonalInfo_id')
             ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
                 $query->whereDate('date_of_birth', $date_of_birth)
@@ -1342,7 +1290,7 @@ class RaterService
             })
             ->with([
                 'nPersonalInfo:id,firstname,lastname,date_of_birth',
-            'job_batch_rsp:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
+                'job_batch_rsp:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
             ])
             ->get()
             ->map(function ($item) {
@@ -1353,8 +1301,8 @@ class RaterService
 
         // ── Internal applicants (nPersonalInfo_id IS NULL, name from xPersonal) ─
         $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
-        ->whereIn('status', ['Qualified','Hired'])
-        ->whereIn('job_batches_rsp_id', $jobBatchIds)
+            ->whereIn('status', ['Qualified', 'Hired'])
+            ->whereIn('job_batches_rsp_id', $jobBatchIds)
             ->whereNull('nPersonalInfo_id')
             ->whereHas('xPersonal', function ($query) use ($firstname, $lastname, $date_of_birth) {
                 $query->whereDate('BirthDate', $date_of_birth)
@@ -1370,7 +1318,7 @@ class RaterService
             })
             ->with([
                 'xPersonal',
-            'job_batch_rsp:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
+                'job_batch_rsp:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
             ])
             ->get()
             ->map(function ($item) {

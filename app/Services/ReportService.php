@@ -13,13 +13,14 @@ use App\Models\vwActive;
 use App\Models\xPersonal;
 use App\Models\xService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ReportService
 {
@@ -660,7 +661,7 @@ class ReportService
     }
 
     // generate report plantilla
-    public function plantilla()
+    public function plantilla($request)
     {
 
         // ✅ Check if queue worker is running BEFORE dispatching
@@ -682,6 +683,20 @@ class ReportService
 
         // Dispatch the job
         GeneratePlantillaReportJob::dispatch($jobId)->onQueue('reports');
+
+        
+            $user = Auth::user();
+        if ($user instanceof \App\Models\User) {
+            activity('Generate Plantilla Structure Report')
+                ->causedBy($user)
+                ->withProperties([
+                    'job_id'     => $jobId,
+                    'ip'         => $request->ip(),
+                    'user_agent' => $request->header('User-Agent'),
+                ])
+                ->log("{$user->name} generate plantilla report. Job ID: {$jobId}");
+        }
+
 
         return response()->json([
             'job_id' => $jobId,

@@ -39,10 +39,10 @@ class ReportController extends Controller
     }
 
     // generate report plantilla structure
-    public function reportPlantilla()
+    public function reportPlantilla(Request $request)
     {
 
-        $result = $this->reportService->plantilla();
+        $result = $this->reportService->plantilla($request);
 
         return $result;
     }
@@ -262,6 +262,21 @@ class ReportController extends Controller
         }
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
         $writer->setIncludeCharts(true);
+
+
+        $user = Auth::user();
+        if ($user instanceof \App\Models\User) {
+            activity('Export Job Request Vacant Position')
+                ->causedBy($user)
+                ->withProperties([
+                    'job_ids'      => $ids,
+                    'total_jobs'   => count($ids),
+                    'ip'           => $request->ip(),
+                    'user_agent'   => $request->header('User-Agent'),
+                ])
+                ->log("{$user->name} exported " . count($ids) . " job request position(s).");
+        }
+
 
         return new StreamedResponse(function () use ($writer) {
             $writer->save('php://output');
@@ -662,18 +677,18 @@ class ReportController extends Controller
 
         $jobPost = $jobPost->map(function ($job) {
 
-        $salary = DB::table('tblSalarySchedule')
-            ->where('Grade', $job->SalaryGrade)
-            ->where('Steps', 1)
-            ->first();
+            $salary = DB::table('tblSalarySchedule')
+                ->where('Grade', $job->SalaryGrade)
+                ->where('Steps', 1)
+                ->first();
 
-        $job->monthly_salary = $salary 
-            ? '₱' . number_format($salary->Salary, 2) 
-            : null;
+            $job->monthly_salary = $salary
+                ? '₱' . number_format($salary->Salary, 2)
+                : null;
 
-        return $job;
-    });
+            return $job;
+        });
 
-    return response()->json($jobPost);
+        return response()->json($jobPost);
     }
 }

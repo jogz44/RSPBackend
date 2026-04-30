@@ -9,8 +9,10 @@ use App\Models\vwActive;
 use App\Models\vwofficearrangement;
 use App\Models\vwplantillastructure;
 use App\Models\xService;
+use App\Services\ActivityLogService;
 use App\Services\PlantillaService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use LDAP\Result;
 use PDO;
@@ -19,10 +21,12 @@ class PlantillaController extends Controller
 {
 
         protected $plantillaService;
+        protected $activityLogService;
 
-     public function __construct(PlantillaService $plantillaService){
+     public function __construct(PlantillaService $plantillaService, ActivityLogService $activityLogService){
 
-     return $this->plantillaService = $plantillaService;
+        $this->plantillaService = $plantillaService;
+          $this->activityLogService = $activityLogService;
      }
 
     public function getMaxControlNo()
@@ -300,6 +304,10 @@ class PlantillaController extends Controller
                 ])
                 ->where('ControlNo', $ControlNo)
                 ->get();
+
+                $user = Auth::user();
+
+                $this->activityLogService->logEmployeeAppointment($user,$data);
 
             return response()->json($data);
         } catch (\Exception $e) {

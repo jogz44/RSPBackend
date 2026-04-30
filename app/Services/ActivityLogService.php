@@ -211,15 +211,180 @@ class ActivityLogService
         );
     }
 
+    //  rater updating he assign task by admin user
+    public function logRaterUpdateAssignTask($updatedBy, $rater, $validated, $oldData): void
+    {
+        $this->log(
+            'Rater update password',
+            $updatedBy,
+            $rater,
 
+            [
+                'updated_by' => $updatedBy?->name,
+                'rater_name' => $rater->name,
+                'rater_username' => $rater->username,
+                'old_data' => $oldData,
+                'new_data' => [
+                    'office' => $rater->office,
+                    'active' => $rater->active,
+                    'job_batches_rsp_id' => $validated['job_batches_rsp_id'] ?? $oldData['job_batches_rsp_id'],
+                ],
+            ],
+            "'Rater {$rater->name} changed their password."
 
-
-
-
-
-
-
+        );
+    }
 
     // ================================= RATER AUTH =============================== \\
 
+
+    // ================================= PLANTILLA =============================== \\
+
+    // plantilla position acitivty logs 
+    public function logFundedItem($user, $Id, $funded, $itemNo): void
+    {
+
+        $this->log(
+            'Plantilla position status',
+            $user,
+            $user,
+            [
+                'name'     => $user->name,
+                'username' => $user->username,
+                'funded'   => $funded,
+                'item_no'  => $itemNo,
+                'ID'       => $Id,
+            ],
+            "{$user->name} updated Funded status of ItemNo {$itemNo} to " . ($funded ? 'Funded' : 'Unfunded') . "."
+        );
+    }
+
+    // employee appointment logs
+    public function logEmployeeAppointment($user, $data): void
+    {
+        $employee = $data->first(); // get the first record from the collection
+
+        $controlNo   = $employee->ControlNo   ?? 'N/A';
+        $designation = $employee->Designation ?? 'N/A';
+        $office      = $employee->Office      ?? 'N/A';
+
+        $this->log(
+            'Employee Appointment',
+            $user,
+            null,
+            [
+                'name'        => $user->name,
+                'username'    => $user->username,
+                'ControlNo'   => $controlNo,
+                'Designation' => $designation,
+                'Office'      => $office,
+            ],
+            "{$user->name} viewed appointment record of ControlNo {$controlNo} - {$designation} at {$office}."
+        );
+    }
+
+    // create jobpost activity logs
+    public function logCreateJobPost($user, $jobBatch): void
+    {
+        $this->log(
+            'Creating Job post',
+            $user,
+            $jobBatch,
+            [
+                'name' => $user->name,
+                'username' => $user->username,
+                'job_post_id' => $jobBatch->id,
+                'position' => $jobBatch->Position,
+                'item_no' => $jobBatch->ItemNo,
+                'page_no' => $jobBatch->PageNo,
+                'salary_grade' => $jobBatch->SalaryGrade,
+            ],
+            "{$user->name} created a new job post for position {$jobBatch->Position}."
+        );
+    }
+
+    // ================================= PLANTILLA =============================== \\
+
+    // ================================= Job Post ================================= \\
+
+    // delete jobpost activity logs
+    public function logDeleteJobPost($user, $jobBatch): void
+    {
+        $this->log(
+            'Delete Job Post',
+            $user,
+            $jobBatch, // subject is null since the model is already deleted
+            [
+                'name'        => $user->name,
+                'username'    => $user->username,
+                'deleted_job' => [
+                    'id'       => $jobBatch->id,
+                    'position' => $jobBatch->Position ?? null,
+                    'item_no'  => $jobBatch->ItemNo   ?? null,
+                    'office'   => $jobBatch->Office    ?? null,
+                    'page_no'  => $jobBatch->PageNo    ?? null,
+                    'status'   => $jobBatch->status    ?? null,
+                ],
+            ],
+            "{$user->name} deleted job post ({$jobBatch->Position}) - ItemNo: {$jobBatch->ItemNo}."
+        );
+    }
+
+    // edit jobpost activity logs
+    public function logEditJobPost($user, $jobBatch, $jobValidated, $request, $fileName = null): void
+    {
+        $this->log(
+            'Edit Job Post', // ✅ fixed event name
+            $user,
+            $jobBatch,
+            [
+                'name'            => $user->name     ?? null,
+                'username'        => $user->username ?? null,
+                'job_post_id'     => $jobBatch->id,
+                'updated_fields'  => $jobValidated,
+                'criteria_updated' => [  // extract from $jobValidated instead of undefined $criteriaValidated
+                    'Education'   => $jobValidated['Education']   ?? null,
+                    'Eligibility' => $jobValidated['Eligibility'] ?? null,
+                    'Training'    => $jobValidated['Training']    ?? null,
+                    'Experience'  => $jobValidated['Experience']  ?? null,
+                ],
+                'file_uploaded'   => $fileName ?? 'No file uploaded', // ✅ safe default
+            ],
+            "{$user->name} updated the job post for position {$jobBatch->Position}."
+        );
+    }
+
+    // republished job post  activity log 
+    public function logRepublishedJobPost($user, $jobBatch, $jobValidated, $fileName = null): void
+    {
+        $this->log(
+            'Republished Job Post',
+            $user,
+            $jobBatch,
+            [
+                'name'             => $user->name,
+                'username'         => $user->username,
+                'new_job_post_id'  => $jobBatch->id,
+                'old_job_post_id'  => $jobValidated['old_job_id'] ?? null,
+                'republished_job'  => [
+                    'id'       => $jobBatch->id,
+                    'position' => $jobBatch->Position ?? null,
+                    'item_no'  => $jobBatch->ItemNo   ?? null,
+                    'office'   => $jobBatch->Office   ?? null,
+                    'page_no'  => $jobBatch->PageNo   ?? null,
+                    'status'   => $jobBatch->status   ?? null,
+                ],
+                'criteria' => [
+                    'Education'   => $jobValidated['Education']   ?? null,
+                    'Eligibility' => $jobValidated['Eligibility'] ?? null,
+                    'Training'    => $jobValidated['Training']    ?? null,
+                    'Experience'  => $jobValidated['Experience']  ?? null,
+                ],
+                'file_uploaded' => $fileName ?? 'No file uploaded',
+            ],
+            "{$user->name} republished the job post for position {$jobBatch->Position} - ItemNo: {$jobBatch->ItemNo}."
+        );
+    }
+
+    // ================================= Job Post ================================= \\
 }
