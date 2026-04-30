@@ -25,6 +25,15 @@ class DashboardService
                 $q->whereHas('jobPost', fn($j) => $j->where('post_date', $postDate));
             })
             ->first();
+        // ✅ Internal = has ControlNo, External = only has nPersonalInfo_id (no ControlNo)
+        $applicantType = Submission::selectRaw("
+            SUM(CASE WHEN ControlNo IS NOT NULL THEN 1 ELSE 0 END) as [internal],
+            SUM(CASE WHEN ControlNo IS NULL AND nPersonalInfo_id IS NOT NULL THEN 1 ELSE 0 END) as [external]
+        ")
+            ->when($postDate, function ($q) use ($postDate) {
+                $q->whereHas('jobPost', fn($j) => $j->where('post_date', $postDate));
+            })
+            ->first();
 
         // Plantilla — no postDate filter needed
         $plantilla = vwplantillastructure::selectRaw("
@@ -40,6 +49,10 @@ class DashboardService
             'pending'         => (int) $applicants->pending,
             'unqualified'     => (int) $applicants->unqualified,
             'total_applicant' => (int) $applicants->total,
+
+            'internal'        => (int) $applicantType->internal,
+            'external'        => (int) $applicantType->external,
+
 
             'funded'          => (int) $plantilla->funded,
             'unfunded'        => (int) $plantilla->unfunded,
@@ -162,7 +175,7 @@ class DashboardService
     // get the number of total of applicant per office
     public function getApplicantSummaryByOffice($postDate = null)
     {
-        $summary = JobBatchesRsp::select('Office','post_date')
+        $summary = JobBatchesRsp::select('Office', 'post_date')
             ->when($postDate, fn($q) => $q->where('post_date', $postDate)) // ✅ only filter if postDate is provided
             ->withCount([
                 'submissions as total_applicant',
