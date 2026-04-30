@@ -212,6 +212,18 @@ class ApplicantApplicationService
 
                 DB::commit();
 
+                // try {
+                //     $this->sendApplicantEmail($applicant, $validated['job_batches_rsp_id'], false);
+                // } catch (\Exception $e) {
+                //     Log::error('Failed to send applicant email', ['error' => $e->getMessage()]);
+                // }
+
+                // try {
+                //     $this->sendApplicantSms($applicant, $validated['job_batches_rsp_id'], false);
+                // } catch (\Exception $e) {
+                //     Log::error('Failed to send applicant SMS', ['error' => $e->getMessage()]);
+                // }
+
 
                 return response()->json([
                     'success' => true,
@@ -742,8 +754,8 @@ class ApplicantApplicationService
             'citizenship' => $citizen,
             'date_of_birth' => $date_of_birth,
             'place_of_birth' => $this->upper($sheet->getCell('D15')->getValue()),
-            'height' => $sheet->getCell('D21')->getValue(),
-            'weight' => $sheet->getCell('D23')->getValue(),
+            'height' => $this->sanitizeNumericValue($sheet->getCell('D21')->getValue()),
+            'weight' => $this->sanitizeNumericValue($sheet->getCell('D23')->getValue()),
             'blood_type' => $this->upper($sheet->getCell('D24')->getValue()),
             // 'gsis_no' => $sheet->getCell('D26')->getValue(), // CHANGE TO  umid id no
             'umId' => $sheet->getCell('D26')->getValue(), // CHANGE TO  umid id no
@@ -772,7 +784,8 @@ class ApplicantApplicationService
             'permanent_city' => $this->upper($sheet->getCell('I28')->getValue()),
             'permanent_province' => $this->upper($sheet->getCell('L28')->getValue()),
             'permanent_zip' => $sheet->getCell('I30')->getValue(),
-            'telephone_number' => $sheet->getCell('I31')->getValue(),
+           'telephone_number' => $sheet->getCell('I31')->getValue(),
+
             'cellphone_number' => $sheet->getCell('I32')->getValue(),
             'email_address' => $sheet->getCell('I33')->getValue(),
 
@@ -2290,4 +2303,6 @@ class ApplicantApplicationService
     {
         return strtoupper(trim($value ?? ''));
     }
+
+
 }
