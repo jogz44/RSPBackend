@@ -319,7 +319,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/job-post/{jobpostId}', [ReportController::class, 'getApplicantJobPost']);
         Route::get('/applicant-final-score/{jobpostId}', [ReportController::class, 'reportApplicantFinalScore']); // final summary of rating qulification standard
         Route::get('/placement-list/{office}', [ReportController::class, 'placementList']);
-        Route::get('/job/complete', [JobBatchesRspController::class, 'jobPostCompleteStatus']);   //  create a new job post
+        Route::get('/job/complete', [JobBatchesRspController::class, 'jobPostCompleteStatus']);   //  fetch if rated or occupied
         Route::get('/ranking/applicant/{date}', [ReportController::class, 'topFiveApplicants']);  //get top 5 ranking applicant publication
         Route::get('/applicant/qualified/{date}', [ReportController::class, 'listQualifiedApplicantsPublication']); // list of qualified applicants  for job post publication
         Route::get('/applicant/unqualified/{date}', [ReportController::class, 'listUnQualifiedApplicantsPublication']); // list of Unqualified applicants  for job post publication
@@ -340,6 +340,9 @@ Route::middleware('auth:sanctum')->group(function () {
        Route::get('/list-date/publication', [ReportController::class, 'listDate']);
        // request job post list base on the publication date send
         Route::post('/publication-job', [ReportController::class, 'jobPublication']);
+
+        // list of job with bei only
+        Route::get('/job-bei', [JobBatchesRspController::class, 'jostPostWithBei']);
 
     });
 

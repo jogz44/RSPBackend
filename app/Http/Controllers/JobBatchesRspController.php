@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\JobPostRepublishedRequest;
 use App\Http\Requests\JobPostStoreRequest;
 use App\Http\Requests\JobPostUpdateRequest;
+
 use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
 
@@ -254,6 +255,21 @@ class JobBatchesRspController extends Controller
         return response()->json($jobs);
     }
 
+    // fetch the jobpost have bei and status rater or occupied
+    public function jostPostWithBei()
+    {
+        $jobs = JobBatchesRsp::select('id', 'Office', 'Position', 'status', 'post_date', 'end_date')
+            ->with(['criteriaRatings' => function ($query) {
+                $query->with(['behaviorals']);
+            }])
+            ->whereIn('status', ['Republished', 'rated', 'Unoccupied', 'Occupied'])
+            ->whereHas('criteriaRatings.behaviorals') // only jobs that have at least 1 behavioral
+            ->get();
+
+        return response()->json($jobs);
+    }
+
+
     // // fetch the  jobpost with rated and occupied position
     // public function jobPostList()
     // {
@@ -439,7 +455,7 @@ class JobBatchesRspController extends Controller
     //         ->get();
     // }
 
-    
+
     // training images — all records
     public function getInternalPdsImage($controlNo, ApplicantService $applicantService)
     {

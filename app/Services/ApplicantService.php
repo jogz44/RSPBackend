@@ -432,7 +432,7 @@ class ApplicantService
         $perPage = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
 
         // $jobpost = JobBatchesRsp::findOrFail($jobpostId);
-        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams'])
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams','behaviorals'])
             ->where('job_batches_rsp_id', $jobpostId)->get();
 
         $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
@@ -701,7 +701,7 @@ class ApplicantService
 
     public function applicantScoreDetials($applicantId, $jobBatchId)
     {
-        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams'])
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams','behaviorals'])
             ->where('job_batches_rsp_id', $jobBatchId)->get();
 
         $historyRecords = rating_score::select(
@@ -818,7 +818,7 @@ class ApplicantService
     {
         $jobpost = JobBatchesRsp::findOrFail($jobpostId);
 
-        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams'])
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams','behaviorals'])
             ->where('job_batches_rsp_id', $jobpostId)->get();
 
         $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)

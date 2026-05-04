@@ -95,11 +95,11 @@ class JobBatchesRsp extends Model
         return $this->hasMany(nPersonal_info::class,);
     }
 
+
     public function criteriaRatings()
     {
-        return $this->hasMany(criteria_rating::class, 'job_batches_rsp_id');
+        return $this->hasMany(criteria_rating::class, 'job_batches_rsp_id', 'id');
     }
-
     // public function applicants()
     // {
     //     return $this->belongsToMany(nPersonal_info::class, 'submission', 'job_batches_rsp_id', 'nPersonalInfo_id',)
