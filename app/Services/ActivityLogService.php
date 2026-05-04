@@ -262,7 +262,12 @@ class ActivityLogService
     // employee appointment logs
     public function logEmployeeAppointment($user, $data): void
     {
-        $employee = $data->first(); // get the first record from the collection
+        $employee = $data->first(); // could be null if collection is empty
+
+        // ✅ Guard: nothing to log if no record found
+        if (!$employee) {
+            return;
+        }
 
         $controlNo   = $employee->ControlNo   ?? 'N/A';
         $designation = $employee->Designation ?? 'N/A';
@@ -271,7 +276,7 @@ class ActivityLogService
         $this->log(
             'Employee Appointment',
             $user,
-            null,
+            $employee, // ✅ pass the actual model, not null
             [
                 'name'        => $user->name,
                 'username'    => $user->username,
@@ -282,7 +287,6 @@ class ActivityLogService
             "{$user->name} viewed appointment record of ControlNo {$controlNo} - {$designation} at {$office}."
         );
     }
-
     // create jobpost activity logs
     public function logCreateJobPost($user, $jobBatch): void
     {
