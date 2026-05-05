@@ -701,7 +701,7 @@ class ApplicantService
 
     public function applicantScoreDetials($applicantId, $jobBatchId)
     {
-        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams','behaviorals'])
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams', 'behaviorals'])
             ->where('job_batches_rsp_id', $jobBatchId)->get();
 
         $historyRecords = rating_score::select(
@@ -818,7 +818,7 @@ class ApplicantService
     {
         $jobpost = JobBatchesRsp::findOrFail($jobpostId);
 
-        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams','behaviorals'])
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams', 'behaviorals'])
             ->where('job_batches_rsp_id', $jobpostId)->get();
 
         $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
@@ -1169,6 +1169,10 @@ class ApplicantService
                     if (isset($child['id'])) {
                         Children::where('id', $child['id'])
                             ->update(collect($child)->except('id')->toArray());
+                    } else {
+                        Children::create(array_merge($child, [
+                            'nPersonalInfo_id' => $validated['personal_info_id']
+                        ]));
                     }
                 }
             }
@@ -1179,16 +1183,26 @@ class ApplicantService
                     if (isset($item['id'])) {
                         Civil_service_eligibity::where('id', $item['id'])
                             ->update(collect($item)->except('id')->toArray());
+                    } else {
+                        Civil_service_eligibity::create(array_merge($item, [
+                            'nPersonalInfo_id' => $validated['personal_info_id']
+                        ]));
                     }
                 }
             }
 
+
             // --- Education ---
+
             if (isset($validated['educations'])) {
                 foreach ($validated['educations'] as $item) {
                     if (isset($item['id'])) {
                         Education_background::where('id', $item['id'])
                             ->update(collect($item)->except('id')->toArray());
+                    } else {
+                        Education_background::create(array_merge($item, [
+                            'nPersonalInfo_id' => $validated['personal_info_id']
+                        ]));
                     }
                 }
             }
@@ -1199,6 +1213,10 @@ class ApplicantService
                     if (isset($item['id'])) {
                         Learning_development::where('id', $item['id'])
                             ->update(collect($item)->except('id')->toArray());
+                    } else {
+                        Learning_development::create(array_merge($item, [
+                            'nPersonalInfo_id' => $validated['personal_info_id']
+                        ]));
                     }
                 }
             }
@@ -1209,6 +1227,10 @@ class ApplicantService
                     if (isset($item['id'])) {
                         skill_non_academic::where('id', $item['id'])
                             ->update(collect($item)->except('id')->toArray());
+                    } else {
+                        skill_non_academic::create(array_merge($item, [
+                            'nPersonalInfo_id' => $validated['personal_info_id']
+                        ]));
                     }
                 }
             }
@@ -1219,19 +1241,27 @@ class ApplicantService
                     if (isset($item['id'])) {
                         Voluntary_work::where('id', $item['id'])
                             ->update(collect($item)->except('id')->toArray());
+                    } else {
+                        Voluntary_work::create(array_merge($item, [
+                            'nPersonalInfo_id' => $validated['personal_info_id']
+                        ]));
                     }
                 }
             }
-
             // --- Work Experience ---
             if (isset($validated['work_experiences'])) {
                 foreach ($validated['work_experiences'] as $item) {
                     if (isset($item['id'])) {
                         Work_experience::where('id', $item['id'])
                             ->update(collect($item)->except('id')->toArray());
+                    } else {
+                        Work_experience::create(array_merge($item, [
+                            'nPersonalInfo_id' => $validated['personal_info_id']
+                        ]));
                     }
                 }
             }
+
 
             // --- references ---
             if (isset($validated['references'])) {
@@ -1239,6 +1269,10 @@ class ApplicantService
                     if (isset($item['id'])) {
                         references::where('id', $item['id'])
                             ->update(collect($item)->except('id')->toArray());
+                    } else {
+                        references::create(array_merge($item, [
+                            'nPersonalInfo_id' => $validated['personal_info_id']
+                        ]));
                     }
                 }
             }
@@ -1251,7 +1285,7 @@ class ApplicantService
 
 
     // get the internalPds
-     function getInternalPdsImage($controlNo)
+    function getInternalPdsImage($controlNo)
     {
         $training    = $this->getTrainingImage($controlNo);
         $education   = $this->getEducationImage($controlNo);
