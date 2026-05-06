@@ -95,10 +95,10 @@ class ApplicantApplicationService
 
             // Step 2: Check for duplicate applicant based on NAME and BIRTHDATE ONLY
             // This allows same email to apply multiple times
-            $existingSubmission = Submission::whereHas('nPersonalInfo', function ($query) use ($excelData) {
+            $existingSubmission = Submission::whereHas('nPersonalInfo', function ($query) use ($excelData, $parsedBirthDate) {
                 $query->where('firstname', $excelData['personal_info']['firstname'])
                     ->where('lastname', $excelData['personal_info']['lastname'])
-                    ->whereDate('date_of_birth', $excelData['personal_info']['date_of_birth']);
+                    ->whereRaw("CONVERT(date, date_of_birth, 103) = ?", [$parsedBirthDate]);
             })
                 ->where('job_batches_rsp_id', $validated['job_batches_rsp_id'])
                 ->first();
@@ -114,10 +114,10 @@ class ApplicantApplicationService
 
             // 3. Count how many applications the applicant submitted in this job group
             $applicationCount = Submission::whereIn('job_batches_rsp_id', $jobGroupIds)
-                ->whereHas('nPersonalInfo', function ($q) use ($excelData) {
+                ->whereHas('nPersonalInfo', function ($q) use ($excelData, $parsedBirthDate) {
                     $q->where('firstname', $excelData['personal_info']['firstname'])
                         ->where('lastname',  $excelData['personal_info']['lastname'])
-                        ->whereDate('date_of_birth', $excelData['personal_info']['date_of_birth']);
+                        ->whereRaw("CONVERT(date, date_of_birth, 103) = ?", [$parsedBirthDate]);
                 })
                 ->count();
 
@@ -326,10 +326,10 @@ class ApplicantApplicationService
 
             // Step 2: Check for duplicate applicant based on NAME and BIRTHDATE ONLY
             // This allows same email to apply multiple times
-            $existingSubmission = Submission::whereHas('nPersonalInfo', function ($query) use ($excelData) {
+            $existingSubmission = Submission::whereHas('nPersonalInfo', function ($query) use ($excelData, $parsedBirthDate) {
                 $query->where('firstname', $excelData['personal_info']['firstname'])
                     ->where('lastname', $excelData['personal_info']['lastname'])
-                    ->whereDate('date_of_birth', $excelData['personal_info']['date_of_birth']);
+                    ->whereRaw("CONVERT(date, date_of_birth, 103) = ?", [$parsedBirthDate]);
             })
                 ->where('job_batches_rsp_id', $validated['job_batches_rsp_id'])
                 ->first();
@@ -345,10 +345,10 @@ class ApplicantApplicationService
 
             // 3. Count how many applications the applicant submitted in this job group
             $applicationCount = Submission::whereIn('job_batches_rsp_id', $jobGroupIds)
-                ->whereHas('nPersonalInfo', function ($q) use ($excelData) {
+                ->whereHas('nPersonalInfo', function ($q) use ($excelData, $parsedBirthDate) {
                     $q->where('firstname', $excelData['personal_info']['firstname'])
                         ->where('lastname',  $excelData['personal_info']['lastname'])
-                        ->whereDate('date_of_birth', $excelData['personal_info']['date_of_birth']);
+                        ->whereRaw("CONVERT(date, date_of_birth, 103) = ?", [$parsedBirthDate]);
                 })
                 ->count();
 
@@ -784,7 +784,7 @@ class ApplicantApplicationService
             'permanent_city' => $this->upper($sheet->getCell('I28')->getValue()),
             'permanent_province' => $this->upper($sheet->getCell('L28')->getValue()),
             'permanent_zip' => $sheet->getCell('I30')->getValue(),
-           'telephone_number' => $sheet->getCell('I31')->getValue(),
+            'telephone_number' => $sheet->getCell('I31')->getValue(),
 
             'cellphone_number' => $sheet->getCell('I32')->getValue(),
             'email_address' => $sheet->getCell('I33')->getValue(),
@@ -1389,7 +1389,7 @@ class ApplicantApplicationService
 
             $formatsToTry = [
                 'd/m/Y',   // 21/04/2026  ← your target format (try first)
-                'm/d/Y',   // 04/21/2026  ← US format
+
                 'Y/m/d',   // 2026/04/21
                 'd-m-Y',   // 21-04-2026
                 'm-d-Y',   // 04-21-2026
@@ -1398,6 +1398,7 @@ class ApplicantApplicationService
                 'm.d.Y',   // 04.21.2026
                 'd/m/y',   // 21/04/26
                 'm/d/y',   // 04/21/26
+                'm/d/Y',   // 04/21/2026  ← US format
             ];
 
             foreach ($formatsToTry as $format) {
@@ -2117,14 +2118,23 @@ class ApplicantApplicationService
 
     private function parseBirthDate($rawDate): string
     {
+        // $formats = [
+        //     'm/d/Y',   // 06/11/2002 ← your Excel format (try FIRST)
+        //     'm/d/y',   // 06/11/02
+        //     'Y-m-d',   // 1990-05-15
+        //     'd-m-Y',   // 15-05-1990
+        //     'Y/m/d',   // 1990/05/15
+        //     'd/m/Y',   // 15/06/1990 (European format - try LAST)
+        //     'd/m/y',   // 15/06/90
+        // ];
         $formats = [
-            'm/d/Y',   // 06/11/2002 ← your Excel format (try FIRST)
-            'm/d/y',   // 06/11/02
-            'Y-m-d',   // 1990-05-15
-            'd-m-Y',   // 15-05-1990
-            'Y/m/d',   // 1990/05/15
-            'd/m/Y',   // 15/06/1990 (European format - try LAST)
-            'd/m/y',   // 15/06/90
+            'Y-m-d',   // 2002-06-07  ← ISO, unambiguous, try first
+            'd/m/Y',   // 7/6/2002   ← Philippine/European: day first ✅
+            'd/m/y',   // 7/6/02
+            'd-m-Y',   // 07-06-2002
+            'm/d/Y',   // US format - try LAST to avoid d/m swap
+            'm/d/y',
+            'Y/m/d',
         ];
 
         foreach ($formats as $format) {
@@ -2141,7 +2151,6 @@ class ApplicantApplicationService
 
         return Carbon::parse($rawDate)->format('Y-m-d');
     }
-
 
 
     private function normalizePhoneNumber(?string $number): ?string
@@ -2303,6 +2312,4 @@ class ApplicantApplicationService
     {
         return strtoupper(trim($value ?? ''));
     }
-
-
 }
