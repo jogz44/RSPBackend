@@ -321,7 +321,7 @@ class AuthController extends Controller
             $user->username = $validatedData['username'];
             $user->position = $validatedData['position'];
             $user->active = $validatedData['active'];
-            $user->user_role = $validatedData['user_role'];
+            $user->user_role = $validatedData['user_role'] ?? null; // ✅ Fixed
 
             // Only update password if provided
             if ($request->filled('password')) {
@@ -408,7 +408,7 @@ class AuthController extends Controller
 
             // Fetch updated user with permissions
             $updatedUser = User::with('rspControl')
-                ->select('id', 'name', 'username', 'position', 'active')
+                ->select('id', 'name', 'username', 'position', 'active','user_role')
                 ->findOrFail($id);
 
             return response()->json([
