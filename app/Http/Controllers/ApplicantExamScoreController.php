@@ -6,8 +6,10 @@ use App\Http\Requests\AddExamScoreApplicantRequest;
 use App\Http\Requests\UpdateExamScoreApplicantRequest;
 use App\Models\ApplicantExamScore;
 use App\Models\Submission;
+use App\Services\ActivityLogService;
 use App\Services\ApplicantExamScoreService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -16,10 +18,12 @@ class ApplicantExamScoreController extends Controller
     //
 
     protected $applicantExamScoreService;
+    protected $activityLogService;
 
-    public function __construct(ApplicantExamScoreService $applicantExamScoreService)
+    public function __construct(ApplicantExamScoreService $applicantExamScoreService, ActivityLogService $activityLogService)
     {
         $this->applicantExamScoreService = $applicantExamScoreService;
+        $this->activityLogService = $activityLogService;
     }
 
     // store the applicant exam score
@@ -50,8 +54,12 @@ class ApplicantExamScoreController extends Controller
                 'message' => 'Exam score Id not found.',
             ], 404);
         }
+        // user
+        $user = Auth::user();
 
         $exam->delete();
+        //  Log after delete, using pre-captured $exam data
+        $this->activityLogService->logApplicantExamScoreDelete($user, $exam);
 
         return response()->json([
             'status'  => true,
@@ -69,7 +77,7 @@ class ApplicantExamScoreController extends Controller
     // list of applicant that have exam score
     public function listOfApplicantWithScore(Request $request)
     {
-       return $this->applicantExamScoreService->listOfApplicantWithScore($request);
+        return $this->applicantExamScoreService->listOfApplicantWithScore($request);
     }
 
     // public function getApplicantPhoto($nPersonalInfoId)

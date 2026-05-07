@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ApplicantExamScore;
 use App\Models\Submission;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ApplicantExamScoreService
@@ -11,22 +12,33 @@ class ApplicantExamScoreService
     /**
      * Create a new class instance.
      */
-    public function __construct()
+
+    protected $activityLogService;
+
+    public function __construct(ActivityLogService $activityLogService)
     {
         //
+
+        $this->activityLogService  = $activityLogService;
     }
 
     // store the applicant exam score
     public function addExamScoreOfApplicant($validated)
     {
         $results = [];
+        $user = Auth::user();
 
         foreach ($validated['applicants'] as $applicant) {
-            $results[] = ApplicantExamScore::updateOrCreate(
+            $examScore = ApplicantExamScore::updateOrCreate(
                 ['submission_id' => $applicant['submission_id']], // avoid duplicates
                 $applicant
             );
+
+            $results[] = $examScore;
+            // activity log for add exam score of applicant
+            $this->activityLogService->logAddExamScoreOfApplicant($user, $examScore);
         }
+
 
         return response()->json([
             'status'  => true,
@@ -48,8 +60,22 @@ class ApplicantExamScoreService
             ], 404);
         }
 
-        // ✅ Update and return the actual updated record
+        $oldValues = $examScore->only([
+            'exam_score',
+            'exam_total_score',
+            'exam_type',
+            'exam_date',
+            'exam_remarks',
+        ]);
+        // Update and return the actual updated record
         $examScore->update($validated);
+
+        $updatedExamScore = $examScore->fresh();
+
+        $user = Auth::user();
+
+        // ✅ Log the update activity
+        $this->activityLogService->logUpdateExamScoreOfApplicant($user, $updatedExamScore, $oldValues);
 
         return response()->json([
             'status'  => true,

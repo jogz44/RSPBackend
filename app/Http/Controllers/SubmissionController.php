@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\excel\nPersonal_info;
+use App\Services\ActivityLogService;
 use App\Services\SubmissionService;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,10 +18,12 @@ class SubmissionController extends Controller
 
     // service for handling the status of the applicant
     protected $submissionService;
+    protected $activityLogService;
 
-    public function __construct(SubmissionService $submissionService)
+    public function __construct(SubmissionService $submissionService,ActivityLogService $activityLogService)
     {
         $this->submissionService = $submissionService;
+        $this->activityLogService = $activityLogService;
     }
 
     // deleting applicant on the job_post he/she applicant
@@ -76,19 +79,20 @@ class SubmissionController extends Controller
         
         $submission->delete();
 
-     
         $user = Auth::user();
-        if ($user instanceof \App\Models\User) {
-            activity('Deleted Applicant Submission')
-                ->causedBy($user)
-                ->performedOn($submission) // ✅ now a Model, not a Builder
-                ->withProperties([
-                    'submission_id' => $submissionId,
-                    'ip'            => $request->ip(),
-                    'user_agent'    => $request->header('User-Agent'),
-                ])
-                ->log("{$user->name} deleted submission ID {$submissionId}.");
-        }
+        // if ($user instanceof \App\Models\User) {
+        //     activity('Deleted Applicant Submission')
+        //         ->causedBy($user)
+        //         ->performedOn($submission) // ✅ now a Model, not a Builder
+        //         ->withProperties([
+        //             'submission_id' => $submissionId,
+        //             'ip'            => $request->ip(),
+        //             'user_agent'    => $request->header('User-Agent'),
+        //         ])
+        //         ->log("{$user->name} deleted submission ID {$submissionId}.");
+        // }
+
+        $this->activityLogService->logDeleteApplicantApplied($user,$submission);
 
 
         return response()->json([

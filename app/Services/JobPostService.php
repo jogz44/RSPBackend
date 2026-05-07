@@ -33,31 +33,34 @@ class JobPostService
 
 
         $jobPost = JobBatchesRsp::findOrFail($JobPostingId);
+
+        $oldStatus = $jobPost->status;
+
         $jobPost->update([
             'status' => $validated['status'],
         ]);
 
         $user = Auth::user();
 
-        if ($user instanceof \App\Models\User) {
-            activity('Job Post Status Update')
-                ->causedBy($user)
-                ->performedOn($jobPost)
-                ->withProperties([
-                    'name'   => $user->name,
-                    'username'     => $user->username,
-                    'job_post_id'  => $jobPost->id,
-                    'position'     => $jobPost->Position ?? null,
-                    'item_no'      => $jobPost->ItemNo ?? null,
-                    'old_status'   => $jobPost->getOriginal('status'),
-                    'new_status'   => $validated['status'],
-                    'ip'           => request()->ip(),
-                    'user_agent'   => request()->header('User-Agent'),
-                ])
-                ->log("{$user->name} marked job post {$jobPost->Position} as Unoccupied.");
-        }
+        // if ($user instanceof \App\Models\User) {
+        //     activity('Job Post Status Update')
+        //         ->causedBy($user)
+        //         ->performedOn($jobPost)
+        //         ->withProperties([
+        //             'name'   => $user->name,
+        //             'username'     => $user->username,
+        //             'job_post_id'  => $jobPost->id,
+        //             'position'     => $jobPost->Position ?? null,
+        //             'item_no'      => $jobPost->ItemNo ?? null,
+        //             'old_status'   => $jobPost->getOriginal('status'),
+        //             'new_status'   => $validated['status'],
+        //             'ip'           => request()->ip(),
+        //             'user_agent'   => request()->header('User-Agent'),
+        //         ])
+        //         ->log("{$user->name} marked job post {$jobPost->Position} as Unoccupied.");
+        // }
 
-        // $this->activityLogService->logCreateJobPost($user,$jobPost);
+        $this->activityLogService->logUnoccupied($user, $jobPost, $validated, $oldStatus);
 
 
         return response()->json([
@@ -72,10 +75,10 @@ class JobPostService
         // Only fetch jobs where end_post is today or later (still active)
         $today = Carbon::today();
         $activeJobs = JobBatchesRsp::whereDate('post_date', '<=', $today)
-        ->whereDate('end_date', '>=', $today)
-        // ->orderBy('post_date', 'asc')
-        ->whereNotIn('status', ['Unoccupied', 'Occupied', 'Republished'])
-             ->orderBy('Position', 'asc')
+            ->whereDate('end_date', '>=', $today)
+            // ->orderBy('post_date', 'asc')
+            ->whereNotIn('status', ['Unoccupied', 'Occupied', 'Republished'])
+            ->orderBy('Position', 'asc')
             ->get();
 
         return response()->json($activeJobs);
@@ -86,7 +89,7 @@ class JobPostService
     {
         // 🔹 Fetch job posts EXCLUDING republished ones
         $jobPosts = JobBatchesRsp::select('id', 'Position', 'post_date', 'Office', 'PositionID', 'ItemNo', 'status', 'end_date', 'tblStructureDetails_ID')
-           ->orderBy('Position', 'asc')
+            ->orderBy('Position', 'asc')
             ->whereRaw('LOWER(status) != ?', ['republished']) // ✅ exclude republished
             ->withCount([
                 'submissions as total_applicants',
@@ -141,8 +144,8 @@ class JobPostService
 
         // 🔄 Reload updated list (still excluding republished)
         $jobPosts = JobBatchesRsp::select('id', 'Position', 'post_date', 'Office', 'PositionID', 'ItemNo', 'status', 'end_date', 'tblStructureDetails_ID')
-           ->orderBy('Position', 'asc')    
-        ->whereRaw('LOWER(status) != ?', ['republished']) // ✅ exclude republished again
+            ->orderBy('Position', 'asc')
+            ->whereRaw('LOWER(status) != ?', ['republished']) // ✅ exclude republished again
             ->withCount([
                 'submissions as total_applicants',
                 'submissions as qualified_count' => function ($query) {
@@ -291,7 +294,7 @@ class JobPostService
 
         $user = Auth::user();
 
-        $this->activityLogService->logDeleteJobPost($user,$jobBatch);
+        $this->activityLogService->logDeleteJobPost($user, $jobBatch);
 
         return response()->json([
             'message' => 'deleted successfully',
@@ -460,7 +463,7 @@ class JobPostService
         // Log activity for creating a job post
         $user = Auth::user();
 
-        $this->activityLogService->logCreateJobPost($user,$jobBatch);
+        $this->activityLogService->logCreateJobPost($user, $jobBatch);
 
 
         return response()->json([
@@ -527,14 +530,14 @@ class JobPostService
             );
         }
 
-       
+
 
         // 7️⃣ Update plantilla and file if exists
         $plantilla = OnFundedPlantilla::firstOrNew(['job_batches_rsp_id' => $jobBatch->id]);
         $plantilla->PositionID = $jobValidated['PositionID'] ?? null;
         $plantilla->ItemNo = $jobValidated['ItemNo'] ?? null;
 
-         
+
         $fileName = null; // initialize before the if block
         if ($request->hasFile('fileUpload')) {
             $file = $request->file('fileUpload');
@@ -546,8 +549,8 @@ class JobPostService
         $plantilla->save();
 
         $user = Auth::user();
-      
-        $this->activityLogService->logEditJobPost($user,$jobBatch,$jobValidated,$request,$fileName);
+
+        $this->activityLogService->logEditJobPost($user, $jobBatch, $jobValidated, $request, $fileName);
 
         return response()->json([
             'status' => 'success',
@@ -603,7 +606,7 @@ class JobPostService
 
         $user = Auth::user();
 
-        $this->activityLogService->logRepublishedJobPost($user,$jobBatch,$validated,$fileName);
+        $this->activityLogService->logRepublishedJobPost($user, $jobBatch, $validated, $fileName);
 
         // ✅ Step 8: Return response
         return response()->json([

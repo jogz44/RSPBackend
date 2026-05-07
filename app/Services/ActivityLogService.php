@@ -11,7 +11,7 @@ class ActivityLogService
     {
         //
     }
-
+    // Activity -> Causer -> Subject
     public function log(string $event, $causer, $subject, array $properties, string $description): void
     {
         activity($event)
@@ -390,5 +390,272 @@ class ActivityLogService
         );
     }
 
+    // unoccupied activity log job post
+
+    public function logUnoccupied($user, $jobPost, $validated, $oldStatus)
+    {
+        $this->log(
+            'Job Post Status Update',
+            $user,
+            $jobPost,
+            [
+                'name'         => $user->name,
+                'username'     => $user->username,
+                'job_post_id'  => $jobPost->id,
+                'position'     => $jobPost->Position ?? null,
+                'item_no'      => $jobPost->ItemNo ?? null,
+                'old_status'   => $oldStatus,
+                'new_status'   => $validated['status'],
+            ],
+            "{$user->name} marked job post {$jobPost->Position} as Unoccupied." // ✅ Missing 5th argument
+        );
+    }
+
     // ================================= Job Post ================================= \\
+
+
+
+    // ================================= Applicant  ================================= \\
+
+
+    // delete applicant applied on job post 
+    // delete  this submission
+    public function logDeleteApplicantApplied($deletedBy, $submission)
+    {
+        $this->log(
+            'Applicant Submission',
+            $deletedBy,
+            $submission,
+            [
+                'submission_id' => $submission->id,        // ✅ log submission data, not user account data
+                'applicant_id'  => $submission->user_id,   // adjust field name to match your schema
+                'status'        => $submission->status,
+                'job_post_id'   => $submission->job_post_id, // adjust to match your schema
+            ],
+            "{$deletedBy->name} deleted submission ID {$submission->id} successfully." // ✅ accurate description
+        );
+    }
+
+    // add exam score for applicant
+    public function logAddExamScoreOfApplicant($causer, $examScore)
+    {
+        $this->log(
+            'Applicant Exam Score',
+            $causer,
+            $examScore, // ✅ performedOn() requires a Model instance
+            [
+                'submission_id'    => $examScore->submission_id,
+                'exam_score'       => $examScore->exam_score,
+                'exam_total_score' => $examScore->exam_total_score,
+                'exam_type'        => $examScore->exam_type,
+                'exam_date'        => $examScore->exam_date,
+                'exam_remarks'     => $examScore->exam_remarks,
+            ],
+            "{$causer->name} saved exam score for submission ID {$examScore->submission_id}." // ✅ clear description
+        );
+    }
+
+
+    // update exam score for applicant
+    // log update applicant exam score
+    public function logUpdateExamScoreOfApplicant($causer, $examScore, $oldValues)
+    {
+        $this->log(
+            'Applicant Exam Score',
+            $causer,
+            $examScore, // ✅ performedOn() requires a Model instance
+            [
+                'submission_id' => $examScore->submission_id,
+                'old_values'    => $oldValues,       // ✅ before state
+                'new_values'    => [                 // ✅ after state
+                    'exam_score'       => $examScore->exam_score,
+                    'exam_total_score' => $examScore->exam_total_score,
+                    'exam_type'        => $examScore->exam_type,
+                    'exam_date'        => $examScore->exam_date,
+                    'exam_remarks'     => $examScore->exam_remarks,
+                ],
+            ],
+            "{$causer->name} updated exam score for submission ID {$examScore->submission_id}."
+        );
+    }
+
+    // delete exam score of applicant 
+    // log delete applicant exam score
+    public function logApplicantExamScoreDelete($deletedBy, $exam)
+    {
+        $this->log(
+            'Applicant Exam Score',
+            $deletedBy,
+            $exam,                          // ✅ correct model instance
+            [
+                'exam_id'          => $exam->id,               // ✅ was missing
+                'submission_id'    => $exam->submission_id,    // ✅ fixed from $submission->id
+                'exam_score'       => $exam->exam_score,       // ✅ relevant exam fields
+                'exam_total_score' => $exam->exam_total_score,
+                'exam_type'        => $exam->exam_type,
+                'exam_date'        => $exam->exam_date,
+                'exam_remarks'     => $exam->exam_remarks,
+            ],
+            "{$deletedBy->name} deleted exam score ID {$exam->id} for submission ID {$exam->submission_id}." // ✅ fixed description
+        );
+    }
+
+    // log cancel exam of applicant invitation
+    // log cancel examination email
+    public function logCancelEmailExamination($causer, $schedule, $date, $time, $venue, $count)
+    {
+        $this->log(
+            'Examination Schedule Cancel',          // ✅ correct event name (was 'Applicant Exam Score')
+            $causer,
+            $schedule,                           // ✅ correct model instance (SchedulesExam)
+            [
+                'name'       => $causer->name,   // ✅ use $causer, not undefined $user
+                'username'   => $causer->username,
+                'date_exam'  => $date,           // ✅ passed explicitly, not undefined variable
+                'time_exam'  => $time,
+                'venue_exam' => $venue,
+                'total_sent' => $count,
+            ],
+            "{$causer->name} cancelled examination schedule on {$date} at {$time} — {$count} applicant(s) notified." // ✅ accurate description
+        );
+    }
+
+    // log update/reschedule examination email
+    public function logUpdateEmailExamination(
+        $causer,
+        $schedule,
+        $date,
+        $time,
+        $venue,
+        $newCount,
+        $oldCount,
+        $dateChanged
+    ) {
+        // ✅ Build a clear description based on what actually happened
+        $actions = [];
+        if ($dateChanged)  $actions[] = "rescheduled examination to {$date} at {$time}";
+        if ($newCount > 0) $actions[] = "invited {$newCount} new applicant(s)";
+        if ($oldCount > 0) $actions[] = "notified {$oldCount} existing applicant(s) of reschedule";
+
+        $actionSummary = !empty($actions)
+            ? implode(', ', $actions)
+            : 'updated schedule with no emails sent';
+
+        $this->log(
+            'Examination Schedule Update',           // ✅ clear event name
+            $causer,
+            $schedule,                               // ✅ SchedulesExam model instance
+            [
+                'schedule_id'    => $schedule->id,
+                'batch_name'     => $schedule->batch_name,
+                'date_exam'      => $date,
+                'time_exam'      => $time,
+                'venue_exam'     => $venue,
+                'date_changed'   => $dateChanged,    // ✅ flag if schedule actually changed
+                'new_invites'    => $newCount,        // ✅ how many new applicants emailed
+                'old_notified'   => $oldCount,        // ✅ how many existing applicants notified
+            ],
+            "{$causer->name} {$actionSummary}."      // ✅ dynamic, accurate description
+        );
+    }
+
+    // log send examination email
+    public function logSendEmailExamination(
+        $causer,
+        $scheduleExam,  // ✅ SchedulesExam model — required by performedOn()
+        $batchName,
+        $date,
+        $time,
+        $venue,
+        $count
+    ) {
+        $this->log(
+            'Examination Schedule',                     // ✅ event name (was missing entirely)
+            $causer,                                 // ✅ causer (was missing)
+            $scheduleExam,                           // ✅ subject — performedOn() needs a Model
+            [
+                'name'        => $causer->name,      // ✅ use $causer, not undefined $user
+                'username'    => $causer->username,
+                'schedule_id' => $scheduleExam->id,  // ✅ added for traceability
+                'batch_name'  => $batchName,
+                'date_exam'   => $date,
+                'time_exam'   => $time,
+                'venue_exam'  => $venue,
+                'total_sent'  => $count,
+            ],
+            "{$causer->name} sent examination invitations for batch '{$batchName}' on {$date} at {$time} to {$count} applicant(s)." // ✅ description (was missing)
+        );
+    }
+
+    // log send Interview email
+    public function logSendEmailInterview(
+        $causer,        // ✅ renamed from $user to $causer for consistency
+        $schedule,      // ✅ renamed from $scheduleExam — this is a Schedule (Interview) model
+        $batchName,
+        $date,
+        $time,
+        $venue,
+        $count
+    ) {
+        $this->log(
+            'Interview Schedule',                       // ✅ correct event name (was 'Interview Schedule')
+            $causer,                                 // ✅ defined parameter, not undefined $causer
+            $schedule,                               // ✅ correct Schedule model instance
+            [
+                'name'             => $causer->name,     // ✅ $causer is now defined
+                'username'         => $causer->username,
+                'schedule_id'      => $schedule->id,     // ✅ $schedule is now defined
+                'batch_name'       => $batchName,
+                'date_interview'   => $date,             // ✅ fixed from date_exam
+                'time_interview'   => $time,             // ✅ fixed from time_exam
+                'venue_interview'  => $venue,            // ✅ fixed from venue_exam
+                'total_sent'       => $count,
+            ],
+            "{$causer->name} sent interview invitations for batch '{$batchName}' on {$date} at {$time} to {$count} applicant(s)." // ✅ fixed from "examination invitations"
+        );
+    }
+
+
+    // log update/reschedule Interview Schedule
+    public function logUpdateEmailInterview(
+        $causer,
+        $schedule,       // ✅ Schedule (Interview) model instance
+        $date,
+        $time,
+        $venue,
+        $newCount,
+        $oldCount,
+        $dateChanged
+    ) {
+        // ✅ Build a clear description based on what actually happened
+        $actions = [];
+        if ($dateChanged)  $actions[] = "rescheduled interview to {$date} at {$time}";
+        if ($newCount > 0) $actions[] = "invited {$newCount} new applicant(s)";
+        if ($oldCount > 0) $actions[] = "notified {$oldCount} existing applicant(s) of reschedule";
+
+        $actionSummary = !empty($actions)
+            ? implode(', ', $actions)
+            : 'updated schedule with no emails sent';
+
+        $this->log(
+            'Interview Schedule Update',                 // correct event name
+            $causer,
+            $schedule,                                   // Schedule model — performedOn()
+            [
+                'schedule_id'      => $schedule->id,
+                'batch_name'       => $schedule->batch_name,
+                'date_interview'   => $date,             // interview field names
+                'time_interview'   => $time,
+                'venue_interview'  => $venue,
+                'date_changed'     => $dateChanged,      // flag if schedule actually changed
+                'new_invites'      => $newCount,          // new applicants emailed
+                'old_notified'     => $oldCount,          // existing applicants notified
+            ],
+            "{$causer->name} {$actionSummary}."          // dynamic, accurate description
+        );
+    }
+
+
+    // ================================= Applicant  ================================= \\
+
 }

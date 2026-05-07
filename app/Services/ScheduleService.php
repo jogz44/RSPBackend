@@ -22,10 +22,15 @@ class ScheduleService
     /**
      * Create a new class instance.
      */
-    // public function __construct()
-    // {
-    //     //
-    // }
+
+    protected $activityLogService;
+
+    public function __construct(ActivityLogService $activityLogService)
+    {
+        //
+
+        $this->activityLogService = $activityLogService;
+    }
 
     // ── SEND EMAIL INTERVIEW ─────────────────────────────────────────────
     public function sendEmailInterview($validated)
@@ -114,31 +119,39 @@ class ScheduleService
 
         $user = Auth::user();
 
-        if ($user instanceof \App\Models\User) {
-            activity('Interview Email')
-                ->causedBy($user)
-                ->withProperties([
-                    'name'        => $user->name,
-                    'username'    => $user->username,
-                    'batch_name'  => $batchName,
-                    'date_interview'   => $validated['date_interview'],
-                 'time_interview'   => $validated['time_interview'],
-                'venue_interview'  => $venue,
-                    'total_sent'  => $count,
-                    'ip'          => request()->ip(),
-                    'user_agent'  => request()->header('User-Agent'),
-                ])
-                ->log("{$user->name} sent Interview invitations for batch '{$batchName}' on {$date} at {$timeFormatted} to {$count} applicant(s).");
-        }
+        // if ($user instanceof \App\Models\User) {
+        //     activity('Interview Email')
+        //         ->causedBy($user)
+        //         ->withProperties([
+        //             'name'        => $user->name,
+        //             'username'    => $user->username,
+        //             'batch_name'  => $batchName,
+        //             'date_interview'   => $validated['date_interview'],
+        //          'time_interview'   => $validated['time_interview'],
+        //         'venue_interview'  => $venue,
+        //             'total_sent'  => $count,
+        //             'ip'          => request()->ip(),
+        //             'user_agent'  => request()->header('User-Agent'),
+        //         ])
+        //         ->log("{$user->name} sent Interview invitations for batch '{$batchName}' on {$date} at {$timeFormatted} to {$count} applicant(s).");
+        // }
 
-
+        $this->activityLogService->logSendEmailInterview(
+            $user,
+            $schedule,      // ✅ Schedule model instance — required by performedOn()
+            $batchName,
+            $date,
+            $timeFormatted,
+            $venue,
+            $count
+        );
         return response()->json([
             'success' => true,
             'message' => "Interview invitations successfully sent to {$count} applicant(s).",
         ]);
     }
 
-
+    // update the interview schedule
     public function updateEmailInterview($validated, $scheduleId)
     {
         $schedule = Schedule::findOrFail($scheduleId);
@@ -303,6 +316,21 @@ class ScheduleService
         if ($oldCount > 0) $messages[] = "Re-schedule notice sent to {$oldCount} existing applicant(s).";
         if ($newCount > 0) $messages[] = "Interview invitation sent to {$newCount} new applicant(s).";
         if (empty($messages)) $messages[] = "Schedule updated successfully. No emails were sent.";
+
+
+         $user = Auth::user();
+
+        // Log the update activity
+        $this->activityLogService->logUpdateEmailInterview(
+            $user,
+            $schedule,       // ✅ Schedule model instance — required by performedOn()
+            $date,
+            $timeFormatted,
+            $venue,
+            $newCount,
+            $oldCount,
+            $dateChanged
+        );
 
         return response()->json([
             'success' => true,
@@ -475,9 +503,9 @@ class ScheduleService
                 ]
             ))->onQueue('emails'));
 
-              // added true so that it will show on the applied that what is status on the he applied
+            // added true so that it will show on the applied that what is status on the he applied
             $submission->update([
-                 'is_emailed' => true
+                'is_emailed' => true
             ]);
 
             // ✅ Send SMS
@@ -505,22 +533,32 @@ class ScheduleService
 
         $user = Auth::user();
 
-        if ($user instanceof \App\Models\User) {
-            activity('Examination Email')
-                ->causedBy($user)
-                ->withProperties([
-                    'name'        => $user->name,
-                    'username'    => $user->username,
-                    'batch_name'  => $batchName,
-                    'date_exam'   => $validated['date_exam'],
-                    'time_exam'   => $validated['time_exam'],
-                    'venue_exam'  => $venue,
-                    'total_sent'  => $count,
-                    'ip'          => request()->ip(),
-                    'user_agent'  => request()->header('User-Agent'),
-                ])
-                ->log("{$user->name} sent examination invitations for batch '{$batchName}' on {$date} at {$timeFormatted} to {$count} applicant(s).");
-        }
+        $this->activityLogService->logSendEmailExamination(
+            $user,
+            $schedules_exam, // ✅ subject — SchedulesExam model instance
+            $batchName,
+            $date,
+            $timeFormatted,
+            $venue,
+            $count
+        );
+
+        // if ($user instanceof \App\Models\User) {
+        //     activity('Examination Email')
+        //         ->causedBy($user)
+        //         ->withProperties([
+        //             'name'        => $user->name,
+        //             'username'    => $user->username,
+        //             'batch_name'  => $batchName,
+        //             'date_exam'   => $validated['date_exam'],
+        //             'time_exam'   => $validated['time_exam'],
+        //             'venue_exam'  => $venue,
+        //             'total_sent'  => $count,
+        //             'ip'          => request()->ip(),
+        //             'user_agent'  => request()->header('User-Agent'),
+        //         ])
+        //         ->log("{$user->name} sent examination invitations for batch '{$batchName}' on {$date} at {$timeFormatted} to {$count} applicant(s).");
+        // }
 
         return response()->json([
             'success' => true,
@@ -694,6 +732,21 @@ class ScheduleService
         if ($newCount > 0) $messages[] = "Examination invitation sent to {$newCount} new applicant(s).";
         if (empty($messages)) $messages[] = "Schedule updated successfully. No emails were sent.";
 
+        $user = Auth::user();
+
+        // Log the update activity
+        $this->activityLogService->logUpdateEmailExamination(
+            $user,
+            $schedule,
+            $date,
+            $timeFormatted,
+            $venue,
+            $newCount,
+            $oldCount,
+            $dateChanged
+        );
+
+
         return response()->json([
             'success' => true,
             'message' => implode(' ', $messages),
@@ -790,21 +843,31 @@ class ScheduleService
 
         $user = Auth::user();
 
-        if ($user instanceof \App\Models\User) {
-            activity('Examination Cancellation') // was 'Examination Email'
-                ->causedBy($user)
-                ->withProperties([
-                    'name'             => $user->name,
-                    'username'         => $user->username,
-                    'date_exam'   => $date,
-                    'time_exam'   => $timeFormatted,
-                    'venue_exam'  => $venue, // ✅ was 'venue_exam'
-                    'total_sent'       => $count,
-                    'ip'               => request()->ip(),
-                    'user_agent'       => request()->header('User-Agent'),
-                ])
-                ->log("{$user->name} sent cancellation of Examination on {$date} at {$timeFormatted} to {$count} applicant(s).");
-        }
+        // if ($user instanceof \App\Models\User) {
+        //     activity('Examination Cancellation') // was 'Examination Email'
+        //         ->causedBy($user)
+        //         ->withProperties([
+        //             'name'             => $user->name,
+        //             'username'         => $user->username,
+        //             'date_exam'   => $date,
+        //             'time_exam'   => $timeFormatted,
+        //             'venue_exam'  => $venue, // ✅ was 'venue_exam'
+        //             'total_sent'       => $count,
+        //             'ip'               => request()->ip(),
+        //             'user_agent'       => request()->header('User-Agent'),
+        //         ])
+        //         ->log("{$user->name} sent cancellation of Examination on {$date} at {$timeFormatted} to {$count} applicant(s).");
+        // }
+
+        // ✅ activity log 
+        $this->activityLogService->logCancelEmailExamination(
+            $user,
+            $schedule,
+            $date,
+            $timeFormatted,
+            $venue,
+            $count
+        );
 
         return response()->json([
             'success' => true,
@@ -1103,8 +1166,8 @@ class ScheduleService
 
                 // added true so that it will show on the applied that what is status on the he applied
                 $submission->update([
-                        'is_emailed' => true
-                    ]);
+                    'is_emailed' => true
+                ]);
 
                 // ✅ Send SMS — unqualified notification
                 $this->dispatchSmsUnqualified(
