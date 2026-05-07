@@ -15,6 +15,7 @@ use App\Services\ApplicantService;
 use App\Services\RaterService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 
 class RaterController extends Controller
@@ -173,13 +174,42 @@ class RaterController extends Controller
         ]);
     }
 
-    // fetch the job post only assess,pending, not started
+    // // fetch the job post only assess,pending, not started
+    // public function jobListAssigned()
+    // {
+    //     // ✅ Fetch only job posts excluding 'unoccupied' and 'occupied'
+    //     $jobs = JobBatchesRsp::select('id', 'Office', 'Position', 'status')
+    //         ->whereNotIn('status', ['unoccupied', 'occupied', 'republished'])
+    //         ->get();
+
+
+    //     $office = DB::table('yOffice')->select('Descriptions', 'Abbr')->where('Descriptions', $jobs->Office)->first();
+
+    //     return response()->json($jobs);
+    // }
+
     public function jobListAssigned()
     {
-        // ✅ Fetch only job posts excluding 'unoccupied' and 'occupied'
+        // ✅ Fetch job posts excluding certain statuses
         $jobs = JobBatchesRsp::select('id', 'Office', 'Position', 'status')
             ->whereNotIn('status', ['unoccupied', 'occupied', 'republished'])
             ->get();
+
+        // ✅ Get unique office names from the job list
+        $officeNames = $jobs->pluck('Office')->unique()->values();
+
+        // ✅ Fetch abbreviations for those offices only
+        $officeAbbrs = DB::table('yOffice')
+            ->select('Descriptions', 'Abbr')
+            ->whereIn('Descriptions', $officeNames)
+            ->get()
+            ->keyBy('Descriptions'); // key by office name for easy lookup
+
+        // ✅ Map abbr into each job
+        $jobs = $jobs->map(function ($job) use ($officeAbbrs) {
+            $job->office_abbr = $officeAbbrs->get($job->Office)?->Abbr ?? null;
+            return $job;
+        });
 
         return response()->json($jobs);
     }
