@@ -118,7 +118,7 @@ class Submission extends Model
     // internal
 
     // ✅ NEW: Get education records by IDs
-    public function getEducationRecordsInternal()
+    public function getEducationRecordsExternal() // getEducationRecordsExternal
     {
         if (empty($this->education_qualification)) {
             return collect();
@@ -128,7 +128,7 @@ class Submission extends Model
     }
 
     // ✅ NEW: Get experience records by IDs
-    public function getExperienceRecordsInternal()
+    public function getExperienceRecordsExternal() //getExperienceRecordsExternal
     {
         if (empty($this->experience_qualification)) {
             return collect();
@@ -138,7 +138,7 @@ class Submission extends Model
     }
 
     // ✅ NEW: Get training records by IDs
-    public function getTrainingRecordsInternal()
+    public function getTrainingRecordsExternal() //getTrainingRecordsExternal
     {
         if (empty($this->training_qualification)) {
             return collect();
@@ -148,7 +148,7 @@ class Submission extends Model
     }
 
     // ✅ NEW: Get eligibility records by IDs
-    public function getEligibilityRecordsInternal()
+    public function getEligibilityRecordsExternal() //getEligibilityRecordsExternal
     {
         if (empty($this->eligibility_qualification)) {
             return collect();
@@ -162,27 +162,27 @@ class Submission extends Model
     // external applicant
 
     // ✅ NEW: Get education records by IDs
-    public function getEducationRecordsExternal()
+    public function getEducationRecordsInternal() //getEducationRecordsInternal
     {
         if (empty($this->education_qualification)) {
             return collect();
         }
 
-        return DB::table('xEducation')->whereIn('PMID', $this->education_qualification)->get();
+        return DB::table('xEducation')->whereIn('PMID', $this->education_qualification)->get(); //Education_background
     }
 
     // ✅ NEW: Get experience records by IDs`
-    public function getExperienceRecordsExternal()
+    public function getExperienceRecordsInternal() //getExperienceRecordsInternal
     {
         if (empty($this->experience_qualification)) {
             return collect();
         }
 
-        return  DB::table('xExperience')->whereIn('ID', $this->experience_qualification)->get();
+        return  DB::table('xExperience')->whereIn('ID', $this->experience_qualification)->get(); //Work_experience
     }
 
     // ✅ NEW: Get training records by IDs
-    public function getTrainingRecordsExternal()
+    public function getTrainingRecordsInternal() //getTrainingRecordsInternal
     {
         if (empty($this->training_qualification)) {
             return collect();
@@ -192,13 +192,13 @@ class Submission extends Model
     }
 
     // ✅ NEW: Get eligibility records by IDs
-    public function getEligibilityRecordsExternal()
+    public function getEligibilityRecordsInternal() // getEligibilityRecordsInternal
     {
         if (empty($this->eligibility_qualification)) {
             return collect();
         }
 
-        return DB::table('xCivilService')->whereIn('PMID', $this->eligibility_qualification)->get();
+        return DB::table('xCivilService')->whereIn('PMID', $this->eligibility_qualification)->get(); //Civil_service_eligibity
     }
 
     public function applicantExamScore()

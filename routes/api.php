@@ -366,7 +366,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/logs', [LogController::class, 'index']);
 
-    Route::get('/office', [PlantillaController::class, 'arrangement']); // this is for the modal fetching  fetching the employye // office arrangement
+    Route::prefix('office')->group(function(){
+    Route::get('/', [PlantillaController::class, 'arrangement']); // this is for the modal fetching  fetching the employye // office arrangement
+    Route::get('/rater-list', [PlantillaController::class, 'raterOffices']); // this is for the modal fetching  fetching the employye // office arrangement
+    });
+
+
+
     Route::get('/active', [PlantillaController::class, 'vwActiveGet']); // fetching employee active
     Route::get('/view/criteria/{job_batches_rsp_id}', [CriteriaController::class, 'viewCriteria']); // view details of job criteria
 

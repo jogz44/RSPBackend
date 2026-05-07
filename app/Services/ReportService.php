@@ -452,7 +452,7 @@ class ReportService
             'funded'   => $resultFunded,
             'unfunded' => $resultUnfunded,
         ]);
-}
+    }
     // Update the mapEmployeeDbm function call
     private function mapEmployeeDbm($row, $xServiceByControl)
     {
@@ -684,8 +684,8 @@ class ReportService
         // Dispatch the job
         GeneratePlantillaReportJob::dispatch($jobId)->onQueue('reports');
 
-        
-            $user = Auth::user();
+
+        $user = Auth::user();
         if ($user instanceof \App\Models\User) {
             activity('Generate Plantilla Structure Report')
                 ->causedBy($user)
@@ -883,7 +883,7 @@ class ReportService
     public function topApplicant($postDate)
     {
 
-    $rater = User::select('name','position','role_type','representative','active','role_id')->where('active',1)->where('role_id',2)->get();
+        $rater = User::select('name', 'position', 'role_type', 'representative', 'active', 'role_id')->where('active', 1)->where('role_id', 2)->get();
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
             ->select(
                 'id',
@@ -988,12 +988,19 @@ class ReportService
     public function listQualified($postDate)
     {
 
-
-
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
-            ->select('id', 'Position', 'ItemNo','SalaryGrade','Office')
+            ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
             ->with([
                 'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
+                //load relationships properly
+                'criteriaRatings' => function ($query) {
+                    $query->select('id', 'job_batches_rsp_id')
+                        ->with([
+                            'educations',
+                            'experiences',
+                            'trainings',
+                        ]);
+                },
                 'submissions' => function ($query) {
                     $query->select(
                         'id',
@@ -1037,10 +1044,12 @@ class ReportService
                 // =====================
                 if ($submission->nPersonalInfo_id) {
 
-                    $educationRecords   = $submission->getEducationRecordsInternal();
-                    $experienceRecords  = $submission->getExperienceRecordsInternal();
-                    $trainingRecords    = $submission->getTrainingRecordsInternal();
-                    $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+
+                    $educationRecords   = $submission->getEducationRecordsExternal();
+                    $experienceRecords  = $submission->getExperienceRecordsExternal();
+                    $trainingRecords    = $submission->getTrainingRecordsExternal();
+                    $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+
 
                     $applicants[] = [
                         'firstname' => $submission->nPersonalInfo->firstname,
@@ -1058,10 +1067,10 @@ class ReportService
                         'training_remark' => $submission->training_remark ??  null,
                         'eligibility_remark' => $submission->eligibility_remark ?? null,
 
-                        'education_text'   => $this->formatEducationForQualified($educationRecords),
-                        'experience_text'  => $this->formatExperienceForQualified($experienceRecords),
-                        'training_text'    => $this->formatTrainingForQualified($trainingRecords),
-                        'eligibility_text' => $this->formatEligibilityForQualified($eligibilityRecords),
+                        'education_text'   => $this->formatEducationForQualifiedExternal($educationRecords),
+                        'experience_text'  => $this->formatExperienceForQualifiedExternal($experienceRecords),
+                        'training_text'    => $this->formatTrainingForQualifiedExternal($trainingRecords),
+                        'eligibility_text' => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
                     ];
                 }
 
@@ -1085,10 +1094,11 @@ class ReportService
                         ->select('Office', 'Designation')
                         ->first();
 
-                    $educationRecords   = $submission->getEducationRecordsExternal();
-                    $experienceRecords  = $submission->getExperienceRecordsExternal();
-                    $trainingRecords    = $submission->getTrainingRecordsExternal();
-                    $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+
+                    $educationRecords   = $submission->getEducationRecordsInternal();
+                    $experienceRecords  = $submission->getExperienceRecordsInternal();
+                    $trainingRecords    = $submission->getTrainingRecordsInternal();
+                    $eligibilityRecords = $submission->getEligibilityRecordsInternal();
 
                     $applicants[] = [
                         'controlno' => $submission->ControlNo,
@@ -1109,10 +1119,11 @@ class ReportService
                         'training_remark' => $submission->training_remark ??  null,
                         'eligibility_remark' => $submission->eligibility_remark ?? null,
 
-                        'education_text'   => $this->formatEducationForQualifiedExternal($educationRecords),
-                        'experience_text'  => $this->formatExperienceForQualifiedExternal($experienceRecords),
-                        'training_text'    => $this->formatTrainingForQualifiedExternal($trainingRecords),
-                        'eligibility_text' => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
+
+                        'education_text'   => $this->formatEducationForQualifiedInternal($educationRecords),
+                        'experience_text'  => $this->formatExperienceForQualifiedInternal($experienceRecords),
+                        'training_text'    => $this->formatTrainingForQualifiedInternal($trainingRecords),
+                        'eligibility_text' => $this->formatEligibilityForQualifiedInternal($eligibilityRecords),
                     ];
                 }
             }
@@ -1129,6 +1140,7 @@ class ReportService
                 'ItemNo' => $job->ItemNo,
                 'SalaryGrade' => $job->SalaryGrade,
                 'criteria' => $job->criteria,
+                'criteria_rating' => $job->criteriaRatings,
                 'applicants' => $applicants
             ];
         }
@@ -1146,7 +1158,7 @@ class ReportService
     public function listUnQualified($postDate)
     {
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
-            ->select('id', 'Position', 'ItemNo','SalaryGrade','Office')
+            ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
             ->with([
                 'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
                 'submissions' => function ($query) {
@@ -1191,10 +1203,15 @@ class ReportService
                 // =====================
                 if ($submission->nPersonalInfo_id) {
 
-                    $educationRecords   = $submission->getEducationRecordsInternal();
-                    $experienceRecords  = $submission->getExperienceRecordsInternal();
-                    $trainingRecords    = $submission->getTrainingRecordsInternal();
-                    $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+                    // $educationRecords   = $submission->getEducationRecordsInternal();
+                    // $experienceRecords  = $submission->getExperienceRecordsInternal();
+                    // $trainingRecords    = $submission->getTrainingRecordsInternal();
+                    // $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+
+                    $educationRecords   = $submission->getEducationRecordsExternal();
+                    $experienceRecords  = $submission->getExperienceRecordsExternal();
+                    $trainingRecords    = $submission->getTrainingRecordsExternal();
+                    $eligibilityRecords = $submission->getEligibilityRecordsExternal();
 
                     $applicants[] = [
                         'firstname' => $submission->nPersonalInfo->firstname,
@@ -1214,10 +1231,10 @@ class ReportService
                         'eligibility_remark' => $submission->eligibility_remark ?? null,
 
 
-                        'education_text'   => $this->formatEducationForQualified($educationRecords),
-                        'experience_text'  => $this->formatExperienceForQualified($experienceRecords),
-                        'training_text'    => $this->formatTrainingForQualified($trainingRecords),
-                        'eligibility_text' => $this->formatEligibilityForQualified($eligibilityRecords),
+                        'education_text'   => $this->formatEducationForQualifiedExternal($educationRecords),
+                        'experience_text'  => $this->formatExperienceForQualifiedExternal($experienceRecords),
+                        'training_text'    => $this->formatTrainingForQualifiedExternal($trainingRecords),
+                        'eligibility_text' => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
 
                     ];
                 }
@@ -1242,10 +1259,16 @@ class ReportService
                         ->select('Office', 'Designation')
                         ->first();
 
-                    $educationRecords   = $submission->getEducationRecordsExternal();
-                    $experienceRecords  = $submission->getExperienceRecordsExternal();
-                    $trainingRecords    = $submission->getTrainingRecordsExternal();
-                    $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+                    // $educationRecords   = $submission->getEducationRecordsExternal();
+                    // $experienceRecords  = $submission->getExperienceRecordsExternal();
+                    // $trainingRecords    = $submission->getTrainingRecordsExternal();
+                    // $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+
+
+                    $educationRecords   = $submission->getEducationRecordsInternal();
+                    $experienceRecords  = $submission->getExperienceRecordsInternal();
+                    $trainingRecords    = $submission->getTrainingRecordsInternal();
+                    $eligibilityRecords = $submission->getEligibilityRecordsInternal();
 
                     $applicants[] = [
                         'controlno' => $submission->ControlNo,
@@ -1267,10 +1290,10 @@ class ReportService
                         'experience_remark' => $submission->experience_remark ?? null,
                         'education_remark' => $submission->education_remark ?? null,
 
-                        'education_text'   => $this->formatEducationForQualifiedExternal($educationRecords),
-                        'experience_text'  => $this->formatExperienceForQualifiedExternal($experienceRecords),
-                        'training_text'    => $this->formatTrainingForQualifiedExternal($trainingRecords),
-                        'eligibility_text' => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
+                        'education_text'   => $this->formatEducationForQualifiedInternal($educationRecords),
+                        'experience_text'  => $this->formatExperienceForQualifiedInternal($experienceRecords),
+                        'training_text'    => $this->formatTrainingForQualifiedInternal($trainingRecords),
+                        'eligibility_text' => $this->formatEligibilityForQualifiedInternal($eligibilityRecords),
 
                     ];
                 }
@@ -1296,14 +1319,36 @@ class ReportService
             'Date' => "$postDate Publication",
             'jobPosts' => $responseJobs
         ]);
+    }
 
+    // ✅ Helper: Convert total hours to years, months, days
+private function convertHoursToYearsMonthsDays(int $totalHours, string $label = ''): string
+    {
+        $hoursPerDay   = 8;
+        $daysPerMonth  = 22; // average working days per month
+        $monthsPerYear = 12;
+
+        $totalDays   = (int) floor($totalHours / $hoursPerDay);
+        $years       = (int) floor($totalDays / ($daysPerMonth * $monthsPerYear));
+        $remaining   = $totalDays % ($daysPerMonth * $monthsPerYear);
+        $months      = (int) floor($remaining / $daysPerMonth);
+        $days        = $remaining % $daysPerMonth;
+
+        $parts = [];
+        if ($years > 0)  $parts[] = "{$years} " . ($years  === 1 ? 'year'  : 'years');
+        if ($months > 0) $parts[] = "{$months} " . ($months === 1 ? 'month' : 'months');
+        if ($days > 0)   $parts[] = "{$days} "   . ($days   === 1 ? 'day'   : 'days');
+
+        $result = implode(', ', $parts) ?: '0 days';
+
+        return $label ? "{$result} {$label}" : $result;
     }
     // formatting helpers for qualified applicants for the internal
     // Helper method to format education
-    private function formatEducationForQualified($educationRecords)
+    private function formatEducationForQualifiedExternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
-            return 'No relevant education.';
+            return 'No relevant education';
         }
 
         $formatted = [];
@@ -1318,48 +1363,89 @@ class ReportService
     }
 
 
-    // ✅ Helper method to format experience
-    private function formatExperienceForQualified($experienceRecords)
-    {
-        if ($experienceRecords->isEmpty()) {
-            return 'No relevant experience based on the specific requirement of the position.';
-        }
+    // // ✅ Helper method to format experience
+    // private function formatExperienceForQualifiedExternal($experienceRecords)
+    // {
+    //     if ($experienceRecords->isEmpty()) {
+    //         return 'No relevant experience based on the specific requirement of the position.';
+    //     }
 
-        $formatted = [];
-        foreach ($experienceRecords as $exp) {
-            $position = $exp->position_title ?? 'N/A';
-            $department = $exp->department ?? 'N/A';
-            $dateFrom = $exp->work_date_from ?? 'N/A';
-            $dateTo = $exp->work_date_to ?? 'N/A';
-            $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
-        }
+    //     $formatted = [];
+    //     foreach ($experienceRecords as $exp) {
+    //         $position = $exp->position_title ?? 'N/A';
+    //         $department = $exp->department ?? 'N/A';
+    //         $dateFrom = $exp->work_date_from ?? 'N/A';
+    //         $dateTo = $exp->work_date_to ?? 'N/A';
+    //         $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
+    //     }
 
-        return implode('<br>', $formatted);
-    }
+    //     return implode('<br>', $formatted);
+    // }
 
 
-    // ✅ Helper method to format training
-    private function formatTrainingForQualified($trainingRecords)
+    // // ✅ Helper method to format training
+    // private function formatTrainingForQualifiedExternal($trainingRecords)
+    // {
+    //     if ($trainingRecords->isEmpty()) {
+    //         return 'No relevant training based on the specific requirement of the position.';
+    //     }
+
+    //     $formatted = [];
+    //     foreach ($trainingRecords as $training) {
+    //         $title = $training->training_title ?? 'N/A';
+    //         $hours = $training->number_of_hours ?? 'N/A';
+    //         $formatted[] = "• {$title} ({$hours} hours)";
+    //     }
+
+    //     return implode('<br>', $formatted);
+    // }
+
+
+    // ✅ Helper method to format training (External) - total hours only
+    private function formatTrainingForQualifiedExternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
-            return 'No relevant training based on the specific requirement of the position.';
+            return 'No relevant training';
         }
 
-        $formatted = [];
-        foreach ($trainingRecords as $training) {
-            $title = $training->training_title ?? 'N/A';
-            $hours = $training->number_of_hours ?? 'N/A';
-            $formatted[] = "• {$title} ({$hours} hours)";
+        $totalHours = $trainingRecords->sum(fn($t) => (float) ($t->number_of_hours ?? 0));
+
+        return "{$totalHours} hours of relevant training";
+    }
+
+    // ✅ Helper method to format experience (External) - total hours only
+    private function formatExperienceForQualifiedExternal($experienceRecords)
+    {
+        if ($experienceRecords->isEmpty()) {
+            return 'No relevant experience';
         }
 
-        return implode('<br>', $formatted);
+        $totalHours = 0;
+        foreach ($experienceRecords as $exp) {
+            $from = $exp->work_date_from ?? null;
+            $to   = $exp->work_date_to   ?? null;
+
+            if ($from && $to) {
+                try {
+                    $start = \Carbon\Carbon::createFromFormat('d/m/Y', $from);
+                    $end   = \Carbon\Carbon::createFromFormat('d/m/Y', $to);
+                    // 8 working hours/day, 5 days/week
+                    $workingDays  = $start->diffInWeekdays($end);
+                    $totalHours  += $workingDays * 8;
+                } catch (\Exception $e) {
+                    // skip unparseable dates
+                }
+            }
+        }
+
+return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience');
     }
 
     // ✅ Helper method to format eligibility
-    private function formatEligibilityForQualified($eligibilityRecords)
+    private function formatEligibilityForQualifiedExternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
-            return 'No relevant eligibility based on the specific requirement of the position.';
+            return 'No relevant eligibility';
         }
 
         $formatted = [];
@@ -1373,12 +1459,16 @@ class ReportService
     }
 
 
+
+
+    // ============================================================================================================= internal =====================================================
+
     // formatting helpers for qualified applicants for the external
     // Helper method to format education
-    private function formatEducationForQualifiedExternal($educationRecords)
+    private function formatEducationForQualifiedInternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
-            return 'No relevant education based on the specific requirement of the position.';
+            return 'No relevant education.';
         }
 
         $formatted = [];
@@ -1393,48 +1483,88 @@ class ReportService
     }
 
 
-    // ✅ Helper method to format experience
-    private function formatExperienceForQualifiedExternal($experienceRecords)
-    {
-        if ($experienceRecords->isEmpty()) {
-            return 'No relevant experience based on the specific requirement of the position.';
-        }
+    // // ✅ Helper method to format experience
+    // private function formatExperienceForQualifiedInternal($experienceRecords)
+    // {
+    //     if ($experienceRecords->isEmpty()) {
+    //         return 'No relevant experience based on the specific requirement of the position.';
+    //     }
 
-        $formatted = [];
-        foreach ($experienceRecords as $exp) {
-            $position = $exp->Wposition ?? 'N/A';
-            $department = $exp->WCompany ?? 'N/A';
-            $dateFrom = $exp->WFrom ?? 'N/A';
-            $dateTo = $exp->WTo ?? 'N/A';
-            $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
-        }
+    //     $formatted = [];
+    //     foreach ($experienceRecords as $exp) {
+    //         $position = $exp->Wposition ?? 'N/A';
+    //         $department = $exp->WCompany ?? 'N/A';
+    //         $dateFrom = $exp->WFrom ?? 'N/A';
+    //         $dateTo = $exp->WTo ?? 'N/A';
+    //         $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
+    //     }
 
-        return implode('<br>', $formatted);
-    }
+    //     return implode('<br>', $formatted);
+    // }
 
 
-    private function formatTrainingForQualifiedExternal($trainingRecords)
+    // private function formatTrainingForQualifiedInternal($trainingRecords)
+    // {
+    //     if ($trainingRecords->isEmpty()) {
+    //         return 'No relevant training based on the specific requirement of the position.';
+    //     }
+
+    //     $formatted = [];
+    //     foreach ($trainingRecords as $training) {
+    //         $title = $training->Training ?? 'N/A';
+    //         $hours = $training->NumHours ?? 'N/A';
+    //         $formatted[] = "• {$title} ({$hours} hours)";
+    //     }
+
+    //     return implode('<br>', $formatted);
+    // }
+    // ✅ Helper method to format training (Internal) - total hours only
+    private function formatTrainingForQualifiedInternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
-            return 'No relevant training based on the specific requirement of the position.';
+            return 'No relevant training';
         }
 
-        $formatted = [];
-        foreach ($trainingRecords as $training) {
-            $title = $training->Training ?? 'N/A';
-            $hours = $training->NumHours ?? 'N/A';
-            $formatted[] = "• {$title} ({$hours} hours)";
-        }
+        $totalHours = $trainingRecords->sum(fn($t) => (float) ($t->NumHours ?? 0));
 
-        return implode('<br>', $formatted);
+        return "{$totalHours} hours of relevant training";
     }
+
+    // ✅ Helper method to format experience (Internal) - total hours only
+    private function formatExperienceForQualifiedInternal($experienceRecords)
+    {
+        if ($experienceRecords->isEmpty()) {
+            return 'No relevant experience';
+        }
+
+        $totalHours = 0;
+        foreach ($experienceRecords as $exp) {
+            $from = $exp->WFrom ?? null;
+            $to   = $exp->WTo   ?? null;
+
+            if ($from && $to) {
+                try {
+                    $start = \Carbon\Carbon::createFromFormat('d/m/Y', $from);
+                    $end   = \Carbon\Carbon::createFromFormat('d/m/Y', $to);
+                    // 8 working hours/day, 5 days/week
+                    $workingDays  = $start->diffInWeekdays($end);
+                    $totalHours  += $workingDays * 8;
+                } catch (\Exception $e) {
+                    // skip unparseable dates
+                }
+            }
+        }
+
+        return $this->convertHoursToYearsMonthsDays($totalHours);
+    }
+
 
 
     // ✅ Helper method to format eligibility
-    private function formatEligibilityForQualifiedExternal($eligibilityRecords)
+    private function formatEligibilityForQualifiedInternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
-            return 'No relevant eligibility based on the specific requirement of the position.';
+            return 'No relevant eligibility';
         }
 
         $formatted = [];
@@ -1455,7 +1585,7 @@ class ReportService
         $user = Auth::user();
 
         $jobBatch = JobBatchesRsp::with([
-            'ratingScores' => function ($query) use ($user){
+            'ratingScores' => function ($query) use ($user) {
                 $query->select(
                     'id',
                     'user_id',
@@ -1471,10 +1601,10 @@ class ReportService
                     'total_qs',
                     'grand_total',
                     'ranking'
-                )->where('user_id',$user->id)
+                )->where('user_id', $user->id)
                     // ✅ Eager load applicant names via nested with
                     ->with([
-                        'internalApplicant' => fn($q) => $q->select('id', 'firstname', 'lastname', ),
+                        'internalApplicant' => fn($q) => $q->select('id', 'firstname', 'lastname',),
                         'externalApplicant' => fn($q) => $q->select('ControlNo', 'Firstname', 'Surname'),
                     ]);
             },
@@ -1483,13 +1613,17 @@ class ReportService
                     ->with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals']);
             },
             'criteria' => function ($query) {
-                $query->select('id', 'job_batches_rsp_id', 'Education',
+                $query->select(
+                    'id',
+                    'job_batches_rsp_id',
+                    'Education',
                     'Eligibility',
                     'Training',
-                    'Experience',)->get();
+                    'Experience',
+                )->get();
             }
         ])
-            ->select('id', 'Office', 'Position', 'ItemNo','SalaryGrade')
+            ->select('id', 'Office', 'Position', 'ItemNo', 'SalaryGrade')
             ->where('id', $validated['job_batches_rsp_id'])
             ->first();
 
@@ -1549,7 +1683,7 @@ class ReportService
             'rater_assigned' => [
                 'id'    => $user->id,
                 'name'  => $user->name,
-                'role' => $user->role ?? 'City Adminstrator' ,
+                'role' => $user->role ?? 'City Adminstrator',
 
                 'representative' => $user->representative ?? '',
                 'position' => $user->position ?? '',
@@ -1779,7 +1913,7 @@ class ReportService
             'total_completed' => $totalCompleted,
             'office' => $jobpost->Office ?? null,
             'office2' => $jobpost->Office2 ?? null,
-            'group' => $jobpost->Group?? null,
+            'group' => $jobpost->Group ?? null,
             'division' => $jobpost->Division ?? null,
             'section' => $jobpost->Section ?? null,
             'unit' => $jobpost->Unit ?? null,

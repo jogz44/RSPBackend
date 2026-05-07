@@ -115,6 +115,14 @@ class PlantillaController extends Controller
         return response()->json($data);
     }
 
+    // office of rater
+    public function raterOffices()
+    {
+        $data = DB::table('vwofficearrangement')->select(['Office as Office'])->get();
+        return response()->json($data);
+    }
+
+
 
     public function vwActiveGet(Request $request)
     {
