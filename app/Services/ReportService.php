@@ -1555,7 +1555,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
             }
         }
 
-        return $this->convertHoursToYearsMonthsDays($totalHours);
+        return $this->convertHoursToYearsMonthsDays($totalHours,'of relevant experience');
     }
 
 
