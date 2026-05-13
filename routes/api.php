@@ -75,7 +75,10 @@ Route::prefix('job-batches-rsp')->group(function () {
 
 Route::get('/on-funded-plantilla/by-funded/{JobpostId}', [OnFundedPlantillaController::class, 'showByFunded'])->middleware('throttle:public-api');
 
+ Route::get('employee/list', [AppointmentController::class, 'employee']); // employe list
+
 //erms
+
 Route::get('employee/{ControlNo}', [EmployeeController::class, 'appliedEmployee']);
 
 Route::post('/login', [AuthController::class, 'adminLogin'])->middleware('throttle:rater-login'); //  login for admin
@@ -277,15 +280,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     Route::prefix('employee')->group(function () {
+        //  Route::get('/list', [AppointmentController::class, 'employee']); // employe list
+
         Route::get('/applicant/xpds', [xPDSController::class, 'getPersonalDataSheet']); // employee pds
-        Route::get('/list', [AppointmentController::class, 'employee']); // employe list
+
         Route::post('/update/{controlNo}', [EmployeeController::class, 'updateEmployeeCredentials']); //  updating the  employee appoitment
         Route::get('/photo/{controlNo}', [EmployeeController::class, 'proxyImageInternal']); //  proxy-image get on the 2.205 ip
-        // Route::post('/confirmation', [EmployeeController::class, 'approveUpdate']); //  updating the  employee appoitment
+      
 
-        // Route::get('/request', [EmployeeController::class, 'fetchApprovingTable']);
-        // Route::get('/{ControlNo}', [EmployeeController::class, 'appliedEmployee']);
-        // Route::get('/old/credentail/{pendingId}/{type}', [EmployeeController::class, 'fetchOldAndNew']);
     });
 
     Route::prefix('email/send')->group(function () {
@@ -382,4 +384,5 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/proxy-image/{submissionId}', [SubmissionController::class, 'getImageInternalApplicant']);
 });
+
 

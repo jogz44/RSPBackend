@@ -46,14 +46,11 @@ class AppiontmentService
             'ToDate' => 'required|date',
             'Status' => 'required|string',
 
-            'SepDate' => 'required|date',
-            'SepCause' => 'required|string',
+            'SepDate' => 'nullable|date',
+            'SepCause' => 'nullable|string',
 
 
-            //posting date
-            'post_date'   => 'required|date',
-            'end_date' => 'required|date',
-
+      
             // tempRegAppointmentReorg
             // 'sepdate' => 'nullable|date',
             // 'sepcause' => 'nullable|string',
@@ -309,11 +306,6 @@ class AppiontmentService
 
         ]);
 
-        DB::table('posting_date')->insert([
-            'ControlNo'     => $job->controlNo, //1
-            'post_date' =>$job->post_date,
-            'end_date' => $job->end_date,
-
-        ]);
+    
     }
 }
