@@ -20,6 +20,7 @@ use App\Models\rating_score;
 use App\Models\Submission;
 use App\Models\vwActive;
 use App\Models\xPersonal;
+use App\Traits\ApiResponseTrait;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -35,6 +36,8 @@ class ApplicantService
     // {
     //     //
     // }
+
+    use ApiResponseTrait;
 
     /**
      * Fetch all applicants (internal + external) from the full job post history
@@ -432,7 +435,7 @@ class ApplicantService
         $perPage = ($perPageInput === 'all') ? PHP_INT_MAX : (int) $perPageInput;
 
         // $jobpost = JobBatchesRsp::findOrFail($jobpostId);
-        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams','behaviorals'])
+        $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams', 'behaviorals'])
             ->where('job_batches_rsp_id', $jobpostId)->get();
 
         $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
@@ -1365,4 +1368,247 @@ class ApplicantService
     //     return response($response->body(), 200)
     //         ->header('Content-Type', $response->header('Content-Type'));
     // }
+
+    // list of qualified applicants  for job post publication
+
+
+
+
+// working  applicant list 
+    //  public function listOfApplicants()
+    // {
+    //     try {
+    //     $external = Submission::query()
+    //     ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
+    //     ->select(
+    //         DB::raw('MIN(p.id) as nPersonal_id'),
+    //         'p.firstname',
+    //         'p.lastname',
+    //         DB::raw('TRY_CAST(p.date_of_birth AS DATE) as date_of_birth'), // ✅ TRY_CAST
+    //         DB::raw('COUNT(submission.id) as jobpost'),
+    //         DB::raw("'external' as applicant_type"),
+    //         DB::raw('NULL as ControlNo')
+    //     )
+    //     ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
+
+    // $internal = Submission::query()
+    //     ->whereNull('submission.nPersonalInfo_id')
+    //     ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
+    //     ->select(
+    //         DB::raw('NULL as nPersonal_id'),
+    //         'xp.Firstname as firstname',
+    //         'xp.Surname as lastname',
+    //         DB::raw('TRY_CAST(xp.BirthDate AS DATE) as date_of_birth'), // ✅ TRY_CAST
+    //         DB::raw('COUNT(submission.id) as jobpost'),
+    //         DB::raw("'internal' as applicant_type"),
+    //         'submission.ControlNo'
+    //     )
+    //     ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo');
+
+    //         $query = $external->unionAll($internal);
+
+    //         $schedule = DB::table(DB::raw("({$query->toSql()}) as combined"))
+    //             ->mergeBindings($query->getQuery())
+    //             ->get();
+
+    //         return response()->json($schedule);
+
+    //     } catch (\Illuminate\Database\QueryException $e) {
+    //         return response()->json([
+    //             'success'  => false,
+    //             'message'  => $e->getMessage(),
+    //             'sql'      => $e->getSql(),
+    //             'bindings' => $e->getBindings(),
+    //             'file'     => $e->getFile(),
+    //             'line'     => $e->getLine(),
+    //         ], 500);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => $e->getMessage(),
+    //             'file'    => $e->getFile(),
+    //             'line'    => $e->getLine(),
+    //         ], 500);
+    //     }
+    // }
+
+    // fetch the  applicant list applied
+    public function applicantApplied($postDate)
+    {
+        try {
+            // ── 1. Parse the incoming date (handles "April 27, 2026" or "2026-04-27") ──
+            $parsedDate = \Carbon\Carbon::parse($postDate)->format('Y-m-d');
+
+            // ── 2. Get all job post IDs for that post_date ────────────────────────────
+            $jobPostIds = JobBatchesRsp::whereDate('post_date', $parsedDate)
+                ->pluck('id');
+
+            if ($jobPostIds->isEmpty()) {
+                // return response()->json([
+                //     'success' => false,
+                //     'message' => 'No job posts found for the given date.',
+                //     'date'    => $parsedDate,
+                // ], 404);
+
+                return $this->infoMessage('No job posts found for the given date', 200);
+            }
+
+            // ── 3. Get all submissions for those job posts ────────────────────────────
+            $submissions = Submission::select(
+                'id',
+                'nPersonalInfo_id',
+                // 'xPersonal_id',   // adjust to your actual FK column name
+                'ControlNo',
+                'job_batches_rsp_id',
+                'status'
+            )
+                ->whereIn('job_batches_rsp_id', $jobPostIds)
+                ->with([
+                    'nPersonalInfo:id,firstname,lastname,date_of_birth,cellphone_number,email_address',
+                    // 'xPersonal',
+                    'jobPost:id,Position,Office,SalaryGrade,ItemNo,status',
+                ])
+                ->get();
+
+            // ── 4. Normalize each submission into a flat structure ────────────────────
+            $normalized = $submissions->map(function ($submission) {
+                $isExternal = ! is_null($submission->nPersonalInfo_id);
+
+                if ($isExternal && $submission->nPersonalInfo) {
+                    $info = [
+                        'id'            => $submission->nPersonalInfo->id,
+                        'firstname'     => trim($submission->nPersonalInfo->firstname),
+                        'lastname'      => trim($submission->nPersonalInfo->lastname),
+                        'date_of_birth' => $submission->nPersonalInfo->date_of_birth, // keep raw for grouping
+
+                        'cellphone_number' => $submission->nPersonalInfo->cellphone_number,  // ← add
+                        'email_address'    => $submission->nPersonalInfo->email_address,
+                    ];
+                } elseif (! $isExternal && $submission->xPersonal) {
+                    $info = [
+                        'id'            => $submission->xPersonal->id,  // adjust PK name
+                        'firstname'     => trim($submission->xPersonal->Firstname),
+                        'lastname'      => trim($submission->xPersonal->Surname),
+                        'date_of_birth' => $submission->xPersonal->BirthDate,
+                        'email_address' => $submission->xPersonalAddt->EmailAdd,
+                        'cellphone_number' => $submission->xPersonalAddt->CellphoneNo,
+                    ];
+                } else {
+                    $info = null;
+                }
+
+                return [
+                    'submission_id'         => $submission->id,
+                    'nPersonalInfo_id'      => $submission->nPersonalInfo_id,
+                    'ControlNo'             => $submission->ControlNo,
+                    'job_batches_rsp_id'    => $submission->job_batches_rsp_id,
+                    'applicant_status'      => $submission->status,
+                    'applicant_type'        => $isExternal ? 'external' : 'internal',
+                    'personal_info'         => $info,
+                    'job_post'              => $submission->jobPost,
+                ];
+            })->filter(fn($s) => ! is_null($s['personal_info'])); // skip if no personal info found
+
+            // ── 5. Group by person: lowercase name + normalized birthdate ─────────────
+            $grouped = $normalized->groupBy(function ($item) {
+                $firstname = strtolower(trim($item['personal_info']['firstname']));
+                $lastname  = strtolower(trim($item['personal_info']['lastname']));
+
+                // Normalize date to Y-m-d regardless of source format
+                try {
+                    $dob = \Carbon\Carbon::parse($item['personal_info']['date_of_birth'])->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $dob = $item['personal_info']['date_of_birth'];
+                }
+
+                return "{$firstname}|{$lastname}|{$dob}";
+            });
+
+            // ── 6. Build the final response ───────────────────────────────────────────
+            $result = $grouped->values()->map(function ($group) {
+                $first      = $group->first();
+                $personInfo = $first['personal_info'];
+
+                // Format date_of_birth as DD/MM/YYYY for display
+                try {
+                    $dobFormatted = \Carbon\Carbon::parse($personInfo['date_of_birth'])->format('d/m/Y');
+                } catch (\Exception $e) {
+                    $dobFormatted = $personInfo['date_of_birth'];
+                }
+
+                $applications = $group->map(function ($submission) {
+                    $jp = $submission['job_post'];
+                    return [
+                        'submission_id'      => $submission['submission_id'],
+                        'nPersonalInfo_id'   => $submission['nPersonalInfo_id'],
+                        'ControlNo'          => $submission['ControlNo'],
+                        'job_batches_rsp_id' => $submission['job_batches_rsp_id'],
+                        'job_post'           => $jp ? [
+                            'id'               => $jp->id,
+                            'Position'         => $jp->Position,
+                            'Office'           => $jp->Office,
+                            'SalaryGrade'      => $jp->SalaryGrade,
+                            'ItemNo'        => $jp->ItemNo,
+                            // 'salaryMax'        => $jp->salaryMax,
+                        ] : null,
+                        'applicant_status'   => $submission['applicant_status'],
+                        'applicant_type'     => $submission['applicant_type'],
+                    ];
+                })->values();
+
+                return [
+                    'applicant' => [
+                        'id'            => $personInfo['id'],
+                        'firstname'     => $personInfo['firstname'],
+                        'lastname'      => $personInfo['lastname'] ?? null,
+                        'date_of_birth' => $dobFormatted ?? null,
+                        'cellphone_number' => $personInfo['cellphone_number'] ?? null,  // ← add
+                        'email_address'    => $personInfo['email_address'] ?? null,     // ← add
+                        'applicant_application'       => $applications,
+                    ],
+                    // 'total_applications' => $applications->count(),
+
+                ];
+            });
+
+            if ($result->isEmpty()) {
+                // return response()->json([
+                //     'success' => false,
+                //     'message' => 'No applicants found for the given date.',
+                //     'date'    => $parsedDate,
+                // ], 404);
+
+                return $this->infoMessage('No applicants found for the given date');
+            }
+
+            // return response()->json([
+            //     'success'          => true,
+            //     'message'          => 'Applicants retrieved successfully.',
+            //     'post_date'        => $parsedDate,
+            //     'total_applicants' => $result->count(),
+            //     'data'             => $result,
+            // ]);
+            return $this->successMessage([
+                'post_date'        => $parsedDate,
+                //  'total_applicants' => $result->count(),
+                'data'             => $result,
+            ], 'Applicants retrieved successfully.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json([
+                'success'  => false,
+                'message'  => $e->getMessage(),
+                'sql'      => $e->getSql(),
+                'bindings' => $e->getBindings(),
+                'file'     => $e->getFile(),
+                'line'     => $e->getLine(),
+            ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ], 500);
+        }
+    }
 }

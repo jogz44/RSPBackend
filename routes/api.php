@@ -305,6 +305,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 
+    // generate plantilla
     Route::prefix('generate')->group(function () {
         Route::get('/', [ReportController::class, 'reportPlantilla']);
         Route::post('/cancel/{jobId}', [ReportController::class, 'cancelPlantilla']);
@@ -346,6 +347,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // list of job with bei only
         Route::get('/job-bei', [JobBatchesRspController::class, 'jostPostWithBei']);
 
+        // all applicant 
+        Route::get('/applicant/{date}', [ApplicantSubmissionController::class, 'applicantApplied']);
     });
 
     Route::post('/submissions/multiple', [ExportApplicantController::class, 'exportApplicant']); // store applicant multiple on jobpost usong export
