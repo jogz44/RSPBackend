@@ -17,6 +17,13 @@ class EmployeeController extends Controller
 {
     //
 
+    protected $employeeService;
+
+    public function __construct(EmployeeService $employeeService)
+    {
+        $this->employeeService = $employeeService;
+    }
+
     public function appliedEmployee($ControlNo)
     {
         // Get all submissions of employee using ControlNo
@@ -29,10 +36,10 @@ class EmployeeController extends Controller
                 return [
                     'submission_id' => $submission->id,
                     // 'status'        => $submission->status,
-                         // SHOW ONLY IF EMAILED
+                    // SHOW ONLY IF EMAILED
                     'status' => $submission->is_emailed  // added condition to fetch that status of the applicant email first before the status
-                                    ? $submission->status
-                                    : 'Pending',
+                        ? $submission->status
+                        : 'Pending',
                     'position'      => $submission->jobPost->Position ?? null,
                     'office'        => $submission->jobPost->Office ?? null,
                     'applied_at'    => $submission->created_at,
@@ -42,22 +49,30 @@ class EmployeeController extends Controller
     }
 
     //update tempreg and xservice and xpersonal  of the employee
-    public function updateEmployeeCredentials(EmployeeUpdateCredentialsRequest $request, $ControlNo, EmployeeService $employeeService){
+    public function updateEmployeeCredentials(EmployeeUpdateCredentialsRequest $request, $ControlNo)
+    {
 
         $validated = $request->validated();
 
-        $result = $employeeService->updateCredentials($ControlNo,$validated);
+        $result = $this->employeeService->updateCredentials($ControlNo, $validated);
 
         return $result;
-
-
     }
 
     //getting the image for the employee using the control number and the path stored in the database and return it as a response
-    public function proxyImageInternal($ControlNo,EmployeeService $employeeService)
+    public function proxyImageInternal($ControlNo)
     {
 
-        $data = $employeeService->getEmployeePhoto($ControlNo);
+        $data = $this->employeeService->getEmployeePhoto($ControlNo);
+
+        return $data;
+    }
+
+    // get the wes of applicant internal
+    public function workExperienceSheet($controlNo)
+    {
+
+        $data = $this->employeeService->getWESInterApplicant($controlNo);
 
         return $data;
     }

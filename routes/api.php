@@ -246,6 +246,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/qs/edit', [ApplicantSubmissionController::class, 'applicantQsEdit']); // for applicant manual
 
         Route::get('/internal-image-pds/{controlNo}', [JobBatchesRspController::class, 'getInternalPdsImage']);
+        Route::get('/wes/{controlNo}', [EmployeeController::class, 'workExperienceSheet']);
         // Route::get('/pds-image/{filename}', [JobBatchesRspController::class, 'proxyPdsImage']);
 
         // delete the submission of the applicant

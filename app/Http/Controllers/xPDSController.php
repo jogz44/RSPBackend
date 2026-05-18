@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
 
 class xPDSController extends Controller
@@ -183,9 +184,10 @@ class xPDSController extends Controller
             $row->id = (int) $row->id;
 
             // ✅ format LDate here
-            $row->LDate = $row->LDate
-                ? \Carbon\Carbon::parse($row->LDate)->format('d/m/Y')
-                : null;
+            // $row->LDate = $row->LDate
+            //     ? \Carbon\Carbon::parse($row->LDate)->format('d/m/Y')
+            //     : null;
+            $this->safeDate($row->LDate);
 
             return $row;
         });
@@ -213,8 +215,8 @@ class xPDSController extends Controller
             ->get()
             ->map(fn($row) => [
                 'id'       => $row->id,
-                'WFrom'    => $row->WFrom,
-                'WTo'      => $row->WTo,
+                'WFrom'    => $this->safeDate($row->WFrom),
+                'WTo'      => $this->safeDate($row->WTo),
                 'WPosition' => $this->upper($row->WPosition),
                 'WCompany' => $this->upper($row->WCompany),
                 'WSalary'  => $row->WSalary ? '₱ ' . number_format($row->WSalary, 2) : '₱ 0.00',
@@ -304,13 +306,15 @@ class xPDSController extends Controller
             $row->id = (int) $row->id;
 
             // ✅ format dates here
-            $row->DateFrom = $row->DateFrom
-                ? \Carbon\Carbon::parse($row->DateFrom)->format('d/m/Y')
-                : null;
+            // $row->DateFrom = $row->DateFrom
+            //     ? \Carbon\Carbon::parse($row->DateFrom)->format('d/m/Y')
+            //     : null;
+            $this->safeDate($row->DateFrom);
 
-            $row->DateTo = $row->DateTo
-                ? \Carbon\Carbon::parse($row->DateTo)->format('d/m/Y')
-                : null;
+            // $row->DateTo = $row->DateTo
+            //     ? \Carbon\Carbon::parse($row->DateTo)->format('d/m/Y')
+            //     : null;
+            $this->safeDate($row->DateTo);
 
             return $row;
         });
@@ -369,4 +373,27 @@ class xPDSController extends Controller
     {
         return strtoupper(trim($value ?? ''));
     }
+
+    private function safeDate($date, $format = 'd/m/Y')
+{
+    if (
+        empty($date) ||
+        $date === '-' ||
+        $date === '0000-00-00'
+    ) {
+        return null;
+    }
+
+    try {
+        return \Carbon\Carbon::parse($date)->format($format);
+    } catch (\Exception $e) {
+
+        Log::warning('Invalid date encountered', [
+            'date' => $date,
+            'message' => $e->getMessage()
+        ]);
+
+        return null;
+    }
+}
 }

@@ -8,6 +8,7 @@ use App\Models\EmailLog;
 use App\Models\JobBatchesRsp;
 use App\Models\Submission;
 use App\Models\xPersonal;
+use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,7 @@ class EmployeeService
     // {
     //     //
     // }
+    use ApiResponseTrait;
 
 
     // need to fix to pagination and search optimize make readable
@@ -61,7 +63,7 @@ class EmployeeService
 
 
     //update tempreg and xservice and xpersonal  of the employee
-    public function updateCredentials($controlNo,$validated)
+    public function updateCredentials($controlNo, $validated)
     {
         $user = Auth::user(); // User performing the update
 
@@ -205,7 +207,9 @@ class EmployeeService
             ->first();
 
         if (!$applicant) {
-            return response()->json(['message' => 'Applicant not found.'], 404);
+            return response()->json([
+                'message' => 'Cannot proceed: Employee profile is missing required contact information (email or cellphone). Please update the employee record.'
+            ], 422);
         }
 
         $firstname = $applicant->Firstname;
@@ -380,11 +384,11 @@ class EmployeeService
 
         $template = 'mail-template.application';
 
-           $firstname = $applicant->firstname;
-            $lastname = $applicant->lastname;
+        $firstname = $applicant->firstname;
+        $lastname = $applicant->lastname;
 
 
-            $full_name = trim("$firstname $lastname");
+        $full_name = trim("$firstname $lastname");
 
         Mail::to($applicant->email_address)->queue((new EmailApi(
             $subject,
@@ -507,5 +511,33 @@ class EmployeeService
         return response($fileContents, 200)
             ->header('Content-Type', $mimeType)
             ->header('Cache-Control', 'public, max-age=3600');
+    }
+
+    // get the work of experince sheet of Internal applicant
+    public function getWESInterApplicant($controlNo)
+    {
+
+        $tblWES = DB::table('tblWES')->where('controlno', $controlNo)->get();
+
+        if ($tblWES->isEmpty()) {
+            return $this->errorMessage('WES record not found');
+        }
+
+        // Extract all IDs from the collection
+        $wesIDs = $tblWES->pluck('ID');
+
+        $tblWESAccomplishment = DB::table('tblWESAccomplishment')->whereIn('WESID', $wesIDs)->get()->groupBy('WESID');
+
+        $tblWESDuties = DB::table('tblWESDuties')->whereIn('WESID', $wesIDs)->get()->groupBy('WESID');
+
+        // Nest accomplishments and duties inside each WES record
+        $result = $tblWES->map(function ($wes) use ($tblWESAccomplishment, $tblWESDuties) {
+            $wes = (array) $wes;
+            $wes['Accomplishments'] = $tblWESAccomplishment->get($wes['ID'], collect())->values();
+            $wes['Duties']          = $tblWESDuties->get($wes['ID'], collect())->values();
+            return $wes;
+        });
+
+        return $this->successMessage(['WES' => $result], 'Successful fetch');
     }
 }
