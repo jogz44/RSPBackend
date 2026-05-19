@@ -377,9 +377,21 @@ class JobPostService
         // ── UNION ALL + paginate ───────────────────────────────────────────────
         $union = $external->unionAll($internal);
 
-        $applicants = DB::table(DB::raw("({$union->toSql()}) as combined"))
+        $base = DB::table(DB::raw("({$union->toSql()}) as combined"))
             ->mergeBindings($union->getQuery())
+            ->select(
+                DB::raw('ROW_NUMBER() OVER (ORDER BY submission_id) as applicantNo'),
+                '*'
+            );
+
+
+        // $applicants = DB::table(DB::raw("({$union->toSql()}) as combined"))
+        //     ->mergeBindings($union->getQuery())
+        //     ->paginate($perPage);
+        $applicants = DB::table(DB::raw("({$base->toSql()}) as numbered"))
+            ->mergeBindings($base)
             ->paginate($perPage);
+
 
         return response()->json([
             'status'                 => true,
