@@ -6,6 +6,7 @@ use App\Models\JobBatchesRsp;
 use App\Models\Submission;
 use App\Models\vwplantillastructure;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
@@ -44,132 +45,46 @@ class DashboardService
         SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
     ")->first();
 
+        // count the number of job base on the parameter send on the post_date
+        $countJobpost = JobBatchesRsp::where('post_date', $postDate)->count();
+
+        // get the value of actual data of the applicant - internal - external
+        $applicantList = $this->listOfApplicants();
+
         return response()->json([
-            'qualified'       => (int) $applicants->qualified,
-            'pending'         => (int) $applicants->pending,
-            'unqualified'     => (int) $applicants->unqualified,
-            'total_applicant' => (int) $applicants->total,
 
-            'internal'        => (int) $applicantType->internal,
-            'external'        => (int) $applicantType->external,
+            'publish_jobpost' => [
+                'vacant'    => (int) $countJobpost,
+                'post_date' => $postDate ? Carbon::parse($postDate)->format('F d, Y') : null,
+
+            ],
+
+            'applicant_application' => [
+                'qualified'       => (int) $applicants->qualified,
+                'pending'         => (int) $applicants->pending,
+                'unqualified'     => (int) $applicants->unqualified,
+                'total_applicant' => (int) $applicants->total,
+                'internal'        => (int) $applicantType->internal,
+                'external'        => (int) $applicantType->external,
+            ],
+
+            'plantilla_position' => [
+                'funded'          => (int) $plantilla->funded,
+                'unfunded'        => (int) $plantilla->unfunded,
+                'occupied'        => (int) $plantilla->occupied,
+                'unoccupied'      => (int) $plantilla->unoccupied,
+                'total_positions' => (int) $plantilla->total_positions,
+            ],
+
+            'applicant_actual_application' => [
+                'internal_actual'           => $applicantList['internal_actual'],
+                'external_actual'           => $applicantList['external_actual'],
+                'total_application_actual'  => $applicantList['total_application_actual'],
+            ],
 
 
-            'funded'          => (int) $plantilla->funded,
-            'unfunded'        => (int) $plantilla->unfunded,
-            'occupied'        => (int) $plantilla->occupied,
-            'unoccupied'      => (int) $plantilla->unoccupied,
-            'total_positions' => (int) $plantilla->total_positions,
         ]);
     }
-    // public function applicantStatus()
-    // {
-    //     // Applicant status counts (ONE QUERY ONLY)
-    //     $applicants = Submission::selectRaw("
-    //     COUNT(*) as total,
-    //     SUM(CASE WHEN status = 'qualified' THEN 1 ELSE 0 END) as qualified,
-    //     SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-    //     SUM(CASE WHEN status = 'unqualified' THEN 1 ELSE 0 END) as unqualified
-    // ")->first();
-
-    //     // Plantilla counts (ONE QUERY ONLY)
-    //     $plantilla = vwplantillastructure::selectRaw("
-    //     COUNT(*) as total_positions,
-    //     SUM(CASE WHEN Funded = 1 THEN 1 ELSE 0 END) as funded,
-    //     SUM(CASE WHEN Funded = 0 THEN 1 ELSE 0 END) as unfunded,
-    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NOT NULL THEN 1 ELSE 0 END) as occupied,
-    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
-    // ")->first();
-
-    //     return response()->json([
-    //         'qualified' => (int) $applicants->qualified,
-    //         'pending' => (int) $applicants->pending,
-    //         'unqualified' => (int) $applicants->unqualified,
-    //         'total_applicant' => (int) $applicants->total,
-
-    //         'funded' => (int) $plantilla->funded,
-    //         'unfunded' => (int) $plantilla->unfunded,
-    //         'occupied' => (int) $plantilla->occupied,
-    //         'unoccupied' => (int) $plantilla->unoccupied,
-    //         'total_positions' => (int) $plantilla->total_positions,
-    //     ]);
-    // }
-    // public function applicantStatus()
-    // {
-    //     // count total of applicant each status
-    //     $qualified = Submission::where('status', 'qualified')->count();
-    //     $pending = Submission::where('status', 'pending')->count();
-    //     $unqualified = Submission::where('status', 'unqualified')->count();
-
-
-    //         $funded = vwplantillastructure::where('Funded', true)->count();
-    //         $unfunded = vwplantillastructure::where('Funded', false)->count();
-    //         $occupied = vwplantillastructure::where('Funded', true)
-    //             ->whereNotNull('ControlNo')
-    //             ->count();
-    //         $unoccupied = vwplantillastructure::where('Funded', true)
-    //             ->whereNull('ControlNo')
-    //             ->count();
-    //         $total_positions = vwplantillastructure::count();
-
-
-    //     // count the total of applicant
-    //     $total = Submission::count();
-
-    //     return response()->json([
-    //         'qualified' => $qualified,
-    //         'pending' => $pending,
-    //         'unqualified' => $unqualified,
-    //         'total_applicant' => $total,
-    //         'funded' => $funded,
-    //         'unfunded' => $unfunded,
-    //         'occupied' => $occupied,
-    //         'unoccupied' => $unoccupied,
-    //         'total_positions' => $total_positions,
-    //     ]);
-    // }
-
-    // employee total and status
-    // funded and unfunded position
-    // total occupied and unccupied position
-    // public function plantillaData()
-    // {
-    //     $funded = vwplantillastructure::where('Funded', true)->count();
-    //     $unfunded = vwplantillastructure::where('Funded', false)->count();
-    //     $occupied = vwplantillastructure::where('Funded', true)
-    //         ->whereNotNull('ControlNo')
-    //         ->count();
-    //     $unoccupied = vwplantillastructure::where('Funded', true)
-    //         ->whereNull('ControlNo')
-    //         ->count();
-    //     $total = vwplantillastructure::count();
-
-    //     return response()->json([
-    //         'funded' => $funded,
-    //         'unfunded' => $unfunded,
-    //         'occupied' => $occupied,
-    //         'unoccupied' => $unoccupied,
-    //         'total' => $total,
-    //     ]);
-    // }
-
-    // public function plantillaData()
-    // {
-    //     $data = vwplantillastructure::selectRaw("
-    //     COUNT(*) as total,
-    //     SUM(CASE WHEN Funded = 1 THEN 1 ELSE 0 END) as funded,
-    //     SUM(CASE WHEN Funded = 0 THEN 1 ELSE 0 END) as unfunded,
-    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NOT NULL THEN 1 ELSE 0 END) as occupied,
-    //     SUM(CASE WHEN Funded = 1 AND ControlNo IS NULL THEN 1 ELSE 0 END) as unoccupied
-    // ")->first();
-
-    //     return response()->json([
-    //         'total'      => (int) $data->total,
-    //         'funded'     => (int) $data->funded,
-    //         'unfunded'   => (int) $data->unfunded,
-    //         'occupied'   => (int) $data->occupied,
-    //         'unoccupied' => (int) $data->unoccupied,
-    //     ]);
-    // }
 
 
     // get the number of total of applicant per office
@@ -199,23 +114,6 @@ class DashboardService
         return response()->json($summary);
     }
 
-    // get the publication of job post
-    public function publication()
-    {
-        $dates = JobBatchesRsp::select('post_date')
-            ->distinct()
-            ->orderBy('post_date', 'desc')
-            ->get();
-
-        $formattedDate = $dates->map(function ($item) {
-            return [
-                // 'date'      => $item->post_date, // RAW date (for API logic)
-                'date' => Carbon::parse($item->post_date)->format('M d, Y'), // UI only
-            ];
-        });
-
-        return response()->json($formattedDate);
-    }
 
     //fetch job post list with status
     public function jobList($postDate = null)
@@ -244,5 +142,59 @@ class DashboardService
 
 
         return response()->json($jobPosts);
+    }
+
+
+    // list of applicant applied internal - external
+
+    // ✅ Private helper — returns array, not JSON response
+    private function listOfApplicants()
+    {
+        $external = Submission::query()
+            ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
+            ->select(
+                DB::raw('MIN(p.id) as nPersonal_id'),
+                'p.firstname',
+                'p.lastname',
+                // DB::raw(" CONVERT(DATE, p.date_of_birth, 103) as date_of_birth"),
+                DB::raw('CAST(p.date_of_birth AS VARCHAR(20)) as date_of_birth'), // varchar → varchar, no conversion
+
+                DB::raw('COUNT(submission.id) as jobpost'),
+                DB::raw("'external' as applicant_type"),
+                DB::raw('NULL as ControlNo')
+            )
+            ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
+
+        $internal = Submission::query()
+            ->whereNull('submission.nPersonalInfo_id')
+            ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
+            ->select(
+                DB::raw('NULL as nPersonal_id'),
+                'xp.Firstname as firstname',
+                'xp.Surname as lastname',
+                // DB::raw('CAST(xp.BirthDate AS DATE) as date_of_birth'),
+                DB::raw('CONVERT(VARCHAR(20), xp.BirthDate, 101) as date_of_birth'), // datetime → varchar MM/dd/yyyy
+                DB::raw('COUNT(submission.id) as jobpost'),
+                DB::raw("'internal' as applicant_type"),
+                'submission.ControlNo'
+            )
+            ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo');
+
+        $query = $external->unionAll($internal);
+
+        $results = DB::table(DB::raw("({$query->toSql()}) as combined"))
+            ->mergeBindings($query->getQuery())
+            ->get();
+
+        $internalCount = $results->where('applicant_type', 'internal')->count();
+        $externalCount = $results->where('applicant_type', 'external')->count();
+
+        // Return plain array for use by other methods
+        return [
+            'data'                      => $results,
+            'internal_actual'           => $internalCount,
+            'external_actual'           => $externalCount,
+            'total_application_actual'  => $internalCount + $externalCount,
+        ];
     }
 }
