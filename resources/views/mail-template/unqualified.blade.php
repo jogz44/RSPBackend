@@ -130,7 +130,6 @@
         <div class="header">
 
               <img src="{{ $message->embed(public_path('images/header2.jpg')) }}" alt="Logo" class="header-image">
-
         </div>
 
         <!-- Date -->
@@ -216,7 +215,7 @@
         <div class="signature-section">
             {{-- <img src="{{ $message->embed(public_path('images/signature1.png')) }}" alt="Signature" class="signatureImage"> --}}
             <p>Verytruly yours,</p>
-            <p><strong>EDGARD C. DE GUZMAN</strong></p>
+            <p><strong>(SGD.) EDGARD C. DE GUZMAN</strong></p>
             <p>City Administrator</p>
             <p>Authorized Representative of the City Mayor</p>
             <p>Chairperson</p>

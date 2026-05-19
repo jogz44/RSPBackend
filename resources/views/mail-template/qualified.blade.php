@@ -156,7 +156,7 @@
 
               <!-- Signature -->
         <div class="signature-section">
-            <p><strong>EDGARD C. DE GUZMAN</strong></p>
+            <p><strong>(SGD.) EDGARD C. DE GUZMAN</strong></p>
             <p>City Administrator</p>
             <p>Authorized Representative of the City Mayor</p>
             <p>Chairperson</p>
