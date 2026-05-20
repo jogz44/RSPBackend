@@ -33,7 +33,8 @@ class User extends Authenticatable
         'representative',
         'role_type',
         'enable',
-        'user_role' // coder admin
+        'user_role', // coder admin
+        'name_prefix'
 
     ];
 

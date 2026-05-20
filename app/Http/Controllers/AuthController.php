@@ -53,7 +53,8 @@ class AuthController extends Controller
                 'active' => $request->active,
                 'user_role' => $request->user_role,
                 'role_id' => 1, // Set appropriate role
-                'remember_token' => Str::random(32)
+                'remember_token' => Str::random(32),
+                'name_prefix' => $request->name_prefix ?? null,
             ]);
 
             if ($request->has('permissions')) {
@@ -276,6 +277,7 @@ class AuthController extends Controller
                 'position' => 'required|string|max:255',
                 'active' => 'required|boolean',
                 'user_role' => 'nullable|string|max:255',
+                'name_prefix' => 'nullable|string|max:50',
                 'permissions.viewDashboardstat' => 'boolean',
                 'permissions.viewPlantillaAccess' => 'boolean',
                 'permissions.modifyPlantillaAccess' => 'boolean',
@@ -322,6 +324,7 @@ class AuthController extends Controller
             $user->position = $validatedData['position'];
             $user->active = $validatedData['active'];
             $user->user_role = $validatedData['user_role'] ?? null; // ✅ Fixed
+            $user->name_prefix = $validatedData['name_prefix'] ?? null; // ✅ Fixed
 
             // Only update password if provided
             if ($request->filled('password')) {

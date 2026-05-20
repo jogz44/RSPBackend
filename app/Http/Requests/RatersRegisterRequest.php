@@ -33,6 +33,7 @@ class RatersRegisterRequest extends FormRequest
             'role' => 'nullable|string|min:3',
             'representative' => 'nullable|string|min:3',
             'enable' => 'nullable|boolean',
+            'name_prefix' => 'nullable|string|max:50',
         ];
     }
 }
