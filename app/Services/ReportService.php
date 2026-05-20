@@ -898,7 +898,7 @@ class ReportService
     public function topApplicant($postDate)
     {
 
-        $rater = User::select('name', 'position', 'role_type', 'representative', 'active', 'role_id')->where('active', 1)->where('role_id', 2)->get();
+        $rater = User::select('name', 'position', 'role_type', 'representative', 'active', 'role_id','name_prefix')->where('active', 1)->where('role_id', 2)->get();
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
             ->select(
                 'id',
@@ -1703,6 +1703,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
                 'representative' => $user->representative ?? '',
                 'position' => $user->position ?? '',
                 'role_type' => $user->role_type ?? '',
+                'name_prefix' => $user->name_prefix ?? '',
             ], 
 
         ]);
