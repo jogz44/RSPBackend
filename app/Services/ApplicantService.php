@@ -1374,7 +1374,7 @@ class ApplicantService
 
 
 
-// working  applicant list 
+    // working  applicant list 
     //  public function listOfApplicants()
     // {
     //     try {
@@ -1444,11 +1444,6 @@ class ApplicantService
                 ->pluck('id');
 
             if ($jobPostIds->isEmpty()) {
-                // return response()->json([
-                //     'success' => false,
-                //     'message' => 'No job posts found for the given date.',
-                //     'date'    => $parsedDate,
-                // ], 404);
 
                 return $this->infoMessage('No job posts found for the given date', 200);
             }
@@ -1525,11 +1520,11 @@ class ApplicantService
             });
 
             // ── 6. Build the final response ───────────────────────────────────────────
+            // ── 6. Build the final response ───────────────────────────────────────────
             $result = $grouped->values()->map(function ($group) {
                 $first      = $group->first();
                 $personInfo = $first['personal_info'];
 
-                // Format date_of_birth as DD/MM/YYYY for display
                 try {
                     $dobFormatted = \Carbon\Carbon::parse($personInfo['date_of_birth'])->format('d/m/Y');
                 } catch (\Exception $e) {
@@ -1544,54 +1539,55 @@ class ApplicantService
                         'ControlNo'          => $submission['ControlNo'],
                         'job_batches_rsp_id' => $submission['job_batches_rsp_id'],
                         'job_post'           => $jp ? [
-                            'id'               => $jp->id,
-                            'Position'         => $jp->Position,
-                            'Office'           => $jp->Office,
-                            'SalaryGrade'      => $jp->SalaryGrade,
-                            'ItemNo'        => $jp->ItemNo,
-                            // 'salaryMax'        => $jp->salaryMax,
+                            'id'          => $jp->id,
+                            'Position'    => $jp->Position,
+                            'Office'      => $jp->Office,
+                            'SalaryGrade' => $jp->SalaryGrade,
+                            'ItemNo'      => $jp->ItemNo,
                         ] : null,
                         'applicant_status'   => $submission['applicant_status'],
                         'applicant_type'     => $submission['applicant_type'],
                     ];
                 })->values();
 
-                return [
-                    'applicant' => [
-                        'id'            => $personInfo['id'],
-                        'firstname'     => $personInfo['firstname'],
-                        'lastname'      => $personInfo['lastname'] ?? null,
-                        'date_of_birth' => $dobFormatted ?? null,
-                        'cellphone_number' => $personInfo['cellphone_number'] ?? null,  // ← add
-                        'email_address'    => $personInfo['email_address'] ?? null,     // ← add
-                        'applicant_application'       => $applications,
-                    ],
-                    // 'total_applications' => $applications->count(),
+                // Determine type from the first application
+                $applicantType = $first['applicant_type'];
 
+                return [
+                    'applicant_type' => $applicantType,
+                    'applicant' => [
+                        'id'                    => $personInfo['id'],
+                        'firstname'             => $personInfo['firstname'],
+                        'lastname'              => $personInfo['lastname'] ?? null,
+                        'date_of_birth'         => $dobFormatted ?? null,
+                        'cellphone_number'      => $personInfo['cellphone_number'] ?? null,
+                        'email_address'         => $personInfo['email_address'] ?? null,
+                        'applicant_application' => $applications,
+                    ],
                 ];
             });
 
             if ($result->isEmpty()) {
-                // return response()->json([
-                //     'success' => false,
-                //     'message' => 'No applicants found for the given date.',
-                //     'date'    => $parsedDate,
-                // ], 404);
-
                 return $this->infoMessage('No applicants found for the given date');
             }
+            // ── 7. Separate into external and internal ────────────────────────────────
+            $external = $result->filter(fn($item) => $item['applicant_type'] === 'external')
+                ->map(fn($item) => $item['applicant'])
+                ->sortBy(fn($applicant) => strtolower($applicant['lastname'])) // sort A-Z by lastname
+                ->values();
 
-            // return response()->json([
-            //     'success'          => true,
-            //     'message'          => 'Applicants retrieved successfully.',
-            //     'post_date'        => $parsedDate,
-            //     'total_applicants' => $result->count(),
-            //     'data'             => $result,
-            // ]);
+            $internal = $result->filter(fn($item) => $item['applicant_type'] === 'internal')
+                ->map(fn($item) => $item['applicant'])
+                ->sortBy(fn($applicant) => strtolower($applicant['lastname'])) // sort A-Z by lastname
+                ->values();
+
+
             return $this->successMessage([
-                'post_date'        => $parsedDate,
-                //  'total_applicants' => $result->count(),
-                'data'             => $result,
+                'post_date' => $parsedDate,
+                'data'      => [
+                    'external' => $external,
+                    'internal' => $internal,
+                ],
             ], 'Applicants retrieved successfully.');
         } catch (\Illuminate\Database\QueryException $e) {
             return response()->json([
