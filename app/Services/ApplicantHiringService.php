@@ -688,6 +688,21 @@ class ApplicantHiringService
 
         $UnitCode =    $Unit->Codes ?? '00000';
 
+        $rowsToModify = DB::table('xService')
+            ->where('ControlNo', $controlNo)
+            ->where('ToDate', '>', $fromDate)
+            ->get();
+
+            foreach ($rowsToModify as $row) {
+                DB::table('hire_service_snapshots')->insert([
+                    'submission_id'   => $submissionId,
+                    'PMID'            => $row->PMID,
+                    'original_ToDate' => $row->ToDate,  // save original
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
         DB::table('xService')
             ->where('ControlNo', $controlNo)
             ->where('ToDate', '>', $fromDate)
@@ -813,6 +828,20 @@ class ApplicantHiringService
             // Restore job post status
             JobBatchesRsp::where('id', $rollback->job_batches_rsp_id)
                 ->update(['status' => $rollback->prev_job_post_status]);
+
+                $snapshots = DB::table('hire_service_snapshots')
+                ->where('submission_id', $submissionId)
+                ->get();
+
+            foreach ($snapshots as $snapshot) {
+                DB::table('xService')
+                    ->where('PMID', $snapshot->PMID)
+                    ->update(['ToDate' => $snapshot->original_ToDate]);
+            }
+
+            DB::table('hire_service_snapshots')
+                ->where('submission_id', $submissionId)
+                ->delete();
 
             // Table 1
            DB::table('xPersonal')
