@@ -51,6 +51,7 @@ class RaterService
             'role_type' => $validated['role'],
             'representative' => $validated['representative'],
             'enable' => $validated['enable'] ?? false, // ← default to true if missing
+            'name_prefix' => $validated['name_prefix'] ?? null, // ← default to true if missing
 
         ]);
 
@@ -341,7 +342,7 @@ class RaterService
         // ✅ Map job posts to desired output format
         $rater->job_batches_rsp = $rater->job_batches_rsp->map(function ($job) {
             return [
-                'id' => $job->id,
+                'job_batches_rsp_id' => $job->id,
                 'Office' => $job->Office,
                 'Position' => $job->Position,
                 'applicant' => (string) $job->submissions_count,
@@ -350,14 +351,13 @@ class RaterService
         });
 
         return response()->json([
-            'id' => $rater->id,
+            'raterId' => $rater->id,
             'name' => $rater->name,
             'position' => $rater->position,
             'office' => $rater->office,
-            'job_batches_rsp' => $rater->job_batches_rsp,
             'representative' => $rater->representative,
-            'role_type' => $rater->name,
-
+            'role_type' => $rater->role_type,
+            'job_batches_rsp' => $rater->job_batches_rsp,
         ]);
     }
 

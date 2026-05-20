@@ -1597,10 +1597,10 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
     // fetch the rating of the rater on the  specific job post
     public function ratingFormQualificationStandard($validated)
     {
-        $user = Auth::user();
+        $user = User::where('id',$validated['raterId'])->first();
 
         $jobBatch = JobBatchesRsp::with([
-            'ratingScores' => function ($query) use ($user) {
+            'ratingScores' => function ($query) use ($validated) {
                 $query->select(
                     'id',
                     'user_id',
@@ -1616,7 +1616,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
                     'total_qs',
                     'grand_total',
                     'ranking'
-                )->where('user_id', $user->id)
+                )->where('user_id',$validated['raterId'])
                     // ✅ Eager load applicant names via nested with
                     ->with([
                         'internalApplicant' => fn($q) => $q->select('id', 'firstname', 'lastname',),
@@ -1703,7 +1703,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
                 'representative' => $user->representative ?? '',
                 'position' => $user->position ?? '',
                 'role_type' => $user->role_type ?? '',
-            ],
+            ], 
 
         ]);
     }

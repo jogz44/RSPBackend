@@ -601,7 +601,8 @@ class ReportController extends Controller
     {
 
         $validated = $request->validate([
-            'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id'
+            'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id',
+            'raterId' => 'required|exists:users,id'
         ]);
 
 
