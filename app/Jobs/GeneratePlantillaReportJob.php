@@ -101,9 +101,19 @@ class GeneratePlantillaReportJob implements ShouldQueue
             throw new \Exception('Job was cancelled by user');
         }
 
-        $latestXService = DB::table('xService')
-            ->select('ControlNo', DB::raw('MAX(PMID) as latest_pmid'))
-            ->groupBy('ControlNo');
+        // old 
+        // $latestXService = DB::table('xService')
+        //     ->select('ControlNo', DB::raw('MAX(PMID) as latest_pmid'))
+        //     ->groupBy('ControlNo');
+
+            // new
+       $latestXService = DB::table('xService')
+                ->select(
+                    'ControlNo',
+                    DB::raw('MAX(ToDate) as latest_todate'),
+                    DB::raw('MAX(FromDate) as latest_fromdate')
+                )
+                ->groupBy('ControlNo');
 
         $this->updateProgress(20, 'Processing plantilla structure...');
 
@@ -118,7 +128,13 @@ class GeneratePlantillaReportJob implements ShouldQueue
             ->leftJoinSub($latestXService, 'lx', function ($join) {
                 $join->on('lx.ControlNo', '=', 'p.ControlNo');
             })
-            ->leftJoin('xService as s', 's.PMID', '=', 'lx.latest_pmid')
+            // ->leftJoin('xService as s', 's.PMID', '=', 'lx.latest_pmid')
+                       ->leftJoin('xService as s', function ($join) {
+                $join->on('s.ControlNo', '=', 'lx.ControlNo')
+                    ->on('s.ToDate', '=', 'lx.latest_todate')
+                    ->on('s.FromDate', '=', 'lx.latest_fromdate');
+            })
+
             ->select(
                 'p.*',
                 'a.Status as status',

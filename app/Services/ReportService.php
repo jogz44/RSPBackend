@@ -44,9 +44,19 @@ class ReportService
             ->groupBy('ControlNo');
 
         // actual salary
-        $latestXService = DB::table('xService')
-            ->select('ControlNo', DB::raw('MAX(PMID) as latest_pmid'))
-            ->groupBy('ControlNo');
+        // $latestXService = DB::table('xService')
+        //     ->select('ControlNo', DB::raw('MAX(PMID) as latest_pmid'))
+        //     ->groupBy('ControlNo');
+
+               $latestXService = DB::table('xService')
+                ->select(
+                    'ControlNo',
+                    DB::raw('MAX(ToDate) as latest_todate'),
+                    DB::raw('MAX(FromDate) as latest_fromdate')
+             
+                )
+                ->groupBy('ControlNo');
+                
 
 
         $rows = DB::table('vwplantillastructure as p')
@@ -65,7 +75,12 @@ class ReportService
             })
 
             // join xService using latest PMID
-            ->leftJoin('xService as s', 's.PMID', '=', 'lx.latest_pmid')
+            // ->leftJoin('xService as s', 's.PMID', '=', 'lx.latest_pmid')
+                ->leftJoin('xService as s', function ($join) {
+                $join->on('s.ControlNo', '=', 'lx.ControlNo')
+                    ->on('s.ToDate', '=', 'lx.latest_todate')
+                    ->on('s.FromDate', '=', 'lx.latest_fromdate');
+            })
 
             ->select(
                 'p.*',
@@ -1761,10 +1776,12 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
                 $lastname  = $active->Surname   ?? null;
                 $pics      = $active->Pics ?? null;
 
-                // ✅ Get LATEST service record by PMID (single record)
-                $current_service = xService::where('ControlNo', $firstRow->ControlNo)
-                    ->orderByDesc('PMID')
-                    ->first(); // ✅ first() not get()
+                // ✅ Get LATEST service record by orderByDesc (single record)
+                $current_service = DB::table('xService')
+                    ->where('ControlNo', $firstRow->ControlNo)
+                    ->orderByDesc('ToDate')
+                    ->orderByDesc('FromDate')
+                    ->first();
 
                 // ✅ Now safe to use $current_service
                 $office      = $current_service->Office      ?? null;
