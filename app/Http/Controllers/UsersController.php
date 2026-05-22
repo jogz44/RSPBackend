@@ -110,8 +110,10 @@ class UsersController extends Controller
                 'reportPlantillaAccess' => optional($user->rspControl)->reportPlantillaAccess ?? false,
                 'viewApplicantAccess' => optional($user->rspControl)->viewApplicantAccess ?? false,
                 'modifyApplicantAccess' => optional($user->rspControl)->modifyApplicantAccess ?? false,
-                'reportApplicantAccess' => optional($user->rspControl)->reportApplicantAccess ?? false
+                'reportApplicantAccess' => optional($user->rspControl)->reportApplicantAccess ?? false,
 
+                'viewLibraryAccess' => optional($user->rspControl)->viewLibraryAccess ?? false,
+                'modifyLibraryAccess' => optional($user->rspControl)->modifyLibraryAccess ?? false,
 
 
 
