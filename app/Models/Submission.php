@@ -18,8 +18,8 @@ class Submission extends Model
 {
     //
 
-    protected $table ='submission'; // applicant apply on the job post
-    protected $fillable =[
+    protected $table = 'submission'; // applicant apply on the job post
+    protected $fillable = [
         'nPersonalInfo_id', // applicant
         'job_batches_rsp_id',
 
@@ -27,7 +27,7 @@ class Submission extends Model
         'experience_remark',
         'training_remark',
         'eligibility_remark',
-         'status',
+        'status',
         'ControlNo',
 
         'education_qualification',
@@ -115,7 +115,7 @@ class Submission extends Model
 
 
 
-    // internal
+    // external record applicant
 
     // ✅ NEW: Get education records by IDs
     public function getEducationRecordsExternal() // getEducationRecordsExternal
@@ -159,7 +159,7 @@ class Submission extends Model
 
 
 
-    // external applicant
+    // Internal records applicant
 
     // ✅ NEW: Get education records by IDs
     public function getEducationRecordsInternal() //getEducationRecordsInternal
@@ -172,14 +172,75 @@ class Submission extends Model
     }
 
     // ✅ NEW: Get experience records by IDs`
-    public function getExperienceRecordsInternal() //getExperienceRecordsInternal
-    {
-        if (empty($this->experience_qualification)) {
-            return collect();
-        }
+    // public function getExperienceRecordsInternal() //getExperienceRecordsInternal
+    // {
+    //     if (empty($this->experience_qualification)) {
+    //         return collect();
+    //     }
 
-        return  DB::table('xExperience')->whereIn('ID', $this->experience_qualification)->get(); //Work_experience
+    //     return  DB::table('xExperience')->whereIn('ID', $this->experience_qualification)->get(); //Work_experience
+    //     // return  DB::table('xService')->whereIn('PMID', $this->experience_qualification)->get(); //Work_experience
+    // }
+    public function getExperienceRecordsInternal($controlNo)
+    {
+        // ✅ Fetch from xService
+        $serviceRecords = DB::table('xService')
+            ->where('ControlNo', $controlNo)
+            ->select('PMID as id', 'ControlNo', 'FromDate as WFrom', 'ToDate as WTo','Designation as WPosition','Office as WCompany')
+            ->orderBy('FromDate')
+            ->get();
+
+        // ✅ Find the latest record (by ToDate, then FromDate)
+        $latestServiceId = $serviceRecords
+            ->sortByDesc(fn($row) => [$row->WTo, $row->WFrom])
+            ->first()?->id;
+
+        // ✅ Normalize dates, cap future ToDate on latest record to today
+        $service = $serviceRecords->map(function ($row) use ($latestServiceId) {
+            $isLatest = $row->id === $latestServiceId;
+
+            $toDate = $row->WTo ? \Carbon\Carbon::parse($row->WTo) : null;
+
+            // Cap future-dated WTo to today only on the latest record
+            if ($isLatest && $toDate && $toDate->isFuture()) {
+                $toDate = \Carbon\Carbon::today();
+            }
+
+            $row->WFrom = $row->WFrom
+                ? \Carbon\Carbon::parse($row->WFrom)->format('m/d/Y')
+                : null;
+
+            $row->WTo = $toDate
+                ? $toDate->format('m/d/Y')
+                : null;
+
+            $row->experience_status = 'SERVICE';
+            return $row;
+        });
+
+        // ✅ Fetch from xExperience (private/external experience records)
+        $experienceRecords = DB::table('xExperience')
+            ->whereIn('ID', $this->experience_qualification ?? [])
+            ->get()
+            ->map(function ($record) {
+                // ✅ Normalize WFrom
+                $record->WFrom = ($record->WFrom && strtoupper(trim($record->WFrom)) !== 'CURRENT')
+                    ? \Carbon\Carbon::parse($record->WFrom)->format('m/d/Y')
+                    : null;
+
+                // ✅ Normalize WTo — treat "CURRENT" as today
+                $wTo = strtoupper(trim($record->WTo ?? ''));
+                $record->WTo = ($wTo === 'CURRENT' || $wTo === '')
+                    ? \Carbon\Carbon::now()->format('m/d/Y')  // treat as present
+                    : \Carbon\Carbon::parse($record->WTo)->format('m/d/Y');
+
+                $record->experience_status = 'EXPERIENCE';
+                return $record;
+            });
+        // ✅ Merge both collections into one
+        return $serviceRecords->merge($experienceRecords);
     }
+
 
     // ✅ NEW: Get training records by IDs
     public function getTrainingRecordsInternal() //getTrainingRecordsInternal
@@ -206,4 +267,3 @@ class Submission extends Model
         return $this->hasOne(ApplicantExamScore::class, 'submission_id', 'id');
     }
 }
-
