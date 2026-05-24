@@ -13,7 +13,7 @@ class DashboardService
 
 
     // status of applicant
-    public function applicantStatus($postDate = null)
+    public function applicantStatus($postDate = null, $endDate = null)
     {
         // ✅ Filter submissions by postDate via job post relationship
         $applicants = Submission::selectRaw("
@@ -55,10 +55,10 @@ class DashboardService
 
             'publish_jobpost' => [
                 'vacant'    => (int) $countJobpost,
-                'post_date' => $postDate ? Carbon::parse($postDate)->format('F d, Y') : null,
-
+                'post_date' => $postDate && $endDate 
+                    ? Carbon::parse($postDate)->format('F d, Y') . ' - ' . Carbon::parse($endDate)->format('F d, Y') 
+                    : null,
             ],
-
             'applicant_application' => [
                 'qualified'       => (int) $applicants->qualified,
                 'pending'         => (int) $applicants->pending,

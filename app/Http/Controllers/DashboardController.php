@@ -18,34 +18,37 @@ class DashboardController extends Controller
     // get the publication of job post
     private function publicationDate()
     {
-        $dates = JobBatchesRsp::select('post_date')
+        $dates = JobBatchesRsp::select('post_date', 'end_date')
             ->distinct()
             ->orderBy('post_date', 'desc')
             ->get();
 
         return $dates->map(fn($item) => [
             'date' => Carbon::parse($item->post_date)->format('M d, Y'),
+            'end_date' => Carbon::parse($item->end_date)->format('M d, Y'),
         ]);
     }
 
-    private function latestPostDate(): ?string
+    private function latestPostDate(): array
     {
         $dates = $this->publicationDate();
 
         if ($dates->isEmpty()) {
-            return null;
+            return ['post_date' => null, 'end_date' => null];
         }
 
-        // Re-parse the formatted "M d, Y" back to Y-m-d for service consumption
-        return Carbon::createFromFormat('M d, Y', $dates->first()['date'])->format('Y-m-d');
+        return [
+            'post_date' => Carbon::createFromFormat('M d, Y', $dates->first()['date'])->format('Y-m-d'),
+            'end_date'  => Carbon::createFromFormat('M d, Y', $dates->first()['end_date'])->format('Y-m-d'),
+        ];
     }
-
     // total of applicant
     // total of each status of applicant
     public function totalApplicantStatus(DashboardService $dashboardService, Request $request,)
     {
 
         $postDate = null;
+        $endDate = null;
 
         if ($request->has('postDate')) {
             try {
@@ -56,9 +59,24 @@ class DashboardController extends Controller
                 ], 422);
             }
         }
-        $postDate ??= $this->latestPostDate();
 
-        $result = $dashboardService->applicantStatus($postDate);
+        if ($request->has('endDate')) {
+            try {
+                $endDate = Carbon::createFromFormat('m-d-Y', $request->query('endDate'))->format('Y-m-d');
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => 'Invalid end date format. Use MM-DD-YYYY. Example: 04-07-2026',
+                ], 422);
+            }
+        }
+        // Fall back to latest dates if not provided
+        if (!$postDate || !$endDate) {
+            $latest   = $this->latestPostDate();
+            $postDate ??= $latest['post_date'];
+            $endDate  ??= $latest['end_date'];
+        }
+
+        $result = $dashboardService->applicantStatus($postDate, $endDate);
         return $result;
     }
 
