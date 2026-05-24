@@ -9,8 +9,6 @@ use Illuminate\Http\Request;
 
 class LibraryController extends Controller
 {
-    //
-
     use ApiResponseTrait;
 
     protected $libService;
@@ -20,7 +18,9 @@ class LibraryController extends Controller
         $this->libService = $libService;
     }
 
-    // store library remarks
+    /**
+     * Store library remarks
+     */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
@@ -36,52 +36,162 @@ class LibraryController extends Controller
         return $data;
     }
 
-    // fetch library remarks
-    public function index()
+    /**
+     * Fetch all library remarks
+     */
+    public function index(Request $request)
     {
-        $data = LibRemark::all()->map(function ($item) {
+        $query = LibRemark::query();
+
+        // Optional: Filter by category if provided
+        if ($request->has('category') && !empty($request->category)) {
+            $query->where('category', strtoupper($request->category));
+        }
+
+        // Optional: Search by remarks if provided
+        if ($request->has('search') && !empty($request->search)) {
+            $query->where('remarks', 'LIKE', '%' . strtoupper($request->search) . '%');
+        }
+
+        // Optional: Sort by latest first
+        $remarks = $query->latest()->get();
+
+        $data = $remarks->map(function ($item) {
             return [
                 'remarks_id' => $item->id,
-                'remarks'    => $item->remarks,
+                'remarks' => $item->remarks,
+                'category' => $item->category,
                 'created_at' => $item->created_at
                     ? $item->created_at->format('F d, Y')
                     : null,
-                // 'updated_at' => $item->updated_at
-                //     ? $item->updated_at->format('F d, Y')
-                //     : null,
+                'updated_at' => $item->updated_at
+                    ? $item->updated_at->format('F d, Y')
+                    : null,
             ];
         });
 
         return $this->successMessage($data, 'Fetch Successful', 200);
     }
 
-    // update library remarks
+    /**
+     * Get remarks by category
+     */
+    public function getByCategory($category)
+    {
+        $remarks = LibRemark::where('category', strtoupper($category))->get();
+
+        $data = $remarks->map(function ($item) {
+            return [
+                'remarks_id' => $item->id,
+                'remarks' => $item->remarks,
+                'category' => $item->category,
+                'created_at' => $item->created_at
+                    ? $item->created_at->format('F d, Y')
+                    : null,
+            ];
+        });
+
+        return $this->successMessage($data, 'Fetch Successful', 200);
+    }
+
+    /**
+     * Get single remark by ID
+     */
+    public function show($remark_id)
+    {
+        $remark = LibRemark::find($remark_id);
+
+        if (!$remark) {
+            return $this->errorMessage('Remarks id not found', 404);
+        }
+
+        $data = [
+            'remarks_id' => $remark->id,
+            'remarks' => $remark->remarks,
+            'category' => $remark->category,
+            'created_at' => $remark->created_at
+                ? $remark->created_at->format('F d, Y')
+                : null,
+            'updated_at' => $remark->updated_at
+                ? $remark->updated_at->format('F d, Y')
+                : null,
+        ];
+
+        return $this->successMessage($data, 'Fetch Successful', 200);
+    }
+
+    /**
+     * Update library remarks
+     */
     public function update($remark_id, Request $request)
     {
         $validatedData = $request->validate([
             'remarks' => 'required|string|unique:lib_remarks,remarks,' . $remark_id,
-            'category' =>'required|string'
+            'category' => 'required|string'
         ]);
 
         $validatedData['remarks'] = strtoupper($validatedData['remarks']);
         $validatedData['category'] = strtoupper($validatedData['category']);
 
-        $data = $this->libService->updateRemark($remark_id,$validatedData);
+        $data = $this->libService->updateRemark($remark_id, $validatedData);
 
         return $data;
     }
 
-     // delete library remarks
+    /**
+     * Delete library remarks
+     */
     public function delete($remark_id)
     {
         $remark = LibRemark::find($remark_id);
 
         if (!$remark) {
-            return $this->errorMessage('Remarks id not found');
+            return $this->errorMessage('Remarks id not found', 404);
         }
+
+        // Store data before deletion for response
+        $deletedData = [
+            'remarks_id' => $remark->id,
+            'remarks' => $remark->remarks,
+            'category' => $remark->category,
+            'deleted_at' => now()->format('F d, Y H:i:s')
+        ];
 
         $remark->delete();
 
-        return $this->successMessage($remark, 'Successfully Deleted', 200);
+        return $this->successMessage($deletedData, 'Successfully Deleted', 200);
+    }
+
+    /**
+     * Get all distinct categories
+     */
+    public function getCategories()
+    {
+        $categories = LibRemark::select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->get()
+            ->pluck('category');
+
+        return $this->successMessage($categories, 'Categories fetched successfully', 200);
+    }
+
+    /**
+     * Bulk delete remarks
+     */
+    public function bulkDelete(Request $request)
+    {
+        $validatedData = $request->validate([
+            'remark_ids' => 'required|array',
+            'remark_ids.*' => 'exists:lib_remarks,id'
+        ]);
+
+        $deletedCount = LibRemark::whereIn('id', $validatedData['remark_ids'])->delete();
+
+        return $this->successMessage(
+            ['deleted_count' => $deletedCount],
+            $deletedCount . ' remark(s) successfully deleted',
+            200
+        );
     }
 }

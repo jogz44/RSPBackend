@@ -35,11 +35,14 @@ class UserRspControl extends Model
 
         'requestPublication',
         'reportPlantillaAccess',
-       'viewApplicantAccess',
+        'viewApplicantAccess',
         'modifyApplicantAccess',
         'reportApplicantAccess',
         // 'viewExamScoreAccess',
         // 'modifyExamScoreAccess'
+
+        'viewLibraryAccess',
+        'modifyLibraryAccess',
     ];
 
     // In UserRspControl.php

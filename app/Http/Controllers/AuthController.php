@@ -17,14 +17,13 @@ use Illuminate\Support\Facades\Hash;
 
 
 class AuthController extends Controller
-
 {
 
     protected $activityLogService;
 
     public function __construct(ActivityLogService $activityLogService)
     {
-        $this->activityLogService =  $activityLogService;
+        $this->activityLogService = $activityLogService;
     }
 
 
@@ -85,9 +84,10 @@ class AuthController extends Controller
                     'viewApplicantAccess' => $request->input('permissions.viewApplicantAccess', false),
                     'modifyApplicantAccess' => $request->input('permissions.modifyApplicantAccess', false),
 
-                    'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false)
+                    'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false),
 
-
+                    'viewLibraryAccess' => $request->input('permissions.viewLibraryAccess', false),
+                    'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
 
                 ]);
             }
@@ -191,7 +191,7 @@ class AuthController extends Controller
             'user' => [
                 'name' => $user->name,
                 'position' => $user->position,
-                'role_id' => (int)$user->role_id, // Always integer
+                'role_id' => (int) $user->role_id, // Always integer
 
             ],
             'token' => $token,
@@ -213,7 +213,7 @@ class AuthController extends Controller
         $this->activityLogService->logLogOut($user);
 
         return response([
-            'status'  => true,
+            'status' => true,
             'message' => 'Logout Successfully',
         ]);
     }
@@ -300,9 +300,10 @@ class AuthController extends Controller
                 'permissions.reportPlantillaAccess' => 'boolean',
                 'permissions.viewApplicantAccess' => 'boolean',
                 'permissions.modifyApplicantAccess' => 'boolean',
-                'permissions.reportApplicantAccess' => 'boolean'
+                'permissions.reportApplicantAccess' => 'boolean',
 
-
+                'permissions.viewLibraryAccess' => 'boolean',
+                'permissions.modifyLibraryAccess' => 'boolean',
 
 
 
@@ -352,7 +353,7 @@ class AuthController extends Controller
 
                         'viewReport' => $request->input('permissions.viewReport', false),
 
-                        'viewSchedule' =>  $request->input('permissions.viewSchedule', false),
+                        'viewSchedule' => $request->input('permissions.viewSchedule', false),
                         'modifySchedule' => $request->input('permissions.modifySchedule', false),
                         'viewExam' => $request->input('permissions.viewExam', false),
                         'modifyExam' => $request->input('permissions.modifyExam', false),
@@ -361,9 +362,10 @@ class AuthController extends Controller
                         'viewApplicantAccess' => $request->input('permissions.viewApplicantAccess', false),
                         'modifyApplicantAccess' => $request->input('permissions.modifyApplicantAccess', false),
 
-                        'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false)
+                        'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false),
 
-
+                        'viewLibraryAccess' => $request->input('permissions.viewLibraryAccess', false),
+                        'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
 
 
                     ]);
@@ -384,7 +386,7 @@ class AuthController extends Controller
                         'modifyCriteria' => $request->input('permissions.modifyCriteria', false),
 
                         'viewReport' => $request->input('permissions.viewReport', false),
-                        'viewSchedule' =>  $request->input('permissions.viewSchedule', false),
+                        'viewSchedule' => $request->input('permissions.viewSchedule', false),
                         'modifySchedule' => $request->input('permissions.modifySchedule', false),
                         'viewExam' => $request->input('permissions.viewExam', false),
                         'modifyExam' => $request->input('permissions.modifyExam', false),
@@ -393,7 +395,10 @@ class AuthController extends Controller
                         'viewApplicantAccess' => $request->input('permissions.viewApplicantAccess', false),
                         'modifyApplicantAccess' => $request->input('permissions.modifyApplicantAccess', false),
 
-                        'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false)
+                        'reportApplicantAccess' => $request->input('permissions.reportApplicantAccess', false),
+
+                        'viewLibraryAccess' => $request->input('permissions.viewLibraryAccess', false),
+                        'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
 
 
 
@@ -411,7 +416,7 @@ class AuthController extends Controller
 
             // Fetch updated user with permissions
             $updatedUser = User::with('rspControl')
-                ->select('id', 'name', 'username', 'position', 'active','user_role')
+                ->select('id', 'name', 'username', 'position', 'active', 'user_role')
                 ->findOrFail($id);
 
             return response()->json([
