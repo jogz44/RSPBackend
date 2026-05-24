@@ -51,8 +51,8 @@ class RaterService
             'role_type' => $validated['role'],
             'representative' => $validated['representative'],
             'enable' => $validated['enable'] ?? false, // ← default to true if missing
-            'name_prefix' => $validated['name_prefix'] ?? null, // ← default to true if missing
-
+            'prefix' => $validated['prefix'] ?? null, // ← default to true if missing
+            'suffix' => $validated['suffix'] ?? null, // ← default to true if missing
         ]);
 
         // Attach job batches
@@ -136,7 +136,7 @@ class RaterService
         $rater->load('job_batches_rsp');
 
         // activity logs
-        $this->activityLogService->logRaterUpdateAssignTask($authUser,$rater,$validated,$oldData);
+        $this->activityLogService->logRaterUpdateAssignTask($authUser, $rater, $validated, $oldData);
 
         return response()->json([
             'status' => true,
@@ -272,7 +272,7 @@ class RaterService
         $rater->save();
 
 
-     
+
         // acivity logs
         $this->activityLogService->logRaterUpdatePassword($rater);
 
@@ -625,6 +625,8 @@ class RaterService
                         'office' => $user->office,
                         'representative' => $user->representative,
                         'role_type' => $user->role_type,
+                        'prefix' => $user->prefix,
+                        'suffix' => $user->suffix,
                         'pending' => $pendingCount,
                         'active' => $user->active,
                         'completed' => $completeCount,
@@ -1190,12 +1192,13 @@ class RaterService
             ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
             ->whereNotNull('submission.nPersonalInfo_id')
             ->whereIn('submission.job_batches_rsp_id', $jobBatchIds)
+            ->where('status', 'Qualified')
             ->select(
                 DB::raw('MIN(p.id) as nPersonal_id'),
                 DB::raw('NULL as ControlNo'),
                 'p.firstname',
                 'p.lastname',
-                DB::raw('CONVERT(varchar, p.date_of_birth, 23) as date_of_birth'),
+                DB::raw(" CONVERT(DATE, p.date_of_birth, 103) as date_of_birth"),
                 DB::raw('COUNT(submission.id) as applied_job'),
                 DB::raw("'external' as applicant_type")
             )
@@ -1215,12 +1218,13 @@ class RaterService
             ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
             ->whereNull('submission.nPersonalInfo_id')
             ->whereIn('submission.job_batches_rsp_id', $jobBatchIds)
+            ->where('status', 'Qualified')
             ->select(
                 DB::raw('NULL as nPersonal_id'),
                 'submission.ControlNo',
                 DB::raw('xp.Firstname as firstname'),
                 DB::raw('xp.Surname as lastname'),
-                DB::raw('CONVERT(varchar, xp.BirthDate, 23) as date_of_birth'),
+                DB::raw('CONVERT(VARCHAR(20), xp.BirthDate, 101) as date_of_birth'), // datetime → varchar MM/dd/yyyy
                 DB::raw('COUNT(submission.id) as applied_job'),
                 DB::raw("'internal' as applicant_type")
             )
@@ -1247,44 +1251,44 @@ class RaterService
             'data'   => $results,
         ]);
     }
-
-    // fetch the applicant details he applied
+    // get applicant details  qualified on rater
     public function getApplicantDetails($request)
     {
-
         $validated = $request->validate([
             'firstname'     => 'required|string',
             'lastname'      => 'required|string',
             'date_of_birth' => 'required|date',
         ]);
 
-
         $user = Auth::user();
-
 
         $jobBatchIds = DB::table('job_batches_user')
             ->where('user_id', $user->id)
             ->pluck('job_batches_rsp_id');
 
-
         $firstname     = trim(strtolower($validated['firstname']));
         $lastname      = trim(strtolower($validated['lastname']));
-        $date_of_birth = \Carbon\Carbon::parse($validated['date_of_birth'])->toDateString();
+        $date_of_birth = \Carbon\Carbon::parse(trim($validated['date_of_birth']))->format('Y-m-d');
 
-        // ── External applicants (nPersonalInfo_id is NOT NULL) ──────────────────
+        $sqlDate      = "'{$date_of_birth}'";
+        $sqlFirstname = "'{$firstname}'";
+        $sqlLastname  = "'{$lastname}'";
+
+        // ── External ─────────────────────────────────────────────────────────────
         $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
-            ->whereIn('status', ['Qualified', 'Hired'])
+            ->whereIn('status', ['Qualified'])
             ->whereIn('job_batches_rsp_id', $jobBatchIds)
             ->whereNotNull('nPersonalInfo_id')
-            ->whereHas('nPersonalInfo', function ($query) use ($firstname, $lastname, $date_of_birth) {
-                $query->whereDate('date_of_birth', $date_of_birth)
-                    ->where(function ($q) use ($firstname, $lastname) {
-                        $q->where(function ($q2) use ($firstname, $lastname) {
-                            $q2->whereRaw('LOWER(TRIM(firstname)) = ?', [$firstname])
-                                ->whereRaw('LOWER(TRIM(lastname)) = ?', [$lastname]);
-                        })->orWhere(function ($q2) use ($firstname, $lastname) {
-                            $q2->whereRaw('LOWER(TRIM(firstname)) = ?', [$lastname])
-                                ->whereRaw('LOWER(TRIM(lastname)) = ?', [$firstname]);
+            ->whereHas('nPersonalInfo', function ($query) use ($sqlFirstname, $sqlLastname, $sqlDate) {
+                $query
+                    ->whereRaw("CONVERT(DATE, date_of_birth, 103) = CONVERT(DATE, {$sqlDate}, 120)")
+                    ->where(function ($q) use ($sqlFirstname, $sqlLastname) {
+                        $q->where(function ($q2) use ($sqlFirstname, $sqlLastname) {
+                            $q2->whereRaw("LOWER(LTRIM(RTRIM(firstname))) = {$sqlFirstname}")
+                                ->whereRaw("LOWER(LTRIM(RTRIM(lastname)))  = {$sqlLastname}");
+                        })->orWhere(function ($q2) use ($sqlFirstname, $sqlLastname) {
+                            $q2->whereRaw("LOWER(LTRIM(RTRIM(firstname))) = {$sqlLastname}")
+                                ->whereRaw("LOWER(LTRIM(RTRIM(lastname)))  = {$sqlFirstname}");
                         });
                     });
             })
@@ -1299,20 +1303,23 @@ class RaterService
                 return $item;
             });
 
-        // ── Internal applicants (nPersonalInfo_id IS NULL, name from xPersonal) ─
+
+
+        // ── Internal ─────────────────────────────────────────────────────────────
         $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
-            ->whereIn('status', ['Qualified', 'Hired'])
+            ->whereIn('status', ['Qualified'])
             ->whereIn('job_batches_rsp_id', $jobBatchIds)
             ->whereNull('nPersonalInfo_id')
-            ->whereHas('xPersonal', function ($query) use ($firstname, $lastname, $date_of_birth) {
-                $query->whereDate('BirthDate', $date_of_birth)
-                    ->where(function ($q) use ($firstname, $lastname) {
-                        $q->where(function ($q2) use ($firstname, $lastname) {
-                            $q2->whereRaw('LOWER(TRIM(Firstname)) = ?', [$firstname])
-                                ->whereRaw('LOWER(TRIM(Surname)) = ?', [$lastname]);
-                        })->orWhere(function ($q2) use ($firstname, $lastname) {
-                            $q2->whereRaw('LOWER(TRIM(Firstname)) = ?', [$lastname])
-                                ->whereRaw('LOWER(TRIM(Surname)) = ?', [$firstname]);
+            ->whereHas('xPersonal', function ($query) use ($sqlFirstname, $sqlLastname, $sqlDate) {
+                $query
+                    ->whereRaw("CONVERT(DATE, BirthDate, 120) = CONVERT(DATE, {$sqlDate}, 120)")
+                    ->where(function ($q) use ($sqlFirstname, $sqlLastname) {
+                        $q->where(function ($q2) use ($sqlFirstname, $sqlLastname) {
+                            $q2->whereRaw("LOWER(LTRIM(RTRIM(Firstname))) = {$sqlFirstname}")
+                                ->whereRaw("LOWER(LTRIM(RTRIM(Surname)))   = {$sqlLastname}");
+                        })->orWhere(function ($q2) use ($sqlFirstname, $sqlLastname) {
+                            $q2->whereRaw("LOWER(LTRIM(RTRIM(Firstname))) = {$sqlLastname}")
+                                ->whereRaw("LOWER(LTRIM(RTRIM(Surname)))   = {$sqlFirstname}");
                         });
                     });
             })
@@ -1330,27 +1337,19 @@ class RaterService
                         'date_of_birth' => \Carbon\Carbon::parse($item->xPersonal->BirthDate)->format('m/d/Y'),
                     ]
                     : null;
-                $item->n_personal_info = $item->xPersonal  // ← mirrors external's n_personal_info
-                    ? [
-                        'firstname'     => $item->xPersonal->Firstname,
-                        'lastname'      => $item->xPersonal->Surname,
-                        'date_of_birth' => \Carbon\Carbon::parse($item->xPersonal->BirthDate)->format('m/d/Y'),
-                    ]
-                    : null;
-                unset($item->xPersonal);
-                unset($item->x_personal);
+                $item->n_personal_info = $item->personal_info;
+                unset($item->xPersonal, $item->x_personal);
                 return $item;
             });
 
-        // ── Merge both result sets ───────────────────────────────────────────────
+
         $applicants = $external->merge($internal);
 
         if ($applicants->isEmpty()) {
-            return collect(); // return empty, let controller handle it
+            return collect();
         }
 
-        return $applicants; // just return the collection
-
+        return $applicants;
     }
 
     // joblist assigned to rater
