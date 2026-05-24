@@ -7,6 +7,7 @@ use App\Models\OnCriteriaJob;
 use App\Models\OnFundedPlantilla;
 use App\Models\Submission;
 use App\Models\vwActive;
+use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,13 +19,17 @@ class JobPostService
     /**
      * Create a new class instance.
      */
+
+    use ApiResponseTrait;
     protected $activityLogService;
+    protected $scheduleService;
 
 
-    public function __construct(ActivityLogService $activityLogService)
+    public function __construct(ActivityLogService $activityLogService, ScheduleService $scheduleService)
     {
         //
         $this->activityLogService = $activityLogService;
+        $this->scheduleService = $scheduleService;
     }
 
     // updating the job post status unoccupied
@@ -628,5 +633,230 @@ class JobPostService
             'criteria' => $criteria,
             'plantilla' => $plantilla
         ], 201);
+    }
+
+
+    // get the unqualifed on the jobpost
+    public function getApplicantUnqualifiedOnJobPost($JobPostId)
+    {
+        $job = JobBatchesRsp::where('id', $JobPostId)
+            ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
+            ->with([
+                'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
+                'submissions' => function ($query) {
+                    $query->select(
+                        'id',
+                        'job_batches_rsp_id',
+                        'nPersonalInfo_id',
+                        'ControlNo',
+                        'status',
+                    )
+                        ->where('status', 'Unqualified')
+                        ->with([
+                            'nPersonalInfo:id,firstname,lastname',
+                        ]);
+                }
+            ])
+            ->first();
+
+        if (!$job) {
+            return response()->json(['message' => 'Job post not found.'], 404);
+        }
+
+        $applicants = [];
+
+        foreach ($job->submissions as $submission) {
+
+            // EXTERNAL
+            if ($submission->nPersonalInfo_id) {
+                $applicants[] = [
+                    'jobPostId' => $job->id,
+                    'submissionId' => $submission->id,
+                    'firstname'        => $submission->nPersonalInfo->firstname ?? null,
+                    'lastname'         => $submission->nPersonalInfo->lastname ?? null,
+                    'status'           => $submission->status,
+                    'applicant_status' => 'EXTERNAL',
+                ];
+            }
+
+            // INTERNAL
+            elseif (!empty($submission->ControlNo)) {
+                $personal = DB::table('xPersonal')
+                    ->where('ControlNo', $submission->ControlNo)
+                    ->select('Firstname', 'Surname')
+                    ->first();
+
+                if (!$personal) {
+                    continue;
+                }
+
+                $applicants[] = [
+                    'jobPostId' => $job->id,
+                    'submissionId' => $submission->id,
+                    'controlno'        => $submission->ControlNo,
+                    'firstname'        => $personal->Firstname,
+                    'lastname'         => $personal->Surname,
+                    'status'           => $submission->status,
+                    'applicant_status' => 'INTERNAL',
+                ];
+            }
+        }
+
+        //  Fixed: empty() — return message only when list is truly empty
+        if (empty($applicants)) {
+            return $this->infoMessage('There are no Unqualified applicants', 200);
+        }
+
+        return $this->successMessage($applicants, 'Successfully Fetched', 200);
+    }
+
+
+
+    // getUnqualifiedRemarkOfApplicant
+
+    public function qualificationRemarks($JobPostId, $submissionId)
+    {
+        // ✅ Fetch single submission by submissionId
+        $submission = Submission::where('id', $submissionId)
+            ->where('job_batches_rsp_id', $JobPostId)
+            ->where('status', 'Unqualified')
+            ->with('nPersonalInfo')
+            ->first();
+
+        if (!$submission) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No Unqualified applicant found for this submission.'
+            ], 404);
+        }
+
+        // ✅ Fetch job criteria
+        $job = JobBatchesRsp::with('criteria:id,job_batches_rsp_id,Education,Eligibility,Training,Experience')
+            ->find($JobPostId);
+
+        if (!$job) {
+            return response()->json(['success' => false, 'message' => 'Job post not found.'], 404);
+        }
+
+        $position       = $job->Position         ?? 'N/A';
+        $office         = $job->Office           ?? 'N/A';
+        $education_qs   = $job->criteria->Education   ?? 'N/A';
+        $eligibility_qs = $job->criteria->Eligibility ?? 'N/A';
+        $training_qs    = $job->criteria->Training    ?? 'N/A';
+        $experience_qs  = $job->criteria->Experience  ?? 'N/A';
+        // ✅ Correct: nPersonalInfo_id = EXTERNAL
+        $isExternal = !is_null($submission->nPersonalInfo_id);
+
+        if ($isExternal) {
+            $applicant = $submission->nPersonalInfo;
+
+            if (!$applicant) {
+                return response()->json(['success' => false, 'message' => 'Applicant record not found.'], 404);
+            }
+
+            $fullname = trim("{$applicant->firstname} {$applicant->lastname}");
+            
+            $street   = $applicant->residential_street   ?? '';
+            $barangay = $applicant->residential_barangay ?? '';
+            $city     = $applicant->residential_city     ?? '';
+            $province = $applicant->residential_province ?? '';
+            $purok    = $applicant->Rpurok               ?? '';
+        
+
+
+
+            $educationRecords   = $submission->getEducationRecordsExternal(); // ✅
+            $experienceRecords  = $submission->getExperienceRecordsExternal();
+            $trainingRecords    = $submission->getTrainingRecordsExternal();
+            $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+
+            $educationText   = $this->scheduleService->formatEducationForEmailExternal($educationRecords);   // ✅
+            $experienceText  = $this->scheduleService->formatExperienceForEmailExternal($experienceRecords);
+            $trainingText    = $this->scheduleService->formatTrainingForEmailExternal($trainingRecords);
+            $eligibilityText = $this->scheduleService->formatEligibilityForEmailExternal($eligibilityRecords);
+        } else {
+            // ✅ Correct: ControlNo = INTERNAL (employee)
+            $internalApplicant = DB::table('xPersonalAddt')
+                ->join('xPersonal', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
+                ->where('xPersonalAddt.ControlNo', $submission->ControlNo)
+                ->select(
+                    'xPersonal.Firstname',
+                    'xPersonal.Surname',
+                    'xPersonalAddt.EmailAdd',
+                    'xPersonalAddt.CellphoneNo as cellphone_number',
+                    'xPersonalAddt.Rpurok',
+                    'xPersonalAddt.Rstreet',
+                    'xPersonalAddt.Rbarangay',
+                    'xPersonalAddt.Rcity',
+                    'xPersonalAddt.Rprovince',
+                )
+                ->first();
+
+            if (!$internalApplicant) {
+                return response()->json(['success' => false, 'message' => 'Internal applicant record not found.'], 404);
+            }
+
+            $fullname = trim("{$internalApplicant->Firstname} {$internalApplicant->Surname}");
+               $street   = $internalApplicant->Rstreet   ?? '';
+            $barangay = $internalApplicant->Rbarangay ?? '';
+            $city     = $internalApplicant->Rcity     ?? '';
+            $province = $internalApplicant->Rprovince ?? '';
+            $purok    = $internalApplicant->Rpurok    ?? '';
+         
+
+
+            $educationRecords   = $submission->getEducationRecordsInternal(); 
+            $experienceRecords  = $submission->getExperienceRecordsInternal($submission->ControlNo);
+            $trainingRecords    = $submission->getTrainingRecordsInternal();
+            $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+
+            $educationText   = $this->scheduleService->formatEducationForEmailInternal($educationRecords);  
+            $experienceText  = $this->scheduleService->formatExperienceForEmailInternal($experienceRecords);
+            $trainingText    = $this->scheduleService->formatTrainingForEmailInternal($trainingRecords);
+            $eligibilityText = $this->scheduleService->formatEligibilityForEmailInternal($eligibilityRecords);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'fullname'       => $fullname,
+                'applicant_type' => $isExternal ? 'EXTERNAL' : 'INTERNAL', // ✅
+                'status'         => $submission->status,
+                'position'       => $position,
+                'office'         => $office,
+                'address' => [
+                    'street' => $street,
+                    'barangay' => $barangay,
+                    'city' => $city,
+                    'province' => $province,
+                    'purok' => $purok,
+                ],
+
+                'qs_jobpost' => [
+                    'education'   => $education_qs,
+                    'experience'  => $experience_qs,
+                    'training'    => $training_qs,
+                    'eligibility' => $eligibility_qs,
+                ],
+                'records' => [
+                    'education'   => $educationRecords,
+                    'experience'  => $experienceRecords,
+                    'training'    => $trainingRecords,
+                    'eligibility' => $eligibilityRecords,
+                ],
+                'formatted' => [
+                    'education'   => $educationText,
+                    'experience'  => $experienceText,
+                    'training'    => $trainingText,
+                    'eligibility' => $eligibilityText,
+                ],
+                'remarks' => [
+                    'education'   => $submission->education_remark   ?? null,
+                    'experience'  => $submission->experience_remark  ?? null,
+                    'training'    => $submission->training_remark    ?? null,
+                    'eligibility' => $submission->eligibility_remark ?? null,
+                ],
+            ]
+        ]);
     }
 }
