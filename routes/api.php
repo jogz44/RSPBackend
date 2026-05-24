@@ -270,6 +270,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/update/{job_post_id}', [JobBatchesRspController::class, 'updateJobPost']); // updating the job post start date and end date
         Route::get('/applicant/view/{id}', [JobBatchesRspController::class, 'getJobPostApplicant']); // fetching the applicant per job post
 
+        // get the list of unqualified on specific job post 
+        Route::get('/applicant/unqualified/{jobPostId}', [JobBatchesRspController::class, 'getApplicantUnqualifiedOnJobPost']);
+        Route::get('/applicant/qualification/remarks/{jobPostId}/{submissionId}', [JobBatchesRspController::class, 'getApplicantUnqualifiedQualificationRemarks']);
+
+
+
     });
 
 

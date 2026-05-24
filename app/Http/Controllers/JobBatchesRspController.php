@@ -13,6 +13,7 @@ use App\Models\JobBatchesRsp;
 use App\Models\xService;
 use App\Services\ApplicantService;
 use App\Services\JobPostService;
+use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,40 +28,49 @@ use PhpOffice\PhpSpreadsheet\Calculation\Web\Service;
 class JobBatchesRspController extends Controller
 {
 
+        use ApiResponseTrait;
+
+        protected $jobPostService;
+
+        public function __construct(JobPostService $jobPostService)
+        {
+                $this->jobPostService = $jobPostService;
+        }
+
     //  updating the status to Unoccupied
-    public function jobpostUnoccupied(Request $request, $JobPostingId, JobPostService $jobPostService)
+    public function jobpostUnoccupied(Request $request, $JobPostingId)
     {
         $validated = $request->validate([
             'status' => 'required|string|in:Unoccupied',
         ]);
 
-        $result = $jobPostService->unoccupied($validated, $JobPostingId);
+        $result = $this->jobPostService->unoccupied($validated, $JobPostingId);
 
         return $result;
     }
 
     //  this function fetching the only didnt meet the end_date
-    public function availableJobPost(JobPostService $jobPostService)
+    public function availableJobPost()
     {
         // fetching available job post
-        $result = $jobPostService->jobpostListAvailable();
+        $result = $this->jobPostService->jobpostListAvailable();
 
         return $result;
     }
 
     // job post list
-    public function jobPost(JobPostService $jobPostService)
+    public function jobPost()
     {
 
-        $result = $jobPostService->jobPostList();
+        $result = $this->jobPostService->jobPostList();
 
         return $result;
     }
 
     // filter the job post
-    public function jobPostFiltered($postDate = null, $endDate = null, Request $request, JobPostService $jobPostService)
+    public function jobPostFiltered($postDate = null, $endDate = null, Request $request)
     {
-        $result = $jobPostService->filter($postDate, $endDate, $request);
+        $result = $this->jobPostService->filter($postDate, $endDate, $request);
 
         return $result;
     }
@@ -68,10 +78,10 @@ class JobBatchesRspController extends Controller
 
     // fetch the job post
     // with or without criteria
-    public function jobListCriteria(JobPostService $jobPostService)
+    public function jobListCriteria()
     {
 
-        $result = $jobPostService->fetchJobPostWithCriteria();
+        $result = $this->jobPostService->fetchJobPostWithCriteria();
 
         return $result;
     }
@@ -93,19 +103,19 @@ class JobBatchesRspController extends Controller
 
 
     // Delete job post
-    public function deleteJobPost($id, JobPostService $jobPostService)
+    public function deleteJobPost($id,)
     {
-        $result = $jobPostService->delete($id);
+        $result = $this->jobPostService->delete($id);
 
         return $result;
     }
 
     // get the applicant base on the job post id
-    public function getJobPostApplicant($id, JobPostService $jobPostService, Request $request)
+    public function getJobPostApplicant($id, Request $request)
     {
         // args id = jobpostId
 
-        $result = $jobPostService->applicant($id, $request);
+        $result = $this->jobPostService->applicant($id, $request);
 
         return $result;
     }
@@ -202,34 +212,34 @@ class JobBatchesRspController extends Controller
     }
 
     // store job post
-    public function storeJobPost(JobPostStoreRequest $request, JobPostService $jobPostService)
+    public function storeJobPost(JobPostStoreRequest $request)
     {
         // Validate basic fields for job batch
         $jobValidated = $request->validated();
 
-        $result = $jobPostService->store($jobValidated, $request);
+        $result = $this->jobPostService->store($jobValidated, $request);
 
         return $result;
     }
 
     // updating job post
-    public function updateJobPost(JobPostUpdateRequest $request, $jobBatchId, JobPostService $jobPostService)
+    public function updateJobPost(JobPostUpdateRequest $request, $jobBatchId)
     {
         // 1️⃣ Validate job batch fields
         $jobValidated = $request->validated();
 
-        $result = $jobPostService->update($jobValidated, $jobBatchId, $request);
+        $result =$this->jobPostService->update($jobValidated, $jobBatchId, $request);
 
         return $result;
     }
 
     // republished the job post
-    public function republishedJobPost(JobPostRepublishedRequest $request, JobPostService $jobPostService)
+    public function republishedJobPost(JobPostRepublishedRequest $request)
     {
         // validation
         $validated = $request->validated();
 
-        $result = $jobPostService->republished($validated, $request);
+        $result = $this->jobPostService->republished($validated, $request);
 
         return $result;
     }
@@ -270,15 +280,6 @@ class JobBatchesRspController extends Controller
     }
 
 
-    // // fetch the  jobpost with rated and occupied position
-    // public function jobPostList()
-    // {
-    //     $jobs = JobBatchesRsp::select('id as jobpostId', 'Office', 'Position', 'status', 'post_date', 'end_date')
-    //         // ->whereIn('status', ['Republished', 'rated', 'Unoccupied'])
-    //         ->get();
-
-    //     return response()->json($jobs);
-    // }
 
 
     // fetch job post based on the post date all position
@@ -478,4 +479,20 @@ class JobBatchesRspController extends Controller
         return response($response->body(), 200)
             ->header('Content-Type', $response->header('Content-Type'));
     }
+
+
+    // get the unqualifed on the jobpost
+  public function getApplicantUnqualifiedOnJobPost($jobPostId){
+
+     return $this->jobPostService->getApplicantUnqualifiedOnJobPost($jobPostId);
+
+}
+
+    // get the unqualifed on the jobpost
+  public function getApplicantUnqualifiedQualificationRemarks($jobPostId,$submissionId){
+
+     return $this->jobPostService->qualificationRemarks($jobPostId,$submissionId);
+
+}
+
 }
