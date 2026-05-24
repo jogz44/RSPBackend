@@ -39,6 +39,7 @@ return [
         'http://192.168.8.182:1000',
         'http://192.168.100.174:8000',
         'http://192.168.100.174:1000',
+        
     ],
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],

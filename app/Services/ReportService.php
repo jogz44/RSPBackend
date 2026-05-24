@@ -898,7 +898,7 @@ class ReportService
     public function topApplicant($postDate)
     {
 
-        $rater = User::select('name', 'position', 'role_type', 'representative', 'active', 'role_id','name_prefix')->where('active', 1)->where('role_id', 2)->get();
+        $rater = User::select('name', 'position', 'role_type', 'representative', 'active', 'role_id','prefix','suffix')->where('active', 1)->where('role_id', 2)->get();
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
             ->select(
                 'id',
@@ -1003,6 +1003,7 @@ class ReportService
     public function listQualified($postDate)
     {
 
+         ini_set('max_execution_time',3600);
         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
             ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
             ->with([
@@ -1055,7 +1056,7 @@ class ReportService
             foreach ($job->submissions as $submission) {
 
                 // =====================
-                // INTERNAL
+                // External
                 // =====================
                 if ($submission->nPersonalInfo_id) {
 
@@ -1090,7 +1091,7 @@ class ReportService
                 }
 
                 // =====================
-                // EXTERNAL
+                // Internal
                 // =====================
                 elseif (!empty($submission->ControlNo)) {
 
@@ -1104,14 +1105,14 @@ class ReportService
                         continue; // ❌ skip broken external record
                     }
 
-                    $tempReorg = DB::table('tempRegAppointmentReorg')
+                    $tempReorg = DB::table('vwActive')
                         ->where('ControlNo', $submission->ControlNo)
                         ->select('Office', 'Designation')
                         ->first();
 
 
                     $educationRecords   = $submission->getEducationRecordsInternal();
-                    $experienceRecords  = $submission->getExperienceRecordsInternal();
+                    $experienceRecords  = $submission->getExperienceRecordsInternal($submission->ControlNo);
                     $trainingRecords    = $submission->getTrainingRecordsInternal();
                     $eligibilityRecords = $submission->getEligibilityRecordsInternal();
 
@@ -1269,7 +1270,7 @@ class ReportService
                         continue; // ❌ skip broken external record
                     }
 
-                    $tempReorg = DB::table('tempRegAppointmentReorg')
+                    $tempReorg = DB::table('vwActive')
                         ->where('ControlNo', $submission->ControlNo)
                         ->select('Office', 'Designation')
                         ->first();
@@ -1281,7 +1282,7 @@ class ReportService
 
 
                     $educationRecords   = $submission->getEducationRecordsInternal();
-                    $experienceRecords  = $submission->getExperienceRecordsInternal();
+                    $experienceRecords  = $submission->getExperienceRecordsInternal($submission->ControlNo);
                     $trainingRecords    = $submission->getTrainingRecordsInternal();
                     $eligibilityRecords = $submission->getEligibilityRecordsInternal();
 
@@ -1337,7 +1338,7 @@ class ReportService
     }
 
     // ✅ Helper: Convert total hours to years, months, days
-private function convertHoursToYearsMonthsDays(int $totalHours, string $label = ''): string
+public function convertHoursToYearsMonthsDays(int $totalHours, string $label = ''): string
     {
         $hoursPerDay   = 8;
         $daysPerMonth  = 22; // average working days per month
@@ -1360,7 +1361,7 @@ private function convertHoursToYearsMonthsDays(int $totalHours, string $label = 
     }
     // formatting helpers for qualified applicants for the internal
     // Helper method to format education
-    private function formatEducationForQualifiedExternal($educationRecords)
+    public function formatEducationForQualifiedExternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
             return 'No relevant education';
@@ -1417,7 +1418,7 @@ private function convertHoursToYearsMonthsDays(int $totalHours, string $label = 
 
 
     // ✅ Helper method to format training (External) - total hours only
-    private function formatTrainingForQualifiedExternal($trainingRecords)
+    public function formatTrainingForQualifiedExternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
             return 'No relevant training';
@@ -1429,7 +1430,7 @@ private function convertHoursToYearsMonthsDays(int $totalHours, string $label = 
     }
 
     // ✅ Helper method to format experience (External) - total hours only
-    private function formatExperienceForQualifiedExternal($experienceRecords)
+    public function formatExperienceForQualifiedExternal($experienceRecords)
     {
         if ($experienceRecords->isEmpty()) {
             return 'No relevant experience';
@@ -1457,7 +1458,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
     }
 
     // ✅ Helper method to format eligibility
-    private function formatEligibilityForQualifiedExternal($eligibilityRecords)
+    public function formatEligibilityForQualifiedExternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
             return 'No relevant eligibility';
@@ -1480,7 +1481,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
 
     // formatting helpers for qualified applicants for the external
     // Helper method to format education
-    private function formatEducationForQualifiedInternal($educationRecords)
+    public  function formatEducationForQualifiedInternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
             return 'No relevant education.';
@@ -1534,7 +1535,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
     //     return implode('<br>', $formatted);
     // }
     // ✅ Helper method to format training (Internal) - total hours only
-    private function formatTrainingForQualifiedInternal($trainingRecords)
+    public function formatTrainingForQualifiedInternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
             return 'No relevant training';
@@ -1546,7 +1547,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
     }
 
     // ✅ Helper method to format experience (Internal) - total hours only
-    private function formatExperienceForQualifiedInternal($experienceRecords)
+    public function formatExperienceForQualifiedInternal($experienceRecords)
     {
         if ($experienceRecords->isEmpty()) {
             return 'No relevant experience';
@@ -1559,8 +1560,10 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
 
             if ($from && $to) {
                 try {
-                    $start = \Carbon\Carbon::createFromFormat('d/m/Y', $from);
-                    $end   = \Carbon\Carbon::createFromFormat('d/m/Y', $to);
+                    // $start = \Carbon\Carbon::createFromFormat('d/m/Y', $from);
+                    // $end   = \Carbon\Carbon::createFromFormat('d/m/Y', $to);
+                    $start = \Carbon\Carbon::createFromFormat('m/d/Y', $from);
+                    $end   = \Carbon\Carbon::createFromFormat('m/d/Y', $to);
                     // 8 working hours/day, 5 days/week
                     $workingDays  = $start->diffInWeekdays($end);
                     $totalHours  += $workingDays * 8;
@@ -1572,11 +1575,44 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
 
         return $this->convertHoursToYearsMonthsDays($totalHours,'of relevant experience');
     }
+// private function formatExperienceForQualifiedInternal($experienceRecords)
+// {
+//     if ($experienceRecords->isEmpty()) {
+//         return 'No relevant experience';
+//     }
 
+//     $totalDays = 0;
 
+//     foreach ($experienceRecords as $exp) {
+//         $from = $exp->WFrom ?? null;
+//         $to   = $exp->WTo   ?? null;
+
+//         if ($from && $to) {
+//             try {
+//                 $start = $this->parseFlexibleDate($from);
+
+//                 // ✅ Handle "CURRENT" as today's date
+//                 $end = (strtoupper(trim($to)) === 'CURRENT')
+//                     ? Carbon::today()
+//                     : $this->parseFlexibleDate($to);
+
+//                 if ($start && $end && $end->gte($start)) {
+//                     $totalDays += $start->diffInWeekdays($end);
+//                 }
+//             } catch (\Exception $e) {
+//                 $controlNo = $exp->ControlNo ?? $exp->id ?? 'unknown';
+//                 Log::warning("Experience date parse failed [{$controlNo}]: from={$from} to={$to} | {$e->getMessage()}");
+//             }
+//         }
+//     }
+
+//     $totalHours = $totalDays * 8;
+
+//     return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience');
+// }
 
     // ✅ Helper method to format eligibility
-    private function formatEligibilityForQualifiedInternal($eligibilityRecords)
+    public function formatEligibilityForQualifiedInternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
             return 'No relevant eligibility';
@@ -1585,7 +1621,8 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
         $formatted = [];
         foreach ($eligibilityRecords as $eligibility) {
             $name = $eligibility->CivilServe ?? 'N/A';
-            $rating = $eligibility->Rates ? " - Rating: {$eligibility->rating}" : '';
+             $rating = " - Rating: {$eligibility->Rates}" ;
+
             $formatted[] = "• {$name}{$rating}";
         }
 
@@ -1703,7 +1740,8 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
                 'representative' => $user->representative ?? '',
                 'position' => $user->position ?? '',
                 'role_type' => $user->role_type ?? '',
-                'name_prefix' => $user->name_prefix ?? '',
+                'prefix' => $user->prefix ?? '',
+                'suffix' => $user->suffix ?? '',
             ], 
 
         ]);

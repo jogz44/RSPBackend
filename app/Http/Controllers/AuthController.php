@@ -53,7 +53,8 @@ class AuthController extends Controller
                 'user_role' => $request->user_role,
                 'role_id' => 1, // Set appropriate role
                 'remember_token' => Str::random(32),
-                'name_prefix' => $request->name_prefix ?? null,
+                'prefix' => $request->prefix ?? null,
+                'suffix' => $request->suffix ?? null,
             ]);
 
             if ($request->has('permissions')) {
@@ -223,7 +224,7 @@ class AuthController extends Controller
     {
         try {
             $users = User::where('role_id', 1)->with('rspControl')
-                ->select('id', 'name', 'username', 'position', 'active', 'user_role', 'created_at', 'updated_at','name_prefix')
+                ->select('id', 'name', 'username', 'position', 'active', 'user_role', 'created_at', 'updated_at','prefix','suffix')
                 ->orderBy('id', 'desc')
                 ->get();
 
@@ -277,7 +278,8 @@ class AuthController extends Controller
                 'position' => 'required|string|max:255',
                 'active' => 'required|boolean',
                 'user_role' => 'nullable|string|max:255',
-                'name_prefix' => 'nullable|string|max:50',
+                'prefix' => 'nullable|string|max:50',
+                'suffix' => 'nullable|string|max:50',
                 'permissions.viewDashboardstat' => 'boolean',
                 'permissions.viewPlantillaAccess' => 'boolean',
                 'permissions.modifyPlantillaAccess' => 'boolean',
@@ -325,7 +327,8 @@ class AuthController extends Controller
             $user->position = $validatedData['position'];
             $user->active = $validatedData['active'];
             $user->user_role = $validatedData['user_role'] ?? null; // ✅ Fixed
-            $user->name_prefix = $validatedData['name_prefix'] ?? null; // ✅ Fixed
+            $user->prefix = $validatedData['prefix'] ?? null; // ✅ Fixed
+            $user->suffix = $validatedData['suffix'] ?? null; // ✅ Fixed
 
             // Only update password if provided
             if ($request->filled('password')) {

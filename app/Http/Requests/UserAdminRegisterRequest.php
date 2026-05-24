@@ -28,7 +28,8 @@ class UserAdminRegisterRequest extends FormRequest
             'position' => 'required|string|max:255',
             'active' => 'required|boolean',
             'user_role' => 'required|string',
-            'name_prefix' => 'nullable|string|max:50',
+            'prefix' => 'nullable|string|max:50',
+            'suffix' => 'nullable|string|max:50',
 
             // Optional permission flags
             'permissions.isFunded' => 'boolean',
