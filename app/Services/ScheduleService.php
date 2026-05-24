@@ -1035,42 +1035,77 @@ class ScheduleService
     }
 
     // for the unqualified applicant that send an  the qualification and remarks
-    public function sendEmailApplicantBatch($validated, $request)
-    {
-        $jobId = $validated['job_batches_rsp_id'];
+   public function sendEmailApplicantBatch($validated, $request)
+{
+    $jobId = $validated['job_batches_rsp_id'];
 
-        $submissions = Submission::where('job_batches_rsp_id', $jobId)
-            ->with('nPersonalInfo')
-            ->where('status', 'Unqualified')
-            ->get();
+    $submissions = Submission::where('job_batches_rsp_id', $jobId)
+        ->with('nPersonalInfo')
+        ->where('status', 'Unqualified')
+        ->get();
 
-        if ($submissions->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No Unqualified applicants found for this job post.'
-            ], 404);
-        }
+    if ($submissions->isEmpty()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'No Unqualified applicants found for this job post.'
+        ], 404);
+    }
 
-        $job = \App\Models\JobBatchesRsp::with('criteria:id,job_batches_rsp_id,Education,Eligibility,Training,Experience')
-            ->find($jobId);
+    $job = \App\Models\JobBatchesRsp::with('criteria:id,job_batches_rsp_id,Education,Eligibility,Training,Experience')
+        ->find($jobId);
 
-        $position       = $job->Position ?? 'the applied position';
-        $office         = $job->Office   ?? 'the corresponding office';
-        $education_qs   = $job->criteria->Education   ?? 'N/A';
-        $eligibility_qs = $job->criteria->Eligibility ?? 'N/A';
-        $training_qs    = $job->criteria->Training    ?? 'N/A';
-        $experience_qs  = $job->criteria->Experience  ?? 'N/A';
+    $position       = $job->Position         ?? '';
+    $office         = $job->Office           ?? '';
+    $education_qs   = $job->criteria->Education   ?? '';
+    $eligibility_qs = $job->criteria->Eligibility ?? '';
+    $training_qs    = $job->criteria->Training    ?? '';
+    $experience_qs  = $job->criteria->Experience  ?? '';
 
-        $count = 0;
+    $count = 0;
 
-        foreach ($submissions as $submission) {
+    foreach ($submissions as $submission) {
+
+        // =====================
+        // EXTERNAL — has nPersonalInfo_id
+        // =====================
+        $isExternal = !is_null($submission->nPersonalInfo_id);
+
+        if ($isExternal) {
             $applicant = $submission->nPersonalInfo;
 
-            $externalApplicant = DB::table('xPersonalAddt')
+            if (!$applicant) {
+                continue;
+            }
+
+            $fullname      = trim("{$applicant->firstname} {$applicant->lastname}");
+            $email         = $applicant->email_address    ?? null;
+            $contactNumber = $applicant->cellphone_number ?? null;
+
+            $street   = $applicant->residential_street   ?? '';
+            $barangay = $applicant->residential_barangay ?? '';
+            $city     = $applicant->residential_city     ?? '';
+            $province = $applicant->residential_province ?? '';
+            $purok    = $applicant->Rpurok               ?? '';
+            $lastname = $applicant->lastname             ?? '';
+
+            $educationRecords   = $submission->getEducationRecordsExternal();  // ✅
+            $experienceRecords  = $submission->getExperienceRecordsExternal();
+            $trainingRecords    = $submission->getTrainingRecordsExternal();
+            $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+
+            $educationText   = $this->formatEducationForEmailExternal($educationRecords);   // ✅
+            $experienceText  = $this->formatExperienceForEmailExternal($experienceRecords);
+            $trainingText    = $this->formatTrainingForEmailExternal($trainingRecords);
+            $eligibilityText = $this->formatEligibilityForEmailExternal($eligibilityRecords);
+
+        // =====================
+        // INTERNAL — has ControlNo
+        // =====================
+        } else {
+            $internalApplicant = DB::table('xPersonalAddt')
                 ->join('xPersonal', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
                 ->where('xPersonalAddt.ControlNo', $submission->ControlNo)
                 ->select(
-                    'xPersonalAddt.*',
                     'xPersonal.Firstname',
                     'xPersonal.Surname',
                     'xPersonalAddt.EmailAdd',
@@ -1083,140 +1118,120 @@ class ScheduleService
                 )
                 ->first();
 
-            $activeApplicant = $applicant ?? $externalApplicant;
-
-            if (!$activeApplicant) {
-                // Log::warning("⚠️ No applicant record found for submission ID: {$submission->id}");
+            if (!$internalApplicant) {
                 continue;
             }
 
-            $email    = $applicant->email_address ?? $externalApplicant->EmailAdd ?? null;
-            $fullname = $applicant
-                ? trim("{$applicant->firstname} {$applicant->lastname}")
-                : trim("{$externalApplicant->Firstname} {$externalApplicant->Surname}");
+            $fullname      = trim("{$internalApplicant->Firstname} {$internalApplicant->Surname}");
+            $email         = $internalApplicant->EmailAdd        ?? null;
+            $contactNumber = $internalApplicant->cellphone_number ?? null;
 
-            // ✅ Get contact number from either source
-            $contactNumber = $applicant
-                ? ($applicant->cellphone_number          ?? null)
-                : ($externalApplicant->cellphone_number  ?? null);
+            $street   = $internalApplicant->Rstreet   ?? '';
+            $barangay = $internalApplicant->Rbarangay ?? '';
+            $city     = $internalApplicant->Rcity     ?? '';
+            $province = $internalApplicant->Rprovince ?? '';
+            $purok    = $internalApplicant->Rpurok    ?? '';
+            $lastname = $internalApplicant->Surname   ?? '';
 
-            if (empty($email)) {
-                // Log::warning("⚠️ Applicant {$fullname} has no email address.");
-                continue;
-            }
+            $educationRecords   = $submission->getEducationRecordsInternal();  // ✅
+            $experienceRecords  = $submission->getExperienceRecordsInternal($submission->ControlNo);
+            $trainingRecords    = $submission->getTrainingRecordsInternal();
+            $eligibilityRecords = $submission->getEligibilityRecordsInternal();
 
-            $isInternal = !is_null($submission->nPersonalInfo_id);
+            $educationText   = $this->formatEducationForEmailInternal($educationRecords);   // ✅
+            $experienceText  = $this->formatExperienceForEmailInternal($experienceRecords);
+            $trainingText    = $this->formatTrainingForEmailInternal($trainingRecords);
+            $eligibilityText = $this->formatEligibilityForEmailInternal($eligibilityRecords);
+        }
 
-            if ($isInternal) {
-                $educationRecords   = $submission->getEducationRecordsInternal();
-                $experienceRecords  = $submission->getExperienceRecordsInternal();
-                $trainingRecords    = $submission->getTrainingRecordsInternal();
-                $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+        if (empty($email)) {
+            continue;
+        }
 
-                $educationText   = $this->formatEducationForEmailInternal($educationRecords);
-                $experienceText  = $this->formatExperienceForEmailInternal($experienceRecords);
-                $trainingText    = $this->formatTrainingForEmailInternal($trainingRecords);
-                $eligibilityText = $this->formatEligibilityForEmailInternal($eligibilityRecords);
-            } else {
-                $educationRecords   = $submission->getEducationRecordsExternal();
-                $experienceRecords  = $submission->getExperienceRecordsExternal();
-                $trainingRecords    = $submission->getTrainingRecordsExternal();
-                $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+        try {
+            Mail::to($email)->queue((new EmailApi(
+                "Application - Unqualified",
+                'mail-template.unqualified',
+                [
+                    'fullname'  => $fullname,
+                    'lastname'  => $lastname,
+                    'Rpurok'    => $purok,
+                    'street'    => $street,
+                    'barangay'  => $barangay,
+                    'city'      => $city,
+                    'province'  => $province,
+                    'position'  => $position,
+                    'office'    => $office,
 
-                $educationText   = $this->formatEducationForEmailExternal($educationRecords);
-                $experienceText  = $this->formatExperienceForEmailExternal($experienceRecords);
-                $trainingText    = $this->formatTrainingForEmailExternal($trainingRecords);
-                $eligibilityText = $this->formatEligibilityForEmailExternal($eligibilityRecords);
-            }
+                    'education_qualification'   => $educationText,
+                    'experience_qualification'  => $experienceText,
+                    'training_qualification'    => $trainingText,
+                    'eligibility_qualification' => $eligibilityText,
 
-            try {
-                // ✅ Send Email
-                Mail::to($email)->queue((new EmailApi(
-                    "Application - Unqualified",
-                    'mail-template.unqualified',
-                    [
-                        'fullname'  => $fullname,
-                        'lastname'  => $applicant->lastname ?? $externalApplicant->Surname ?? '',
-                        'Rpurok'    => $applicant->Rpurok ?? $externalApplicant->Rpurok ?? '',
-                        'street'    => $applicant->residential_street   ?? $externalApplicant->Rstreet   ?? '',
-                        'barangay'  => $applicant->residential_barangay ?? $externalApplicant->Rbarangay ?? '',
-                        'city'      => $applicant->residential_city     ?? $externalApplicant->Rcity     ?? '',
-                        'province'  => $applicant->residential_province ?? $externalApplicant->Rprovince ?? '',
-                        'position'  => $position,
-                        'office'    => $office,
+                    'education_remark'   => $submission->education_remark   ?? 'N/A',
+                    'experience_remark'  => $submission->experience_remark  ?? 'N/A',
+                    'training_remark'    => $submission->training_remark    ?? 'N/A',
+                    'eligibility_remark' => $submission->eligibility_remark ?? 'N/A',
 
-                        'education_qualification'  => $educationText,
-                        'experience_qualification' => $experienceText,
-                        'training_qualification'   => $trainingText,
-                        'eligibility_qualification' => $eligibilityText,
+                    'education_qs'   => $education_qs,
+                    'eligibility_qs' => $eligibility_qs,
+                    'training_qs'    => $training_qs,
+                    'experience_qs'  => $experience_qs,
 
+                    'date' => now()->format('F d, Y'),
+                ]
+            ))->onQueue('emails'));
+
+            $submission->update(['is_emailed' => true]);
+
+            $this->dispatchSmsUnqualified(
+                contactNumber: $contactNumber,
+                fullname: $fullname,
+                position: $position,
+                office: $office,
+            );
+
+            EmailLog::create([
+                'email'    => $email,
+                'activity' => 'Unqualified',
+            ]);
+
+            $user = Auth::user();
+            if ($user instanceof \App\Models\User) {
+                activity('Unqualified Applicant Email Sent')
+                    ->causedBy($user)
+                    ->performedOn($submission)
+                    ->withProperties([
+                        'name'               => $user->name,
+                        'username'           => $user->username,
+                        'applicant_name'     => $fullname,
+                        'applicant_type'     => $isExternal ? 'EXTERNAL' : 'INTERNAL', // ✅
+                        'email'              => $email,
+                        'job_post_id'        => $jobId,
+                        'position'           => $position,
+                        'office'             => $office,
+                        'date'               => now()->format('F d, Y'),
+                        'ip'                 => $request->ip(),
+                        'user_agent'         => $request->header('User-Agent'),
                         'education_remark'   => $submission->education_remark   ?? 'N/A',
                         'experience_remark'  => $submission->experience_remark  ?? 'N/A',
                         'training_remark'    => $submission->training_remark    ?? 'N/A',
                         'eligibility_remark' => $submission->eligibility_remark ?? 'N/A',
-
-                        'education_qs'   => $education_qs,
-                        'eligibility_qs' => $eligibility_qs,
-                        'training_qs'    => $training_qs,
-                        'experience_qs'  => $experience_qs,
-
-                        'date' => now()->format('F d, Y'),
-                    ]
-                ))->onQueue('emails'));
-
-                // added true so that it will show on the applied that what is status on the he applied
-                $submission->update([
-                    'is_emailed' => true
-                ]);
-
-                // ✅ Send SMS — unqualified notification
-                $this->dispatchSmsUnqualified(
-                    contactNumber: $contactNumber,
-                    fullname: $fullname,
-                    position: $position,
-                    office: $office,
-                );
-
-                EmailLog::create([
-                    'email'    => $email,
-                    'activity' => 'Unqualified',
-                ]);
-
-                $user = Auth::user();
-                if ($user instanceof \App\Models\User) {
-                    activity('Unqualified Applicant Email Sent')
-                        ->causedBy($user)
-                        ->performedOn($submission)
-                        ->withProperties([
-                            'name'               => $user->name,
-                            'username'           => $user->username,
-                            'applicant_name'     => $fullname,
-                            'email'              => $email,
-                            'job_post_id'        => $jobId,
-                            'position'           => $position,
-                            'office'             => $office,
-                            'date'               => now()->format('F d, Y'),
-                            'ip'                 => $request->ip(),
-                            'user_agent'         => $request->header('User-Agent'),
-                            'education_remark'   => $submission->education_remark   ?? 'N/A',
-                            'experience_remark'  => $submission->experience_remark  ?? 'N/A',
-                            'training_remark'    => $submission->training_remark    ?? 'N/A',
-                            'eligibility_remark' => $submission->eligibility_remark ?? 'N/A',
-                        ])
-                        ->log("{$user->name} sent an unqualified notification to {$fullname} for the {$position} position in {$office}.");
-                }
-
-                $count++;
-            } catch (\Exception $e) {
-                // Log::error("❌ Failed to send email/SMS for {$fullname}: {$e->getMessage()}");
+                    ])
+                    ->log("{$user->name} sent an unqualified notification to {$fullname} for the {$position} position in {$office}.");
             }
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => "Unqualified email notifications sent to {$count} applicant(s)."
-        ]);
+            $count++;
+        } catch (\Exception $e) {
+            // Log::error("❌ Failed to send email/SMS for {$fullname}: {$e->getMessage()}");
+        }
     }
+
+    return response()->json([
+        'success' => true,
+        'message' => "Unqualified email notifications sent to {$count} applicant(s)."
+    ]);
+}
 
 
 
@@ -1254,10 +1269,10 @@ class ScheduleService
     }
 
     // ✅ Helper method to format education
-    private function formatEducationForEmailInternal($educationRecords)
+    public function formatEducationForEmailExternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
-            return 'No relevant education based on the specific requirement of the position.';
+            return '';
         }
 
         $formatted = [];
@@ -1273,10 +1288,10 @@ class ScheduleService
 
 
     // ✅ Helper method to format experience
-    private function formatExperienceForEmailInternal($experienceRecords)
+    public function formatExperienceForEmailExternal($experienceRecords)
     {
         if ($experienceRecords->isEmpty()) {
-            return 'No relevant experience based on the specific requirement of the position.';
+          return '';
         }
 
         $formatted = [];
@@ -1293,10 +1308,10 @@ class ScheduleService
 
 
     // ✅ Helper method to format training
-    private function formatTrainingForEmailInternal($trainingRecords)
+    public function formatTrainingForEmailExternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
-            return 'No relevant training based on the specific requirement of the position.';
+            return '';
         }
 
         $formatted = [];
@@ -1310,16 +1325,16 @@ class ScheduleService
     }
 
     // ✅ Helper method to format eligibility
-    private function formatEligibilityForEmailInternal($eligibilityRecords)
+    public function formatEligibilityForEmailExternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
-            return 'No relevant eligibility based on the specific requirement of the position.';
+            return '';
         }
 
         $formatted = [];
         foreach ($eligibilityRecords as $eligibility) {
             $name = $eligibility->eligibility ?? 'N/A';
-            $rating = $eligibility->rating ? " - Rating: {$eligibility->rating}" : '';
+            $rating = " - Rating: {$eligibility->Rates}" ;
             $formatted[] = "• {$name}{$rating}";
         }
 
@@ -1329,10 +1344,10 @@ class ScheduleService
     // external
     // formatting helpers for qualified applicants for the external
     // Helper method to format education
-    private function formatEducationForEmailExternal($educationRecords)
+    public function formatEducationForEmailInternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
-            return 'No relevant education based on the specific requirement of the position.';
+            return '';
         }
 
         $formatted = [];
@@ -1348,15 +1363,15 @@ class ScheduleService
 
 
     // ✅ Helper method to format experience
-    private function formatExperienceForEmailExternal($experienceRecords)
+    public function formatExperienceForEmailInternal($experienceRecords)
     {
         if ($experienceRecords->isEmpty()) {
-            return 'No relevant experience based on the specific requirement of the position.';
+            return '';
         }
 
         $formatted = [];
         foreach ($experienceRecords as $exp) {
-            $position = $exp->Wposition ?? 'N/A';
+            $position = $exp->WPosition ?? 'N/A';
             $department = $exp->WCompany ?? 'N/A';
             $dateFrom = $exp->WFrom ?? 'N/A';
             $dateTo = $exp->WTo ?? 'N/A';
@@ -1367,10 +1382,10 @@ class ScheduleService
     }
 
 
-    private function formatTrainingForEmailExternal($trainingRecords)
+    public function formatTrainingForEmailInternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
-            return 'No relevant training based on the specific requirement of the position.';
+            return '';
         }
 
         $formatted = [];
@@ -1385,10 +1400,10 @@ class ScheduleService
 
 
 
-    private function formatEligibilityForEmailExternal($eligibilityRecords)
+    public function formatEligibilityForEmailInternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
-            return 'No relevant eligibility based on the specific requirement of the position.';
+            return '';
         }
 
         $formatted = [];
@@ -1477,7 +1492,7 @@ class ScheduleService
             if ($isInternal) {
                 // INTERNAL
                 $educationRecords  = $submission->getEducationRecordsInternal();
-                $experienceRecords = $submission->getExperienceRecordsInternal();
+                $experienceRecords = $submission->getExperienceRecordsInternal($submission->ControlNo);
                 $trainingRecords   = $submission->getTrainingRecordsInternal();
                 $eligibilityRecords = $submission->getEligibilityRecordsInternal();
 
