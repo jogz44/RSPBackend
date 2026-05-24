@@ -127,16 +127,32 @@
 
             <p>We appreciate your patience and understanding.</p>
             <p>Thank you.</p>
+                     <p>Sincerely,</p>
         </div>
 
         <!-- Signature -->
         <div class="signature-section">
-            <p><strong>EDGARD C. DE GUZMAN</strong></p>
-            <p>City Administrator</p>
-            <p>Authorized Representative of the City Mayor</p>
-            <p>Chairperson</p>
-        </div>
+              <p><strong>(SGD.) EDGARD C. DE GUZMAN</strong><br>
+                City Administrator<br>
+                Authorized Representative of the City Mayor<br>
+                Chairperson
+            </p>
 
+        </div>
+    <!-- Footer -->
+
+        <div style="
+                margin-top: 60px;
+                padding-top: 12px;
+                border-top: 1px solid #dcdcdc;
+                text-align: center;
+                font-size: 8.5pt;
+                color: #999;
+                font-style: italic;
+                letter-spacing: 0.3px;
+            ">
+            This document is system generated. Please do not reply to this message.
+        </div>
     </div>
 </body>
 

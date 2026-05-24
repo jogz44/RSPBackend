@@ -154,21 +154,38 @@
 
             <ul>
 
-                <li>If you have any clarifications, you may reach us through our mobile no. 09973962684</li>
+                  <li>If you have any clarifications, you may reach us through our mobile no. <strong> 09973962684</strong></li>
+
             </ul>
-            <p>Kindly reply to this email to <strong>confirm your attendance</strong></p>
+               <p>Kindly reply to this email <strong>lgutagumhrmo.recruitment@gmail.com</strong> to <strong>confirm your attendance</strong></p>
             <p>Thank you.</p>
+            <p>Sincerely,</p>
 
         </div>
 
               <!-- Signature -->
         <div class="signature-section">
-            <p><strong>EDGARD C. DE GUZMAN</strong></p>
-            <p>City Administrator</p>
-            <p>Authorized Representative of the City Mayor</p>
-            <p>Chairperson</p>
-        </div>
+              <p><strong>(SGD.) EDGARD C. DE GUZMAN</strong><br>
+                City Administrator<br>
+                Authorized Representative of the City Mayor<br>
+                Chairperson
+            </p>
 
+        </div>
+    <!-- Footer -->
+
+        <div style="
+                margin-top: 60px;
+                padding-top: 12px;
+                border-top: 1px solid #dcdcdc;
+                text-align: center;
+                font-size: 8.5pt;
+                color: #999;
+                font-style: italic;
+                letter-spacing: 0.3px;
+            ">
+            This document is system generated. Please do not reply to this message.
+        </div>
 
     </div>
 </body>

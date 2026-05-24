@@ -52,12 +52,12 @@
 
         .date {
             font-size: 11pt;
-            margin: 30px 0 40px 0;
+            margin: 30px 0 20px 0;
         }
 
         .recipient {
             font-size: 11pt;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             line-height: 1.6;
         }
 
@@ -117,10 +117,11 @@
             height: auto;
             display: block;
         }
-         .header-image{
+
+        .header-image {
             width: 100%;
             height: 110px;
-         }
+        }
     </style>
 </head>
 
@@ -129,14 +130,13 @@
         <!-- Letterhead -->
         <div class="header">
 
-              <img src="{{ $message->embed(public_path('images/header2.jpg')) }}" alt="Logo" class="header-image">
+            <img src="{{ $message->embed(public_path('images/header2.jpg')) }}" alt="Logo" class="header-image">
         </div>
 
         <!-- Date -->
         <div class="date">
             {{ $date }}
         </div>
-
         <!-- Recipient -->
         <div class="recipient">
             <p>
@@ -207,21 +207,37 @@
                 With this, we highly encourage you to still take part in our future employment opportunities
                 for position/s that will be deemed fit to your qualifications.
             </p>
-
             <p>Thank you.</p>
+            <p>Sincerely,</p>
         </div>
 
         <!-- Signature -->
         <div class="signature-section">
             {{-- <img src="{{ $message->embed(public_path('images/signature1.png')) }}" alt="Signature" class="signatureImage"> --}}
-            <p>Verytruly yours,</p>
-            <p><strong>(SGD.) EDGARD C. DE GUZMAN</strong></p>
-            <p>City Administrator</p>
-            <p>Authorized Representative of the City Mayor</p>
-            <p>Chairperson</p>
-        </div>
+            <p><strong>(SGD.) EDGARD C. DE GUZMAN</strong><br>
+                City Administrator<br>
+                Authorized Representative of the City Mayor<br>
+                Chairperson
+            </p>
 
+
+        </div>
+        <!-- Footer -->
+
+        <div style="
+                margin-top: 60px;
+                padding-top: 12px;
+                border-top: 1px solid #dcdcdc;
+                text-align: center;
+                font-size: 8.5pt;
+                color: #999;
+                font-style: italic;
+                letter-spacing: 0.3px;
+            ">
+            This document is system generated. Please do not reply to this message.
+        </div>
     </div>
+
 </body>
 
 </html>
