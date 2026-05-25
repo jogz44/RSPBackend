@@ -95,6 +95,8 @@ class RaterService
             'role_type' => $validated['role_type'] ?? null,
             'representative' => $validated['representative'] ?? null,
             'enable' => $validated['enable'] ?? false, // ← default to true if missing
+            'prefix' => $validated['prefix'] ?? null, // ← default to true if missing
+            'suffix' => $validated['suffix'] ?? null, // ← default to true if missing
         ]);
 
         // Get new job posts — default to empty array if not sent (meaning: remove all)

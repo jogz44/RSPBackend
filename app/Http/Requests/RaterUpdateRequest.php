@@ -29,6 +29,8 @@ class RaterUpdateRequest extends FormRequest
             'enable' => 'nullable|boolean',
             'representative' => 'nullable|string|max:255',
             'role_type' => 'nullable|string|max:255',
+            'prefix' => 'nullable|string|max:50',
+            'suffix' => 'nullable|string|max:50',
         ];
     }
 }
