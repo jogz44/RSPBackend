@@ -114,7 +114,7 @@
 
             <p>
                 This pertains to your application for the <strong>{{ $position }},</strong> Item No.<strong>{{ $ItemNo }}</strong>
-                 SG <strong>{{ $SalaryGrade }}</strong>
+                 <!-- SG <strong>{{ $SalaryGrade }}</strong> -->
                 in the <strong>{{ $office }}</strong>.
             </p>
 
