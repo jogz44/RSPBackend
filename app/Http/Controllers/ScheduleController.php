@@ -21,7 +21,7 @@ class ScheduleController extends Controller
         $applicants = Submission::with([
             'nPersonalInfo:id,firstname,lastname',
             'xpersonal:ControlNo,Surname,Firstname',
-            'job_batch_rsp:id,Position,Office'
+            'job_batch_rsp:id,Position,Office,ItemNo,PageNo'
         ])->where('status','Qualified')
             ->whereDoesntHave('scheduleApplicants')
             ->get()
@@ -52,6 +52,8 @@ class ScheduleController extends Controller
                         "job_batches_rsp_id" => $item->job_batch_rsp->id ?? null,
                         "Office"           => $item->job_batch_rsp->Office ?? null,
                         "Position"           => $item->job_batch_rsp->Position ?? null,
+                        "ItemNo"           => $item->job_batch_rsp->ItemNo ?? null,
+                        "PageNo"           => $item->job_batch_rsp->PageNo ?? null,
                     ],
                 ];
             });
@@ -141,6 +143,9 @@ class ScheduleController extends Controller
                 'applicant_name' => $fullname,
                 'contact_no'     => $cellphone,
                 'position'       => $submission->job_batch_rsp->Position ?? null,
+                'pageNo'       => $submission->job_batch_rsp->PageNo ?? null,
+                'itemNo'       => $submission->job_batch_rsp->ItemNo ?? null,
+                'office'       => $submission->job_batch_rsp->Office ?? null,
             ];
         })->filter()->values();
 
@@ -169,7 +174,7 @@ class ScheduleController extends Controller
         $applicants = Submission::with([
             'nPersonalInfo:id,firstname,lastname',
             'xpersonal:ControlNo,Surname,Firstname',
-            'job_batch_rsp:id,Position,Office'
+            'job_batch_rsp:id,Position,Office,ItemNo,PageNo'
         ])->where('status', 'Qualified')
             ->whereDoesntHave('SchedulesExamApplicant')
             ->get()
@@ -200,6 +205,8 @@ class ScheduleController extends Controller
                         "job_batches_rsp_id" => $item->job_batch_rsp->id ?? null,
                         "Office"           => $item->job_batch_rsp->Office ?? null,
                         "Position"           => $item->job_batch_rsp->Position ?? null,
+                        "ItemNo"           => $item->job_batch_rsp->ItemNo ?? null,
+                        "PageNo"           => $item->job_batch_rsp->PageNo ?? null,
                     ],
                 ];
             });
@@ -293,6 +300,9 @@ class ScheduleController extends Controller
                 'applicant_name' => $fullname,
                 'contact_no'     => $cellphone,
                 'position'       => $submission->job_batch_rsp->Position ?? null,
+                'pageNo'       => $submission->job_batch_rsp->PageNo ?? null,
+                'itemNo'       => $submission->job_batch_rsp->ItemNo ?? null,
+                  'office'       => $submission->job_batch_rsp->Office ?? null,
             ];
         })->filter()->values();
 
