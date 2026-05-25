@@ -678,16 +678,7 @@ class ReportService
     // generate report plantilla
     public function plantilla($request)
     {
-
-        // ✅ Check if queue worker is running BEFORE dispatching
-        // if (!$this->isQueueWorkerRunning()) {
-        //     return response()->json([
-        //         'status' => 'error',
-        //         'message' => 'Queue worker is not running. Please contact Deniel Tomenio for this issue.'
-        //     ], 503);
-        // }
-
-
+   
         $jobId = Str::uuid()->toString();
 
         // Initialize job status
@@ -1177,6 +1168,14 @@ class ReportService
             ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
             ->with([
                 'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
+                   'criteriaRatings' => function ($query) {
+                    $query->select('id', 'job_batches_rsp_id')
+                        ->with([
+                            'educations',
+                            'experiences',
+                            'trainings',
+                        ]);
+                },
                 'submissions' => function ($query) {
                     $query->select(
                         'id',
@@ -1317,17 +1316,33 @@ class ReportService
 
 
             // ✅ BUILD FINAL JOB OBJECT (ORDER GUARANTEED)
-            $responseJobs[] = [
-                'id' => $job->id,
-                'Office'      => $job->Office,
-                'yOffice'     => $office->Descriptions ?? $job->Office, // ✅ fallback to job->Office if not found
-                'Abbr'        => $office->Abbr ?? null,
-                'Position' => $job->Position,
-                'ItemNo' => $job->ItemNo,
-                'SalaryGrade' => $job->SalaryGrade,
-                'criteria' => $job->criteria,
-                'applicants' => $applicants
-            ];
+            // $responseJobs[] = [
+            //     'id' => $job->id,
+            //     'Office'      => $job->Office,
+            //     'yOffice'     => $office->Descriptions ?? $job->Office, // ✅ fallback to job->Office if not found
+            //     'Abbr'        => $office->Abbr ?? null,
+            //     'Position' => $job->Position,
+            //     'ItemNo' => $job->ItemNo,
+            //     'SalaryGrade' => $job->SalaryGrade,
+            //     'criteria' => $job->criteria,
+            //     'criteria_rating' => $job->criteriaRatings,
+            //     'applicants' => $applicants
+            // ];
+            // ✅ BUILD FINAL JOB OBJECT (ORDER GUARANTEED)
+            if (!empty($applicants)) { // ✅ Only include job posts with unqualified applicants
+                $responseJobs[] = [
+                    'id' => $job->id,
+                    'Office'      => $job->Office,
+                    'yOffice'     => $office->Descriptions ?? $job->Office,
+                    'Abbr'        => $office->Abbr ?? null,
+                    'Position' => $job->Position,
+                    'ItemNo' => $job->ItemNo,
+                    'SalaryGrade' => $job->SalaryGrade,
+                    'criteria' => $job->criteria,
+                    'criteria_rating' => $job->criteriaRatings,
+                    'applicants' => $applicants
+                ];
+            }
         }
 
         return response()->json([
@@ -1364,13 +1379,13 @@ public function convertHoursToYearsMonthsDays(int $totalHours, string $label = '
     public function formatEducationForQualifiedExternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
-            return 'No relevant education';
+            return '';
         }
 
         $formatted = [];
         foreach ($educationRecords as $edu) {
-            $degree = $edu->degree ?? 'N/A';
-            $unit = $edu->highest_units ?? 'N/A';
+            $degree = $edu->degree ?? '';
+            $unit = $edu->highest_units ?? '';
             // $year = $edu->year_graduated ?? 'N/A';
             $formatted[] = "• {$degree} ({$unit} units)";
         }
@@ -1379,49 +1394,13 @@ public function convertHoursToYearsMonthsDays(int $totalHours, string $label = '
     }
 
 
-    // // ✅ Helper method to format experience
-    // private function formatExperienceForQualifiedExternal($experienceRecords)
-    // {
-    //     if ($experienceRecords->isEmpty()) {
-    //         return 'No relevant experience based on the specific requirement of the position.';
-    //     }
-
-    //     $formatted = [];
-    //     foreach ($experienceRecords as $exp) {
-    //         $position = $exp->position_title ?? 'N/A';
-    //         $department = $exp->department ?? 'N/A';
-    //         $dateFrom = $exp->work_date_from ?? 'N/A';
-    //         $dateTo = $exp->work_date_to ?? 'N/A';
-    //         $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
-    //     }
-
-    //     return implode('<br>', $formatted);
-    // }
-
-
-    // // ✅ Helper method to format training
-    // private function formatTrainingForQualifiedExternal($trainingRecords)
-    // {
-    //     if ($trainingRecords->isEmpty()) {
-    //         return 'No relevant training based on the specific requirement of the position.';
-    //     }
-
-    //     $formatted = [];
-    //     foreach ($trainingRecords as $training) {
-    //         $title = $training->training_title ?? 'N/A';
-    //         $hours = $training->number_of_hours ?? 'N/A';
-    //         $formatted[] = "• {$title} ({$hours} hours)";
-    //     }
-
-    //     return implode('<br>', $formatted);
-    // }
 
 
     // ✅ Helper method to format training (External) - total hours only
     public function formatTrainingForQualifiedExternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
-            return 'No relevant training';
+            return '';
         }
 
         $totalHours = $trainingRecords->sum(fn($t) => (float) ($t->number_of_hours ?? 0));
@@ -1433,7 +1412,7 @@ public function convertHoursToYearsMonthsDays(int $totalHours, string $label = '
     public function formatExperienceForQualifiedExternal($experienceRecords)
     {
         if ($experienceRecords->isEmpty()) {
-            return 'No relevant experience';
+            return '';
         }
 
         $totalHours = 0;
@@ -1455,19 +1434,25 @@ public function convertHoursToYearsMonthsDays(int $totalHours, string $label = '
         }
 
 return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience');
+
     }
 
     // ✅ Helper method to format eligibility
     public function formatEligibilityForQualifiedExternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
-            return 'No relevant eligibility';
+            return '';
         }
 
         $formatted = [];
         foreach ($eligibilityRecords as $eligibility) {
-            $name = $eligibility->eligibility ?? 'N/A';
-            $rating = $eligibility->rating ? " - Rating: {$eligibility->rating}" : '';
+            $name = $eligibility->eligibility ?? '';
+         $rating = !empty($eligibility->rating)
+            ? ' - Rating: ' . number_format(
+                floor((float)$eligibility->rating * 100) / 100,
+                2
+            )
+            : '';
             $formatted[] = "• {$name}{$rating}";
         }
 
@@ -1484,14 +1469,14 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
     public  function formatEducationForQualifiedInternal($educationRecords)
     {
         if ($educationRecords->isEmpty()) {
-            return 'No relevant education.';
+            return '.';
         }
 
         $formatted = [];
         foreach ($educationRecords as $edu) {
-            $degree = $edu->Degree ?? 'N/A';
+            $degree = $edu->Degree ?? '';
             // $school = $edu->School ?? 'N/A';
-            $unit = $edu->NumUnits ?? 'N/A';
+            $unit = $edu->NumUnits ?? '';
             $formatted[] = "• {$degree} ({$unit} units)";
         }
 
@@ -1499,46 +1484,11 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
     }
 
 
-    // // ✅ Helper method to format experience
-    // private function formatExperienceForQualifiedInternal($experienceRecords)
-    // {
-    //     if ($experienceRecords->isEmpty()) {
-    //         return 'No relevant experience based on the specific requirement of the position.';
-    //     }
-
-    //     $formatted = [];
-    //     foreach ($experienceRecords as $exp) {
-    //         $position = $exp->Wposition ?? 'N/A';
-    //         $department = $exp->WCompany ?? 'N/A';
-    //         $dateFrom = $exp->WFrom ?? 'N/A';
-    //         $dateTo = $exp->WTo ?? 'N/A';
-    //         $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
-    //     }
-
-    //     return implode('<br>', $formatted);
-    // }
-
-
-    // private function formatTrainingForQualifiedInternal($trainingRecords)
-    // {
-    //     if ($trainingRecords->isEmpty()) {
-    //         return 'No relevant training based on the specific requirement of the position.';
-    //     }
-
-    //     $formatted = [];
-    //     foreach ($trainingRecords as $training) {
-    //         $title = $training->Training ?? 'N/A';
-    //         $hours = $training->NumHours ?? 'N/A';
-    //         $formatted[] = "• {$title} ({$hours} hours)";
-    //     }
-
-    //     return implode('<br>', $formatted);
-    // }
     // ✅ Helper method to format training (Internal) - total hours only
     public function formatTrainingForQualifiedInternal($trainingRecords)
     {
         if ($trainingRecords->isEmpty()) {
-            return 'No relevant training';
+            return '';
         }
 
         $totalHours = $trainingRecords->sum(fn($t) => (float) ($t->NumHours ?? 0));
@@ -1550,7 +1500,7 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
     public function formatExperienceForQualifiedInternal($experienceRecords)
     {
         if ($experienceRecords->isEmpty()) {
-            return 'No relevant experience';
+            return '';
         }
 
         $totalHours = 0;
@@ -1575,53 +1525,25 @@ return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience
 
         return $this->convertHoursToYearsMonthsDays($totalHours,'of relevant experience');
     }
-// private function formatExperienceForQualifiedInternal($experienceRecords)
-// {
-//     if ($experienceRecords->isEmpty()) {
-//         return 'No relevant experience';
-//     }
 
-//     $totalDays = 0;
-
-//     foreach ($experienceRecords as $exp) {
-//         $from = $exp->WFrom ?? null;
-//         $to   = $exp->WTo   ?? null;
-
-//         if ($from && $to) {
-//             try {
-//                 $start = $this->parseFlexibleDate($from);
-
-//                 // ✅ Handle "CURRENT" as today's date
-//                 $end = (strtoupper(trim($to)) === 'CURRENT')
-//                     ? Carbon::today()
-//                     : $this->parseFlexibleDate($to);
-
-//                 if ($start && $end && $end->gte($start)) {
-//                     $totalDays += $start->diffInWeekdays($end);
-//                 }
-//             } catch (\Exception $e) {
-//                 $controlNo = $exp->ControlNo ?? $exp->id ?? 'unknown';
-//                 Log::warning("Experience date parse failed [{$controlNo}]: from={$from} to={$to} | {$e->getMessage()}");
-//             }
-//         }
-//     }
-
-//     $totalHours = $totalDays * 8;
-
-//     return $this->convertHoursToYearsMonthsDays($totalHours, 'of relevant experience');
-// }
 
     // ✅ Helper method to format eligibility
     public function formatEligibilityForQualifiedInternal($eligibilityRecords)
     {
         if ($eligibilityRecords->isEmpty()) {
-            return 'No relevant eligibility';
+            return '';
         }
 
         $formatted = [];
         foreach ($eligibilityRecords as $eligibility) {
-            $name = $eligibility->CivilServe ?? 'N/A';
-             $rating = " - Rating: {$eligibility->Rates}" ;
+            $name = $eligibility->CivilServe ?? '';
+            //  $rating = " - Rating: {$eligibility->Rates}" ;
+              $rating = !empty($eligibility->Rates)
+            ? ' - Rating: ' . number_format(
+                floor((float)$eligibility->Rates * 100) / 100,
+                2
+            )
+            : '';
 
             $formatted[] = "• {$name}{$rating}";
         }
