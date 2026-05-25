@@ -28,14 +28,14 @@ use PhpOffice\PhpSpreadsheet\Calculation\Web\Service;
 class JobBatchesRspController extends Controller
 {
 
-        use ApiResponseTrait;
+    use ApiResponseTrait;
 
-        protected $jobPostService;
+    protected $jobPostService;
 
-        public function __construct(JobPostService $jobPostService)
-        {
-                $this->jobPostService = $jobPostService;
-        }
+    public function __construct(JobPostService $jobPostService)
+    {
+        $this->jobPostService = $jobPostService;
+    }
 
     //  updating the status to Unoccupied
     public function jobpostUnoccupied(Request $request, $JobPostingId)
@@ -123,6 +123,8 @@ class JobBatchesRspController extends Controller
 
     public function jobPostView($job_post_id)
     {
+
+
         // ✅ Fetch job post with relations
         $job_post = JobBatchesRsp::with(['criteria', 'plantilla'])
             ->withCount([
@@ -141,8 +143,12 @@ class JobBatchesRspController extends Controller
                 },
             ])
             ->findOrFail($job_post_id);
+        $plantillaLevel = DB::table('vwplantillalevel')
+            ->select('ID', 'Level')
+            ->where('ID', $job_post->tblStructureDetails_ID)
+            ->first();
 
-        // ✅ Check if all raters completed their rating
+        // Check if all raters completed their rating
         $allRatersComplete = \App\Models\Job_batches_user::where('job_batches_rsp_id', $job_post->id)
             ->exists() &&
             !\App\Models\Job_batches_user::where('job_batches_rsp_id', $job_post->id)
@@ -176,11 +182,15 @@ class JobBatchesRspController extends Controller
         // ✅ Get complete history (both previous and next reposts)
         $history = $this->getFullJobHistory($job_post);
 
+        $job_post_array['plantillalevel'] = $plantillaLevel?->Level;
+
         // ✅ Convert to array and clean up nested relations
         $job_post_array = $job_post->toArray();
+
+        $job_post_array['plantillalevel'] = $plantillaLevel?->Level;
+
         unset($job_post_array['previous_job'], $job_post_array['next_job']);
 
-        // ✅ Return structured response
         return response()->json(array_merge($job_post_array, [
             'history' => $history,
         ]));
@@ -228,7 +238,7 @@ class JobBatchesRspController extends Controller
         // 1️⃣ Validate job batch fields
         $jobValidated = $request->validated();
 
-        $result =$this->jobPostService->update($jobValidated, $jobBatchId, $request);
+        $result = $this->jobPostService->update($jobValidated, $jobBatchId, $request);
 
         return $result;
     }
@@ -482,17 +492,17 @@ class JobBatchesRspController extends Controller
 
 
     // get the unqualifed on the jobpost
-  public function getApplicantUnqualifiedOnJobPost($jobPostId){
+    public function getApplicantUnqualifiedOnJobPost($jobPostId)
+    {
 
-     return $this->jobPostService->getApplicantUnqualifiedOnJobPost($jobPostId);
-
-}
+        return $this->jobPostService->getApplicantUnqualifiedOnJobPost($jobPostId);
+    }
 
     // get the unqualifed on the jobpost
-  public function getApplicantUnqualifiedQualificationRemarks($jobPostId,$submissionId){
+    public function getApplicantUnqualifiedQualificationRemarks($jobPostId, $submissionId)
+    {
 
-     return $this->jobPostService->qualificationRemarks($jobPostId,$submissionId);
-
+        return $this->jobPostService->qualificationRemarks($jobPostId, $submissionId);
+    }
 }
-
-}
+    
