@@ -1168,10 +1168,10 @@ class ScheduleService
                     'training_qualification'    => $trainingText,
                     'eligibility_qualification' => $eligibilityText,
 
-                    'education_remark'   => $submission->education_remark   ?? 'N/A',
-                    'experience_remark'  => $submission->experience_remark  ?? 'N/A',
-                    'training_remark'    => $submission->training_remark    ?? 'N/A',
-                    'eligibility_remark' => $submission->eligibility_remark ?? 'N/A',
+                    'education_remark'   => $submission->education_remark   ?? '',
+                    'experience_remark'  => $submission->experience_remark  ?? '',
+                    'training_remark'    => $submission->training_remark    ?? '',
+                    'eligibility_remark' => $submission->eligibility_remark ?? '',
 
                     'education_qs'   => $education_qs,
                     'eligibility_qs' => $eligibility_qs,
@@ -1277,9 +1277,9 @@ class ScheduleService
 
         $formatted = [];
         foreach ($educationRecords as $edu) {
-            $degree = $edu->degree ?? 'N/A';
-            $school = $edu->school_name ?? 'N/A';
-            $year = $edu->year_graduated ?? 'N/A';
+            $degree = $edu->degree ?? '';
+            $school = $edu->school_name ?? '';
+            $year = $edu->year_graduated ?? '';
             $formatted[] = "• {$degree} at {$school} ({$year})";
         }
 
@@ -1296,10 +1296,10 @@ class ScheduleService
 
         $formatted = [];
         foreach ($experienceRecords as $exp) {
-            $position = $exp->position_title ?? 'N/A';
-            $department = $exp->department ?? 'N/A';
-            $dateFrom = $exp->work_date_from ?? 'N/A';
-            $dateTo = $exp->work_date_to ?? 'N/A';
+            $position = $exp->position_title ?? '';
+            $department = $exp->department ?? '';
+            $dateFrom = $exp->work_date_from ?? '';
+            $dateTo = $exp->work_date_to ?? '';
             $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
         }
 
@@ -1316,8 +1316,8 @@ class ScheduleService
 
         $formatted = [];
         foreach ($trainingRecords as $training) {
-            $title = $training->training_title ?? 'N/A';
-            $hours = $training->number_of_hours ?? 'N/A';
+            $title = $training->training_title ?? '';
+            $hours = $training->number_of_hours ?? '';
             $formatted[] = "• {$title} ({$hours} hours)";
         }
 
@@ -1333,8 +1333,13 @@ class ScheduleService
 
         $formatted = [];
         foreach ($eligibilityRecords as $eligibility) {
-            $name = $eligibility->eligibility ?? 'N/A';
-            $rating = " - Rating: {$eligibility->Rates}" ;
+            $name = $eligibility->eligibility ?? '';
+               $rating = !empty($eligibility->rating)
+            ? ' - Rating: ' . number_format(
+                floor((float)$eligibility->rating * 100) / 100,
+                2
+            )
+            : '';
             $formatted[] = "• {$name}{$rating}";
         }
 
@@ -1352,9 +1357,9 @@ class ScheduleService
 
         $formatted = [];
         foreach ($educationRecords as $edu) {
-            $degree = $edu->Degree ?? 'N/A';
+            $degree = $edu->Degree ?? '';
             // $school = $edu->School ?? 'N/A';
-            $unit = $edu->NumUnits ?? 'N/A';
+            $unit = $edu->NumUnits ?? '';
             $formatted[] = "• {$degree} ({$unit} units)";
         }
 
@@ -1371,10 +1376,10 @@ class ScheduleService
 
         $formatted = [];
         foreach ($experienceRecords as $exp) {
-            $position = $exp->WPosition ?? 'N/A';
-            $department = $exp->WCompany ?? 'N/A';
-            $dateFrom = $exp->WFrom ?? 'N/A';
-            $dateTo = $exp->WTo ?? 'N/A';
+            $position = $exp->WPosition ?? '';
+            $department = $exp->WCompany ?? '';
+            $dateFrom = $exp->WFrom ?? '';
+            $dateTo = $exp->WTo ?? '';
             $formatted[] = "• {$position} at {$department} ({$dateFrom} - {$dateTo})";
         }
 
@@ -1390,8 +1395,8 @@ class ScheduleService
 
         $formatted = [];
         foreach ($trainingRecords as $training) {
-            $title = $training->Training ?? 'N/A';
-            $hours = $training->NumHours ?? 'N/A';
+            $title = $training->Training ?? '';
+            $hours = $training->NumHours ?? '';
             $formatted[] = "• {$title} ({$hours} hours)";
         }
 
@@ -1409,13 +1414,15 @@ class ScheduleService
         $formatted = [];
 
         foreach ($eligibilityRecords as $eligibility) {
-            $name = $eligibility->CivilServe ?? 'N/A';
+            $name = $eligibility->CivilServe ?? '';
 
             // ✅ use Rates safely
-            $rating = !empty($eligibility->Rates)
-                ? " - Rating: {$eligibility->Rates}"
-                : '';
-
+             $rating = !empty($eligibility->Rates)
+            ? ' - Rating: ' . number_format(
+                floor((float)$eligibility->Rates * 100) / 100,
+                2
+            )
+            : '';
             $formatted[] = "• {$name}{$rating}";
         }
 
@@ -1450,10 +1457,10 @@ class ScheduleService
         $office = $job->Office ?? 'the corresponding office';
 
         // QS of the job post
-        $education_qs = $job->criteria->Education ?? 'N/A';
-        $eligibility_qs = $job->criteria->Eligibility ?? 'N/A';
-        $training_qs = $job->criteria->Training ?? 'N/A';
-        $experience_qs = $job->criteria->Experience ?? 'N/A';
+        $education_qs = $job->criteria->Education ?? '';
+        $eligibility_qs = $job->criteria->Eligibility ?? '';
+        $training_qs = $job->criteria->Training ?? '';
+        $experience_qs = $job->criteria->Experience ?? '';
 
         $count = 0;
 
@@ -1539,10 +1546,10 @@ class ScheduleService
                             'eligibility_qualification' => $eligibilityText,
 
                             // Remarks
-                            'education_remark' => $submission->education_remark ?? 'N/A',
-                            'experience_remark' => $submission->experience_remark ?? 'N/A',
-                            'training_remark' => $submission->training_remark ?? 'N/A',
-                            'eligibility_remark' => $submission->eligibility_remark ?? 'N/A',
+                            'education_remark' => $submission->education_remark ?? 'NA',
+                            'experience_remark' => $submission->experience_remark ?? 'NA',
+                            'training_remark' => $submission->training_remark ?? 'NA',
+                            'eligibility_remark' => $submission->eligibility_remark ?? 'NA',
 
                             // QS of job post
                             'education_qs' => $education_qs,
@@ -1578,10 +1585,10 @@ class ScheduleService
                             'date'           => now()->format('F d, Y'),
                             'ip' => $request->ip(),
                             'user_agent' => $request->header('User-Agent'),
-                            'education_remark'   => $submission->education_remark ?? 'N/A',
-                            'experience_remark'  => $submission->experience_remark ?? 'N/A',
-                            'training_remark'    => $submission->training_remark ?? 'N/A',
-                            'eligibility_remark' => $submission->eligibility_remark ?? 'N/A',
+                            'education_remark'   => $submission->education_remark ?? 'NA',
+                            'experience_remark'  => $submission->experience_remark ?? 'NA',
+                            'training_remark'    => $submission->training_remark ?? 'NA',
+                            'eligibility_remark' => $submission->eligibility_remark ?? 'NA',
                         ])
                         ->log("{$user->name} sent an unqualified notification to {$fullname} for the {$position} position in {$office}.");
                 }
