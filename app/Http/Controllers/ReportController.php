@@ -656,7 +656,7 @@ class ReportController extends Controller
         $formattedDate = $dates->map(function ($item) {
             return [
                 // 'date'      => $item->post_date, // RAW date (for API logic)
-                'date' => Carbon::parse($item->post_date)->format('M d, Y'), // UI only
+                'date' => Carbon::parse($item->post_date)->format('F d, Y'), // UI only Carbon::parse($parsedDate)->format('F d, Y'),
             ];
         });
 

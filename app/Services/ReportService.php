@@ -1154,7 +1154,7 @@ class ReportService
 
         return response()->json([
             'Header' => 'Applicants Qualified Standard',
-            'Date' => "$postDate Publication",
+            'Date' => Carbon::parse($postDate)->format('F d, Y') . ' Publication',
             'jobPosts' => $responseJobs
         ]);
     }
@@ -1347,7 +1347,7 @@ class ReportService
 
         return response()->json([
             'Header' => 'Applicants UnQualified Standard',
-            'Date' => "$postDate Publication",
+            'Date' => Carbon::parse($postDate)->format('F d, Y') . ' Publication',
             'jobPosts' => $responseJobs
         ]);
     }
