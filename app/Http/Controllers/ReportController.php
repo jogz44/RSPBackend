@@ -7,26 +7,30 @@ use App\Models\rating_score;
 use App\Models\Submission;
 use App\Models\xService;
 use App\Services\ApplicantService;
+use App\Services\ExcelService;
 use App\Services\ReportService;
+use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
 
-
+    use ApiResponseTrait;
     protected $reportService;
     protected $applicantService;
+    protected $excelService;
 
-
-    public function __construct(ReportService $reportService, ApplicantService $applicantService)
+    public function __construct(ReportService $reportService, ApplicantService $applicantService,ExcelService $excelService)
     {
         $this->reportService = $reportService;
-        $this->applicantService = $applicantService;
+        $this->applicantService = $applicantService; 
+        $this->excelService = $excelService; 
     }
 
     // generate report DBM
@@ -656,7 +660,7 @@ class ReportController extends Controller
         $formattedDate = $dates->map(function ($item) {
             return [
                 // 'date'      => $item->post_date, // RAW date (for API logic)
-                'date' => Carbon::parse($item->post_date)->format('F d, Y'), // UI only Carbon::parse($parsedDate)->format('F d, Y'),
+                'date' => Carbon::parse($item->post_date)->format('M d, Y'), // UI only Carbon::parse($parsedDate)->format('F d, Y'),
             ];
         });
 
@@ -692,4 +696,31 @@ class ReportController extends Controller
 
         return response()->json($jobPost);
     }
+
+public function getlistOfJob(Request $request)
+{
+    $validated = $request->validate([
+        'post_date' => 'required',
+    ]);
+
+    // Convert "April 27, 2026" → "2026-04-27"
+    $postDate = \Carbon\Carbon::createFromFormat('F d, Y', $validated['post_date'])->format('Y-m-d');
+
+    Log::info('=== getlistOfJob DEBUG ===', [
+        'raw_input'      => $request->input('post_date'),
+        'validated'      => $validated['post_date'],
+        'converted_date' => $postDate,
+    ]);
+
+    $jobpost = JobBatchesRsp::where('post_date', $postDate)->get();
+
+    Log::info('Query result', [
+        'sql'      => JobBatchesRsp::where('post_date', $postDate)->toSql(),
+        'bindings' => JobBatchesRsp::where('post_date', $postDate)->getBindings(),
+        'count'    => $jobpost->count(),
+        'results'  => $jobpost->toArray(),
+    ]);
+
+    return $this->successMessage($jobpost, 'Successfully', 200);
+}
 }
