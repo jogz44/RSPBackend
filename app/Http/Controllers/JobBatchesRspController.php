@@ -75,7 +75,6 @@ class JobBatchesRspController extends Controller
         return $result;
     }
 
-
     // fetch the job post
     // with or without criteria
     public function jobListCriteria()
@@ -85,22 +84,6 @@ class JobBatchesRspController extends Controller
 
         return $result;
     }
-
-
-
-    // public function show($positionId, $itemNo): JsonResponse
-    // {
-    //     $jobBatch = JobBatchesRsp::where('PositionID', $positionId)
-    //         ->where('ItemNo', $itemNo)
-    //         ->first();
-
-    //     if (!$jobBatch) {
-    //         return response()->json(['error' => 'No matching record found'], 404);
-    //     }
-
-    //     return response()->json($jobBatch);
-    // }
-
 
     // Delete job post
     public function deleteJobPost($id,)
@@ -382,91 +365,6 @@ class JobBatchesRspController extends Controller
         ]);
     }
 
-    //  // proxy
-    // public function proxyPdsImage($filename, ApplicantService $applicantService)
-    // {
-    //    $data =  $this->$applicantService->proxyPdsImage($filename);
-
-
-    //    return $data;
-    // }
-
-
-    // public function getInternalPdsImage($controlNo)
-    // {
-    //     $training    = $this->getTrainingImage($controlNo);
-    //     $education   = $this->getEducationImage($controlNo);
-    //     $experience  = $this->getExperienceImage($controlNo);
-    //     $eligibility = $this->getEligibilityImage($controlNo);
-
-    //     $baseUrl = config('app.network_share_img_pds.base_url'); // e.g. http://10.0.1.26:82/Pics
-
-    //     $buildUrls = function ($records) use ($baseUrl) {
-    //         return collect($records)->map(function ($record) use ($baseUrl) {
-    //             $data = (array) $record;
-    //             if (!empty($record->img)) {
-    //                 $data['image_url']        = "{$baseUrl}/{$record->img}";
-    //                 $data['image_url_access'] = config('app.url') . '/api/pds-image/' . $record->img; // http://192.168.8.182:8000/api/pds-image/97cba103f6478a078a7b.png
-    //             } else {
-    //                 $data['image_url']        = null;
-    //                 $data['image_url_access'] = null;
-    //             }
-    //             return $data;
-    //         })->values();
-    //     };
-
-    //     return response()->json([
-    //         'control_no'          => $controlNo,
-    //         'training_images'     => $buildUrls($training),
-    //         'education_images'    => $buildUrls($education),
-    //         'experience_images'   => $buildUrls($experience),
-    //         'eligibility_images'  => $buildUrls($eligibility),
-    //     ]);
-    // }
-
-
-
-    // // training images — all records
-    // private function getTrainingImage($controlNo)
-    // {
-    //     return DB::table('tblPDSUpdatesTrainings')
-    //         ->select('ID', 'Controlno', 'Training', 'img', 'status')
-    //         ->where('Controlno', $controlNo)
-    //         ->where('status', 'ACCEPTED')
-    //         ->get();
-    // }
-
-    // // education images — all records
-    // private function getEducationImage($controlNo)
-    // {
-    //     return DB::table('tblPDSUpdatesEducation')
-    //         ->select('ID', 'ControlNo', 'School', 'img', 'status')
-    //         ->where('ControlNo', $controlNo)
-    //         ->where('status', 'ACCEPTED')
-    //         ->get();
-    // }
-
-    // // experience images — all records
-    // private function getExperienceImage($controlNo)
-    // {
-    //     return DB::table('tblPDSUpdatesWorkExperience')
-    //         ->select('ID', 'controlno', 'Wposition', 'img', 'status')
-    //         ->where('ControlNo', $controlNo)
-    //         ->where('status', 'ACCEPTED')
-    //         ->get();
-    // }
-
-    // // eligibility images — all records
-    // private function getEligibilityImage($controlNo)
-    // {
-    //     return DB::table('tblPDSUpdatesCivilService')
-    //         ->select('ID', 'controlno', 'CivilServe', 'img', 'status')
-    //         ->where('ControlNo', $controlNo)
-    //         ->where('status', 'ACCEPTED')
-    //         ->get();
-    // }
-
-
     // training images — all records
     public function getInternalPdsImage($controlNo, ApplicantService $applicantService)
     {
@@ -505,4 +403,3 @@ class JobBatchesRspController extends Controller
         return $this->jobPostService->qualificationRemarks($jobPostId, $submissionId);
     }
 }
-    

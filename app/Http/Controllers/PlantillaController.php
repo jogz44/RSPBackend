@@ -20,14 +20,15 @@ use PDO;
 class PlantillaController extends Controller
 {
 
-        protected $plantillaService;
-        protected $activityLogService;
+    protected $plantillaService;
+    protected $activityLogService;
 
-     public function __construct(PlantillaService $plantillaService, ActivityLogService $activityLogService){
+    public function __construct(PlantillaService $plantillaService, ActivityLogService $activityLogService)
+    {
 
         $this->plantillaService = $plantillaService;
-          $this->activityLogService = $activityLogService;
-     }
+        $this->activityLogService = $activityLogService;
+    }
 
     public function getMaxControlNo()
     {
@@ -37,23 +38,6 @@ class PlantillaController extends Controller
         // Return the maximum ControlNo as a JSON response
         return response()->json(['maxControlNo' => $maxControlNo]);
     }
-
-    // public function test()
-    // {
-    //     // Fetch data for COMPUTER PROGRAMMER II, showing office and funded status
-    //     $plantilla = vwplantillastructure::select([
-    //         'vwplantillaStructure.ControlNo',
-    //         'vwplantillaStructure.ID',
-    //         'vwplantillaStructure.office',
-    //         'vwActive.BirthDate',
-    //         'vwActive.Designation',
-    //     ])
-    //         ->leftJoin('vwActive', 'vwplantillaStructure.ControlNo', '=', 'vwActive.ControlNo')
-    //         ->get();
-
-
-    //     return response()->json($plantilla);
-    // }
 
     // femployee publication
     public function publication(Request $request)
@@ -68,22 +52,22 @@ class PlantillaController extends Controller
     public function employeePlantilla(Request $request)
     {
 
-      $data = $this->plantillaService->getEmployeeByOffice($request);
+        $data = $this->plantillaService->getEmployeeByOffice($request);
 
-      return $data;
+        return $data;
     }
 
     // office on plantilla
-     public function offices()
+    public function offices()
     {
-            // $query = vwplantillastructure::select('office as Office')
-            //     ->distinct()
-            //     ->get();
+        // $query = vwplantillastructure::select('office as Office')
+        //     ->distinct()
+        //     ->get();
 
-            $data = Office::select('office_name as Office')
-                ->get();
+        $data = Office::select('office_name as Office')
+            ->get();
 
-            return $data;
+        return $data;
     }
 
 
@@ -313,9 +297,9 @@ class PlantillaController extends Controller
                 ->where('ControlNo', $ControlNo)
                 ->get();
 
-                $user = Auth::user();
+            $user = Auth::user();
 
-                $this->activityLogService->logEmployeeAppointment($user,$data);
+            $this->activityLogService->logEmployeeAppointment($user, $data);
 
             return response()->json($data);
         } catch (\Exception $e) {

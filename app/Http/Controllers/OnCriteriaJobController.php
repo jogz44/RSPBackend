@@ -36,15 +36,6 @@ class OnCriteriaJobController extends Controller
         return response()->json($criteria, 201);
     }
 
-    // // Read single
-    // public function show($PositionID, $ItemNo)
-    // {
-    //     $criteria = OnCriteriaJob::where('PositionID', $PositionID)
-    //         ->where('ItemNo', $ItemNo)
-    //         ->firstOrFail();
-    //     return response()->json($criteria);
-    // }
-
     // Update
     public function update(Request $request, $id)
     {
@@ -75,7 +66,7 @@ class OnCriteriaJobController extends Controller
         $criteria->delete();
 
         return response()->json([
-            'criteria'=>$criteria,
+            'criteria' => $criteria,
             'Delete' => 'Successfuly'
 
         ], 204);

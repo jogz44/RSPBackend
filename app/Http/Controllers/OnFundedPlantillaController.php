@@ -189,41 +189,11 @@ class OnFundedPlantillaController extends Controller
             'message' => 'Plantilla record deleted successfully'
         ]);
     }
-    /**
-     * Display the specified resource by PositionID.
-     *
-     * @param  string  $positionID
-     * @return \Illuminate\Http\Response
-     */
-    // public function showByFunded($positionID, $itemNO)
-    // {
-    //     $plantilla = OnFundedPlantilla::where('PositionID', $positionID)
-    //         ->where('ItemNo', $itemNO)
-    //         ->first();
 
-    //     if (!$plantilla) {
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'Plantilla record not found for the given PositionID and ItemNo'
-    //         ], 404);
-    //     }
-
-    //     if (!$plantilla->fileUpload) {
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'No file associated with this Plantilla record for the given PositionID and ItemNo'
-    //         ], 404);
-    //     }
-
-    //     return response()->json([
-    //         'status' => 'success',
-    //         'data' => $plantilla
-    //     ]);
-    // }
 
     public function showByFunded($JobpostId) // jobpost fle
     {
-      $plantilla = OnFundedPlantilla::findOrFail($JobpostId);
+        $plantilla = OnFundedPlantilla::findOrFail($JobpostId);
 
 
         if (!$plantilla) {
