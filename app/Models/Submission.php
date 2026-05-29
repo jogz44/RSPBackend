@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\excel\Education_background;
 use App\Models\excel\Learning_development;
 use App\Models\excel\Civil_service_eligibity;
+use App\Models\excel\Personal_declarations;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 // class Submission extends Pivot
@@ -61,6 +62,10 @@ class Submission extends Model
     {
         return $this->belongsTo(nPersonal_info::class, 'nPersonalInfo_id');
     }
+public function personal_declarations()
+{
+    return $this->hasOne(Personal_declarations::class, 'nPersonalInfo_id', 'nPersonalInfo_id');
+}
     public function ControlNo() // external applicants
     {
         return $this->belongsTo(xPersonal::class, 'ControlNo', 'ControlNo');
@@ -74,6 +79,10 @@ class Submission extends Model
     public function xPersonalAddt() // external applicants
     {
         return $this->belongsTo(xPersonalAddt::class, 'ControlNo', 'ControlNo');
+    }
+      public function xPersonalDiversity() // external applicants
+    {
+        return $this->belongsTo(xPersonalDiversity::class, 'ControlNo', 'controlno');
     }
 
 
@@ -184,7 +193,7 @@ class Submission extends Model
     //     return  DB::table('xExperience')->whereIn('ID', $this->experience_qualification)->get(); //Work_experience
     //     // return  DB::table('xService')->whereIn('PMID', $this->experience_qualification)->get(); //Work_experience
     // }
-    public function getExperienceRecordsInternal($controlNo)
+    public function getExperienceRecordsInternal($controlNo , array $experienceQualification = [])
     {
         // ✅ Fetch from xService
         $serviceRecords = DB::table('xService')
@@ -222,24 +231,42 @@ class Submission extends Model
         });
 
         // ✅ Fetch from xExperience (private/external experience records)
+        // $experienceRecords = DB::table('xExperience')
+        //     ->whereIn('ID', $experienceQualification)
+        //     ->get()
+        //     ->map(function ($record) {
+        //         // ✅ Normalize WFrom
+        //         $record->WFrom = ($record->WFrom && strtoupper(trim($record->WFrom)) !== 'CURRENT')
+        //             ? \Carbon\Carbon::parse($record->WFrom)->format('m/d/Y')
+        //             : null;
+
+        //         // ✅ Normalize WTo — treat "CURRENT" as today
+        //         $wTo = strtoupper(trim($record->WTo ?? ''));
+        //         $record->WTo = ($wTo === 'CURRENT' || $wTo === '')
+        //             ? \Carbon\Carbon::now()->format('m/d/Y')  // treat as present
+        //             : \Carbon\Carbon::parse($record->WTo)->format('m/d/Y');
+
+        //         $record->experience_status = 'EXPERIENCE';
+        //         return $record;
+        //     });
         $experienceRecords = DB::table('xExperience')
-            ->whereIn('ID', $this->experience_qualification ?? [])
-            ->get()
-            ->map(function ($record) {
-                // ✅ Normalize WFrom
-                $record->WFrom = ($record->WFrom && strtoupper(trim($record->WFrom)) !== 'CURRENT')
-                    ? \Carbon\Carbon::parse($record->WFrom)->format('m/d/Y')
-                    : null;
+    ->whereIn('ID', $experienceQualification)
+    ->get()
+    ->map(function ($record) {
+        $record->id = $record->ID; // ← add this para consistent ang key
 
-                // ✅ Normalize WTo — treat "CURRENT" as today
-                $wTo = strtoupper(trim($record->WTo ?? ''));
-                $record->WTo = ($wTo === 'CURRENT' || $wTo === '')
-                    ? \Carbon\Carbon::now()->format('m/d/Y')  // treat as present
-                    : \Carbon\Carbon::parse($record->WTo)->format('m/d/Y');
+        $record->WFrom = ($record->WFrom && strtoupper(trim($record->WFrom)) !== 'CURRENT')
+            ? \Carbon\Carbon::parse($record->WFrom)->format('m/d/Y')
+            : null;
 
-                $record->experience_status = 'EXPERIENCE';
-                return $record;
-            });
+        $wTo = strtoupper(trim($record->WTo ?? ''));
+        $record->WTo = ($wTo === 'CURRENT' || $wTo === '')
+            ? \Carbon\Carbon::now()->format('m/d/Y')
+            : \Carbon\Carbon::parse($record->WTo)->format('m/d/Y');
+
+        $record->experience_status = 'EXPERIENCE';
+        return $record;
+    });
         // ✅ Merge both collections into one
         return $serviceRecords->merge($experienceRecords);
     }

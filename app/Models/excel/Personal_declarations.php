@@ -2,8 +2,9 @@
 
 namespace App\Models\excel;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Submission;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Personal_declarations extends Model
 {
@@ -79,4 +80,9 @@ class Personal_declarations extends Model
     {
         return \Database\Factories\PersonalDeclarationsFactory::new();
     }
+        public function submission()
+    {
+        return $this->belongsTo(Submission::class, 'submission_id');
+    }
+
 }
