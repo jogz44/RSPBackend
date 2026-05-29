@@ -318,8 +318,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('generate')->group(function () {
         Route::get('/', [ReportController::class, 'reportPlantilla']);
         Route::post('/cancel/{jobId}', [ReportController::class, 'cancelPlantilla']);
-        Route::get('/status/{jobId}', [ReportController::class, 'statusplantilla']);
-        Route::post('/job-position', [ReportController::class, 'exportJobRequestPosition']);
+        Route::get('/status/{jobId}', [ReportController::class, 'statusplantilla']); // generate plantilla structure
+        Route::post('/job-position', [ReportController::class, 'exportJobRequestPosition']); // generate excel file
+        Route::post('/list/jobPost', [ReportController::class, 'getlistOfJobExcel']); // generate excel list of job post 
+        Route::post('/applicant', [ReportController::class, 'getApplicantExcel']); // generate excel list of job post 
+        Route::post('/applicant/qualified', [ReportController::class, 'getApplicantQualifiedExcel']); // qualified applicant
+        Route::post('/applicant/unqualified', [ReportController::class, 'getApplicantUnQualifiedExcel']); // unqualified applicant
+
+
+
 
     });
 
