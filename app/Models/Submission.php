@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 class Submission extends Model
 {
     //
-
+    protected $dates = []; // ✅ override default date casting — prevent Carbon on all date columns
     protected $table = 'submission'; // applicant apply on the job post
     protected $fillable = [
         'nPersonalInfo_id', // applicant
@@ -50,6 +50,9 @@ class Submission extends Model
         'experience_qualification' => 'array',
         'training_qualification' => 'array',
         'eligibility_qualification' => 'array',
+        'created_at'               => 'string', // ✅ prevent Carbon hydration
+        'updated_at'               => 'string', // ✅ prevent Carbon hydration
+        'exam_date'                => 'string', // ✅ prevent Carbon hydration
     ];
 
     public $timestamps = true; // or just remove if not set
