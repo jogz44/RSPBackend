@@ -38,6 +38,8 @@ class ReportService
     // }
 
 
+
+
     // Generate Report on plantilla Structure...
     public function dbm()
     {
@@ -742,7 +744,7 @@ class ReportService
     // list of qualified applicants for job post publication
     public function listQualified($postDate)
     {
-        \Log::info('php ini', [
+        Log::info('php ini', [
             'memory_limit' => ini_get('memory_limit'),
             'php_ini'      => php_ini_loaded_file()
         ]);
@@ -753,7 +755,7 @@ class ReportService
             // ✅ Normalize any date format to Y-m-d
             $postDate = Carbon::parse($postDate)->toDateString();
 
-            \Log::info('postDate normalized', ['postDate' => $postDate]);
+            Log::info('postDate normalized', ['postDate' => $postDate]);
 
             // =====================================================
             // FETCH JOB POSTS (no submissions in with())
@@ -774,21 +776,29 @@ class ReportService
             // =====================================================
             // FETCH SUBMISSIONS AS PLAIN OBJECTS — no Eloquent hydration
             // =====================================================
-            $allSubmissionsRaw = DB::table('submission')
-                ->whereIn('job_batches_rsp_id', $jobPostIds)
+            $allSubmissionsRaw = Submission::whereIn('job_batches_rsp_id', $jobPostIds)
                 ->where('status', 'Qualified')
                 ->select(
-                    'id', 'job_batches_rsp_id', 'nPersonalInfo_id', 'ControlNo', 'status',
-                    'education_remark', 'experience_remark', 'training_remark', 'eligibility_remark',
-                    'education_qualification', 'experience_qualification',
-                    'training_qualification', 'eligibility_qualification',
+                    'id',
+                    'job_batches_rsp_id',
+                    'nPersonalInfo_id',
+                    'ControlNo',
+                    'status',
+                    'education_remark',
+                    'experience_remark',
+                    'training_remark',
+                    'eligibility_remark',
+                    'education_qualification',
+                    'experience_qualification',
+                    'training_qualification',
+                    'eligibility_qualification',
                 )
                 ->get()
                 ->map(function ($s) {
-                    $s->education_qualification   = json_decode($s->education_qualification,  true) ?? [];
-                    $s->experience_qualification  = json_decode($s->experience_qualification, true) ?? [];
-                    $s->training_qualification    = json_decode($s->training_qualification,   true) ?? [];
-                    $s->eligibility_qualification = json_decode($s->eligibility_qualification, true) ?? [];
+                    $s->education_qualification   = is_array($s->education_qualification)   ? $s->education_qualification   : (json_decode($s->education_qualification,  true) ?? []);
+                    $s->experience_qualification  = is_array($s->experience_qualification)  ? $s->experience_qualification  : (json_decode($s->experience_qualification, true) ?? []);
+                    $s->training_qualification    = is_array($s->training_qualification)    ? $s->training_qualification    : (json_decode($s->training_qualification,   true) ?? []);
+                    $s->eligibility_qualification = is_array($s->eligibility_qualification) ? $s->eligibility_qualification : (json_decode($s->eligibility_qualification, true) ?? []);
                     return $s;
                 });
 
@@ -820,7 +830,20 @@ class ReportService
 
             // --- INTERNAL (DB tables) chunked at 1000 ---
             $intEducations    = $intEduIds->chunk(1000)->flatMap(fn($c) => DB::table('xEducation')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
-            $intExperiences   = $intExpIds->chunk(1000)->flatMap(fn($c) => DB::table('xExperience')->whereIn('ID', $c)->get()->all())->keyBy('ID');
+            // $intExperiences   = $intExpIds->chunk(1000)->flatMap(fn($c) => DB::table('xExperience')->whereIn('ID', $c)->get()->all())->keyBy('ID');
+            // ✅ TAMA — i-loop per submission
+            $intExperiences = collect();
+            foreach ($internalSubs as $submission) {
+                // ✅ i-find muna ang Submission model para ma-call ang method
+                $submissionModel = Submission::find($submission->id);
+                $records = $submissionModel->getExperienceRecordsInternal(
+                    $submission->ControlNo,
+                    $submission->experience_qualification ?? []
+                );
+                $intExperiences = $intExperiences->merge($records);
+            }
+            $intExperiences = $intExperiences->keyBy('id');
+
             $intTrainings     = $intTrainIds->chunk(1000)->flatMap(fn($c) => DB::table('xTrainings')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
             $intEligibilities = $intEligIds->chunk(1000)->flatMap(fn($c) => DB::table('xCivilService')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
 
@@ -849,7 +872,7 @@ class ReportService
                 ->select('Descriptions', 'Abbr')
                 ->get()->keyBy('Descriptions');
 
-            \Log::info('bulk fetches done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+            Log::info('bulk fetches done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
 
             // =====================================================
             // BUILD RESPONSE — no queries inside the loop
@@ -871,7 +894,11 @@ class ReportService
                         if (!$personalInfo) continue;
 
                         $educationRecords   = $extEducations->filter(fn($r) => in_array($r->id, $submission->education_qualification   ?? []));
-                        $experienceRecords  = $extExperiences->filter(fn($r) => in_array($r->id, $submission->experience_qualification  ?? []));
+                        // ✅ consistent na — 'id' na lahat
+                        $experienceRecords = $extExperiences->filter(
+                            fn($r) => in_array($r->id, $submission->experience_qualification ?? [])
+                        );
+
                         $trainingRecords    = $extTrainings->filter(fn($r) => in_array($r->id, $submission->training_qualification    ?? []));
                         $eligibilityRecords = $extEligibilities->filter(fn($r) => in_array($r->id, $submission->eligibility_qualification ?? []));
 
@@ -909,7 +936,11 @@ class ReportService
                         if (!$personal) continue;
 
                         $educationRecords   = $intEducations->filter(fn($r) => in_array($r->PMID, $submission->education_qualification   ?? []));
-                        $experienceRecords  = $intExperiences->filter(fn($r) => in_array($r->ID,   $submission->experience_qualification  ?? []));
+                        // $experienceRecords  = $intExperiences->filter(fn($r) => in_array($r->ID,   $submission->experience_qualification  ?? []));
+                        $experienceRecords = $intExperiences->filter(
+                            fn($r) => in_array($r->id, $submission->experience_qualification ?? [])
+                        );
+
                         $trainingRecords    = $intTrainings->filter(fn($r) => in_array($r->PMID, $submission->training_qualification    ?? []));
                         $eligibilityRecords = $intEligibilities->filter(fn($r) => in_array($r->PMID, $submission->eligibility_qualification ?? []));
 
@@ -961,7 +992,6 @@ class ReportService
                 'Date'     => Carbon::parse($postDate)->format('F d, Y') . ' Publication',
                 'jobPosts' => $responseJobs,
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -985,12 +1015,21 @@ class ReportService
                 },
                 'submissions' => function ($query) {
                     $query->select(
-                        'id', 'job_batches_rsp_id', 'nPersonalInfo_id', 'ControlNo', 'status',
-                        'education_remark', 'experience_remark', 'training_remark', 'eligibility_remark',
-                        'education_qualification', 'experience_qualification',
-                        'training_qualification', 'eligibility_qualification',
+                        'id',
+                        'job_batches_rsp_id',
+                        'nPersonalInfo_id',
+                        'ControlNo',
+                        'status',
+                        'education_remark',
+                        'experience_remark',
+                        'training_remark',
+                        'eligibility_remark',
+                        'education_qualification',
+                        'experience_qualification',
+                        'training_qualification',
+                        'eligibility_qualification',
                     )->where('status', 'Unqualified')
-                     ->with(['nPersonalInfo:id,firstname,lastname']);
+                        ->with(['nPersonalInfo:id,firstname,lastname']);
                 }
             ])
             ->get();
@@ -1301,14 +1340,25 @@ class ReportService
         $jobBatch = JobBatchesRsp::with([
             'ratingScores' => function ($query) use ($validated) {
                 $query->select(
-                    'id', 'user_id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id',
-                    'education_score', 'experience_score', 'training_score', 'performance_score',
-                    'behavioral_score', 'exam_score', 'total_qs', 'grand_total', 'ranking'
+                    'id',
+                    'user_id',
+                    'nPersonalInfo_id',
+                    'ControlNo',
+                    'job_batches_rsp_id',
+                    'education_score',
+                    'experience_score',
+                    'training_score',
+                    'performance_score',
+                    'behavioral_score',
+                    'exam_score',
+                    'total_qs',
+                    'grand_total',
+                    'ranking'
                 )->where('user_id', $validated['raterId'])
-                 ->with([
-                     'internalApplicant' => fn($q) => $q->select('id', 'firstname', 'lastname'),
-                     'externalApplicant' => fn($q) => $q->select('ControlNo', 'Firstname', 'Surname'),
-                 ]);
+                    ->with([
+                        'internalApplicant' => fn($q) => $q->select('id', 'firstname', 'lastname'),
+                        'externalApplicant' => fn($q) => $q->select('ControlNo', 'Firstname', 'Surname'),
+                    ]);
             },
             'criteriaRatings' => function ($query) {
                 $query->select('id', 'job_batches_rsp_id')
