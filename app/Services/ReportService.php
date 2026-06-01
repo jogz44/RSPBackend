@@ -742,265 +742,671 @@ class ReportService
     }
 
     // list of qualified applicants for job post publication
+    // public function listQualified($postDate)
+    // {
+    //     Log::info('php ini', [
+    //         'memory_limit' => ini_get('memory_limit'),
+    //         'php_ini'      => php_ini_loaded_file()
+    //     ]);
+
+    //     try {
+    //         ini_set('max_execution_time', 3600);
+
+    //         // ✅ Normalize any date format to Y-m-d
+    //         $postDate = Carbon::parse($postDate)->toDateString();
+
+    //         Log::info('postDate normalized', ['postDate' => $postDate]);
+
+    //         // =====================================================
+    //         // FETCH JOB POSTS (no submissions in with())
+    //         // =====================================================
+    //         $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
+    //             ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
+    //             ->with([
+    //                 'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
+    //                 'criteriaRatings' => function ($query) {
+    //                     $query->select('id', 'job_batches_rsp_id')
+    //                         ->with(['educations', 'experiences', 'trainings']);
+    //                 },
+    //             ])
+    //             ->get();
+
+    //         $jobPostIds = $jobPosts->pluck('id');
+
+    //         // =====================================================
+    //         // FETCH SUBMISSIONS AS PLAIN OBJECTS — no Eloquent hydration
+    //         // =====================================================
+    //         // $allSubmissionsRaw = Submission::whereIn('job_batches_rsp_id', $jobPostIds)
+    //         //     ->where('status', 'Qualified')
+    //         //     ->select(
+    //         //         'id',
+    //         //         'job_batches_rsp_id',
+    //         //         'nPersonalInfo_id',
+    //         //         'ControlNo',
+    //         //         'status',
+    //         //         'education_remark',
+    //         //         'experience_remark',
+    //         //         'training_remark',
+    //         //         'eligibility_remark',
+    //         //         'education_qualification',
+    //         //         'experience_qualification',
+    //         //         'training_qualification',
+    //         //         'eligibility_qualification',
+    //         //     )
+    //         //     ->get()
+    //         //     ->map(function ($s) {
+    //         //         $s->education_qualification   = is_array($s->education_qualification)   ? $s->education_qualification   : (json_decode($s->education_qualification,  true) ?? []);
+    //         //         $s->experience_qualification  = is_array($s->experience_qualification)  ? $s->experience_qualification  : (json_decode($s->experience_qualification, true) ?? []);
+    //         //         $s->training_qualification    = is_array($s->training_qualification)    ? $s->training_qualification    : (json_decode($s->training_qualification,   true) ?? []);
+    //         //         $s->eligibility_qualification = is_array($s->eligibility_qualification) ? $s->eligibility_qualification : (json_decode($s->eligibility_qualification, true) ?? []);
+    //         //         return $s;
+    //         //     });
+    //         // ✅ Plain objects — no Carbon hydration
+    //         $allSubmissionsRaw = DB::table('submission')
+    //             ->whereIn('job_batches_rsp_id', $jobPostIds)
+    //             ->where('status', 'Qualified')
+    //             ->select(
+    //                 'id', 'job_batches_rsp_id', 'nPersonalInfo_id', 'ControlNo', 'status',
+    //                 'education_remark', 'experience_remark', 'training_remark', 'eligibility_remark',
+    //                 'education_qualification', 'experience_qualification',
+    //                 'training_qualification', 'eligibility_qualification',
+    //             )
+    //             ->get()
+    //             ->map(function ($s) {
+    //                 $s->education_qualification   = json_decode($s->education_qualification,  true) ?? [];
+    //                 $s->experience_qualification  = json_decode($s->experience_qualification, true) ?? [];
+    //                 $s->training_qualification    = json_decode($s->training_qualification,   true) ?? [];
+    //                 $s->eligibility_qualification = json_decode($s->eligibility_qualification, true) ?? [];
+    //                 return $s;
+    //             });
+    //             \Log::info('submissions fetched', ['count' => $allSubmissionsRaw->count(), 'memory' => memory_get_usage(true)/1024/1024 . ' MB']);
+    //         // ✅ Group submissions by job_batches_rsp_id
+    //         $submissionsByJob = $allSubmissionsRaw->groupBy('job_batches_rsp_id');
+
+    //         // =====================================================
+    //         // BULK FETCH — split submissions by type
+    //         // =====================================================
+    //         $externalSubs = $allSubmissionsRaw->filter(fn($s) => !empty($s->nPersonalInfo_id));
+    //         $internalSubs = $allSubmissionsRaw->filter(fn($s) => empty($s->nPersonalInfo_id) && !empty($s->ControlNo));
+
+    //         // --- Collect all IDs ---
+    //         $extEduIds   = $externalSubs->flatMap(fn($s) => $s->education_qualification   ?? [])->unique();
+    //         $extExpIds   = $externalSubs->flatMap(fn($s) => $s->experience_qualification  ?? [])->unique();
+    //         $extTrainIds = $externalSubs->flatMap(fn($s) => $s->training_qualification    ?? [])->unique();
+    //         $extEligIds  = $externalSubs->flatMap(fn($s) => $s->eligibility_qualification ?? [])->unique();
+
+    //         $intEduIds   = $internalSubs->flatMap(fn($s) => $s->education_qualification   ?? [])->unique();
+    //         $intExpIds   = $internalSubs->flatMap(fn($s) => $s->experience_qualification  ?? [])->unique();
+    //         $intTrainIds = $internalSubs->flatMap(fn($s) => $s->training_qualification    ?? [])->unique();
+    //         $intEligIds  = $internalSubs->flatMap(fn($s) => $s->eligibility_qualification ?? [])->unique();
+
+    //         // --- EXTERNAL (Eloquent models) chunked at 1000 ---
+    //         $extEducations    = $extEduIds->chunk(1000)->flatMap(fn($c) => Education_background::whereIn('id', $c)->get()->all())->keyBy('id');
+    //         $extExperiences   = $extExpIds->chunk(1000)->flatMap(fn($c) => Work_experience::whereIn('id', $c)->get()->all())->keyBy('id');
+    //         $extTrainings     = $extTrainIds->chunk(1000)->flatMap(fn($c) => Learning_development::whereIn('id', $c)->get()->all())->keyBy('id');
+    //         $extEligibilities = $extEligIds->chunk(1000)->flatMap(fn($c) => Civil_service_eligibity::whereIn('id', $c)->get()->all())->keyBy('id');
+
+    //         // --- INTERNAL (DB tables) chunked at 1000 ---
+    //         $intEducations    = $intEduIds->chunk(1000)->flatMap(fn($c) => DB::table('xEducation')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
+    //         // $intExperiences   = $intExpIds->chunk(1000)->flatMap(fn($c) => DB::table('xExperience')->whereIn('ID', $c)->get()->all())->keyBy('ID');
+    //         // ✅ TAMA — i-loop per submission
+    //         // $intExperiences = collect();
+    //         // foreach ($internalSubs as $submission) {
+    //         //     // ✅ i-find muna ang Submission model para ma-call ang method
+    //         //     $submissionModel = Submission::find($submission->id);
+    //         //     $records = $submissionModel->getExperienceRecordsInternal(
+    //         //         $submission->ControlNo,
+    //         //         $submission->experience_qualification ?? []
+    //         //     );
+    //         //     $intExperiences = $intExperiences->merge($records);
+    //         // }
+    //         // $intExperiences = $intExperiences->keyBy('id');
+    //         // ✅ REPLACE WITH THIS
+    //         $intExperiences = $intExpIds->chunk(1000)->flatMap(
+    //             fn($c) => DB::table('xExperience')->whereIn('ID', $c)->get()->all()
+    //         )->keyBy('ID');
+
+    //         $intTrainings     = $intTrainIds->chunk(1000)->flatMap(fn($c) => DB::table('xTrainings')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
+    //         $intEligibilities = $intEligIds->chunk(1000)->flatMap(fn($c) => DB::table('xCivilService')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
+
+    //         // --- BULK FETCH nPersonalInfo ---
+    //         $nPersonalInfoIds = $externalSubs->pluck('nPersonalInfo_id')->unique();
+    //         $nPersonalInfos   = DB::table('nPersonalInfo')
+    //             ->whereIn('id', $nPersonalInfoIds)
+    //             ->select('id', 'firstname', 'lastname')
+    //             ->get()->keyBy('id');
+
+    //         // --- BULK FETCH xPersonal and vwActive ---
+    //         $controlNos = $internalSubs->pluck('ControlNo')->unique();
+
+    //         $xPersonals = $controlNos->chunk(1000)->flatMap(
+    //             fn($c) => DB::table('xPersonal')->whereIn('ControlNo', $c)->select('ControlNo', 'Firstname', 'Surname')->get()->all()
+    //         )->keyBy('ControlNo');
+
+    //         $tempReorgs = $controlNos->chunk(1000)->flatMap(
+    //             fn($c) => DB::table('vwActive')->whereIn('ControlNo', $c)->select('ControlNo', 'Office', 'Designation')->get()->all()
+    //         )->keyBy('ControlNo');
+
+    //         // --- BULK FETCH yOffice ---
+    //         $officeNames = $jobPosts->pluck('Office')->unique();
+    //         $offices = DB::table('yOffice')
+    //             ->whereIn('Descriptions', $officeNames)
+    //             ->select('Descriptions', 'Abbr')
+    //             ->get()->keyBy('Descriptions');
+
+    //         Log::info('bulk fetches done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+
+    //         // =====================================================
+    //         // BUILD RESPONSE — no queries inside the loop
+    //         // =====================================================
+    //         $responseJobs = [];
+
+    //         foreach ($jobPosts as $job) {
+    //             $office     = $offices->get($job->Office);
+    //             $applicants = [];
+
+    //             foreach ($submissionsByJob->get($job->id, collect()) as $submission) {
+
+    //                 // =====================
+    //                 // EXTERNAL (nPersonalInfo_id set)
+    //                 // =====================
+    //                 if ($submission->nPersonalInfo_id) {
+
+    //                     $personalInfo = $nPersonalInfos->get($submission->nPersonalInfo_id);
+    //                     if (!$personalInfo) continue;
+
+    //                     $educationRecords   = $extEducations->filter(fn($r) => in_array($r->id, $submission->education_qualification   ?? []));
+    //                     // ✅ consistent na — 'id' na lahat
+    //                     $experienceRecords = $extExperiences->filter(
+    //                         fn($r) => in_array($r->id, $submission->experience_qualification ?? [])
+    //                     );
+
+    //                     $trainingRecords    = $extTrainings->filter(fn($r) => in_array($r->id, $submission->training_qualification    ?? []));
+    //                     $eligibilityRecords = $extEligibilities->filter(fn($r) => in_array($r->id, $submission->eligibility_qualification ?? []));
+
+    //                     $applicants[] = [
+    //                         'firstname'          => $personalInfo->firstname,
+    //                         'lastname'           => $personalInfo->lastname,
+    //                         'status'             => $submission->status,
+    //                         'applicant_status'   => 'OUTSIDER',
+
+    //                         'education'          => $educationRecords->values(),
+    //                         'experience'         => $experienceRecords->values(),
+    //                         'training'           => $trainingRecords->values(),
+    //                         'eligibility'        => $eligibilityRecords->values(),
+
+    //                         'education_remark'   => $submission->education_remark   ?? null,
+    //                         'experience_remark'  => $submission->experience_remark  ?? null,
+    //                         'training_remark'    => $submission->training_remark    ?? null,
+    //                         'eligibility_remark' => $submission->eligibility_remark ?? null,
+
+    //                         'education_text'     => $this->formatEducationForQualifiedExternal($educationRecords),
+    //                         'experience_text'    => $this->formatExperienceForQualifiedExternal($experienceRecords),
+    //                         'training_text'      => $this->formatTrainingForQualifiedExternal($trainingRecords),
+    //                         'eligibility_text'   => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
+    //                     ];
+    //                 }
+
+    //                 // =====================
+    //                 // INTERNAL (ControlNo set)
+    //                 // =====================
+    //                 elseif (!empty($submission->ControlNo)) {
+
+    //                     $personal  = $xPersonals->get($submission->ControlNo);
+    //                     $tempReorg = $tempReorgs->get($submission->ControlNo);
+
+    //                     if (!$personal) continue;
+
+    //                     $educationRecords   = $intEducations->filter(fn($r) => in_array($r->PMID, $submission->education_qualification   ?? []));
+    //                     // $experienceRecords  = $intExperiences->filter(fn($r) => in_array($r->ID,   $submission->experience_qualification  ?? []));
+    //                     $experienceRecords = $intExperiences->filter(
+    //                         fn($r) => in_array($r->ID, $submission->experience_qualification ?? [])
+    //                     );
+
+    //                     $trainingRecords    = $intTrainings->filter(fn($r) => in_array($r->PMID, $submission->training_qualification    ?? []));
+    //                     $eligibilityRecords = $intEligibilities->filter(fn($r) => in_array($r->PMID, $submission->eligibility_qualification ?? []));
+
+    //                     $applicants[] = [
+    //                         'controlno'           => $submission->ControlNo,
+    //                         'firstname'           => $personal->Firstname,
+    //                         'lastname'            => $personal->Surname,
+    //                         'current_designation' => $tempReorg->Designation ?? null,
+    //                         'office'              => $tempReorg->Office       ?? null,
+    //                         'status'              => $submission->status,
+    //                         'applicant_status'    => 'INTERNAL',
+
+    //                         'education'           => $educationRecords->values(),
+    //                         'experience'          => $experienceRecords->values(),
+    //                         'training'            => $trainingRecords->values(),
+    //                         'eligibility'         => $eligibilityRecords->values(),
+
+    //                         'education_remark'    => $submission->education_remark   ?? null,
+    //                         'experience_remark'   => $submission->experience_remark  ?? null,
+    //                         'training_remark'     => $submission->training_remark    ?? null,
+    //                         'eligibility_remark'  => $submission->eligibility_remark ?? null,
+
+    //                         'education_text'      => $this->formatEducationForQualifiedInternal($educationRecords),
+    //                         'experience_text'     => $this->formatExperienceForQualifiedInternal($experienceRecords),
+    //                         'training_text'       => $this->formatTrainingForQualifiedInternal($trainingRecords),
+    //                         'eligibility_text'    => $this->formatEligibilityForQualifiedInternal($eligibilityRecords),
+    //                     ];
+    //                 }
+    //             }
+
+    //             $responseJobs[] = [
+    //                 'id'              => $job->id,
+    //                 'Office'          => $job->Office,
+    //                 'yOffice'         => $office->Descriptions ?? $job->Office,
+    //                 'Abbr'            => $office->Abbr         ?? null,
+    //                 'Position'        => $job->Position,
+    //                 'ItemNo'          => $job->ItemNo,
+    //                 'SalaryGrade'     => $job->SalaryGrade,
+    //                 'criteria'        => $job->criteria,
+    //                 'criteria_rating' => $job->criteriaRatings,
+    //                 'applicants'      => $applicants,
+    //             ];
+    //         }
+
+    //         \Log::info('before json encode', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+    //         $payload = [
+    //             'Header'   => 'Applicants Qualified Standard',
+    //             'Date'     => Carbon::parse($postDate)->format('F d, Y') . ' Publication',
+    //             'jobPosts' => $responseJobs,
+    //         ];
+
+    //         \Log::info('json encode start', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+
+    //         $json = json_encode($payload);
+
+    //         \Log::info('json encode done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB', 'size_mb' => round(strlen($json) / 1024 / 1024, 2)]);
+
+    //         return response($json, 200)->header('Content-Type', 'application/json');
+    //         // return response()->json([
+    //         //     'Header'   => 'Applicants Qualified Standard',
+    //         //     'Date'     => Carbon::parse($postDate)->format('F d, Y') . ' Publication',
+    //         //     'jobPosts' => $responseJobs,
+    //         // ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => $e->getMessage(),
+    //             'file'    => $e->getFile(),
+    //             'line'    => $e->getLine(),
+    //         ], 500);
+    //     }
+    // }
+    //new list of qualified
     public function listQualified($postDate)
-    {
-        Log::info('php ini', [
-            'memory_limit' => ini_get('memory_limit'),
-            'php_ini'      => php_ini_loaded_file()
-        ]);
+{
+    \Log::info('php ini', [
+        'memory_limit' => ini_get('memory_limit'),
+        'php_ini'      => php_ini_loaded_file()
+    ]);
 
-        try {
-            ini_set('max_execution_time', 3600);
+    try {
+        ini_set('max_execution_time', 3600);
 
-            // ✅ Normalize any date format to Y-m-d
-            $postDate = Carbon::parse($postDate)->toDateString();
+        // ✅ Normalize any date format to Y-m-d
+        $postDate = Carbon::parse($postDate)->toDateString();
 
-            Log::info('postDate normalized', ['postDate' => $postDate]);
+        \Log::info('postDate normalized', ['postDate' => $postDate]);
 
-            // =====================================================
-            // FETCH JOB POSTS (no submissions in with())
-            // =====================================================
-            $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
-                ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
-                ->with([
-                    'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
-                    'criteriaRatings' => function ($query) {
-                        $query->select('id', 'job_batches_rsp_id')
-                            ->with(['educations', 'experiences', 'trainings']);
-                    },
-                ])
-                ->get();
+        // =====================================================
+        // FETCH JOB POSTS (no submissions in with())
+        // =====================================================
+        $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
+            ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
+            ->with([
+                'criteria:id,job_batches_rsp_id,Education,Experience,Training,Eligibility',
+                'criteriaRatings' => function ($query) {
+                    $query->select('id', 'job_batches_rsp_id')
+                        ->with(['educations', 'experiences', 'trainings']);
+                },
+            ])
+            ->get();
 
-            $jobPostIds = $jobPosts->pluck('id');
+        $jobPostIds = $jobPosts->pluck('id');
 
-            // =====================================================
-            // FETCH SUBMISSIONS AS PLAIN OBJECTS — no Eloquent hydration
-            // =====================================================
-            $allSubmissionsRaw = Submission::whereIn('job_batches_rsp_id', $jobPostIds)
-                ->where('status', 'Qualified')
-                ->select(
-                    'id',
-                    'job_batches_rsp_id',
-                    'nPersonalInfo_id',
-                    'ControlNo',
-                    'status',
-                    'education_remark',
-                    'experience_remark',
-                    'training_remark',
-                    'eligibility_remark',
-                    'education_qualification',
-                    'experience_qualification',
-                    'training_qualification',
-                    'eligibility_qualification',
-                )
-                ->get()
-                ->map(function ($s) {
-                    $s->education_qualification   = is_array($s->education_qualification)   ? $s->education_qualification   : (json_decode($s->education_qualification,  true) ?? []);
-                    $s->experience_qualification  = is_array($s->experience_qualification)  ? $s->experience_qualification  : (json_decode($s->experience_qualification, true) ?? []);
-                    $s->training_qualification    = is_array($s->training_qualification)    ? $s->training_qualification    : (json_decode($s->training_qualification,   true) ?? []);
-                    $s->eligibility_qualification = is_array($s->eligibility_qualification) ? $s->eligibility_qualification : (json_decode($s->eligibility_qualification, true) ?? []);
-                    return $s;
-                });
+        // =====================================================
+        // FETCH SUBMISSIONS AS PLAIN OBJECTS — no Eloquent hydration
+        // =====================================================
+        $allSubmissionsRaw = DB::table('submission')
+            ->whereIn('job_batches_rsp_id', $jobPostIds)
+            ->where('status', 'Qualified')
+            ->select(
+                'id', 'job_batches_rsp_id', 'nPersonalInfo_id', 'ControlNo', 'status',
+                'education_remark', 'experience_remark', 'training_remark', 'eligibility_remark',
+                'education_qualification', 'experience_qualification',
+                'training_qualification', 'eligibility_qualification',
+            )
+            ->get()
+            ->map(function ($s) {
+                $s->education_qualification   = json_decode($s->education_qualification,  true) ?? [];
+                $s->experience_qualification  = json_decode($s->experience_qualification, true) ?? [];
+                $s->training_qualification    = json_decode($s->training_qualification,   true) ?? [];
+                $s->eligibility_qualification = json_decode($s->eligibility_qualification, true) ?? [];
+                return $s;
+            });
 
-            // ✅ Group submissions by job_batches_rsp_id
-            $submissionsByJob = $allSubmissionsRaw->groupBy('job_batches_rsp_id');
+        \Log::info('submissions fetched', ['count' => $allSubmissionsRaw->count(), 'memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
 
-            // =====================================================
-            // BULK FETCH — split submissions by type
-            // =====================================================
-            $externalSubs = $allSubmissionsRaw->filter(fn($s) => !empty($s->nPersonalInfo_id));
-            $internalSubs = $allSubmissionsRaw->filter(fn($s) => empty($s->nPersonalInfo_id) && !empty($s->ControlNo));
+        // ✅ Group submissions by job_batches_rsp_id
+        $submissionsByJob = $allSubmissionsRaw->groupBy('job_batches_rsp_id');
 
-            // --- Collect all IDs ---
-            $extEduIds   = $externalSubs->flatMap(fn($s) => $s->education_qualification   ?? [])->unique();
-            $extExpIds   = $externalSubs->flatMap(fn($s) => $s->experience_qualification  ?? [])->unique();
-            $extTrainIds = $externalSubs->flatMap(fn($s) => $s->training_qualification    ?? [])->unique();
-            $extEligIds  = $externalSubs->flatMap(fn($s) => $s->eligibility_qualification ?? [])->unique();
+        // =====================================================
+        // BULK FETCH — split submissions by type
+        // =====================================================
+        $externalSubs = $allSubmissionsRaw->filter(fn($s) => !empty($s->nPersonalInfo_id));
+        $internalSubs = $allSubmissionsRaw->filter(fn($s) => empty($s->nPersonalInfo_id) && !empty($s->ControlNo));
 
-            $intEduIds   = $internalSubs->flatMap(fn($s) => $s->education_qualification   ?? [])->unique();
-            $intExpIds   = $internalSubs->flatMap(fn($s) => $s->experience_qualification  ?? [])->unique();
-            $intTrainIds = $internalSubs->flatMap(fn($s) => $s->training_qualification    ?? [])->unique();
-            $intEligIds  = $internalSubs->flatMap(fn($s) => $s->eligibility_qualification ?? [])->unique();
+        // --- Collect all IDs ---
+        $extEduIds   = $externalSubs->flatMap(fn($s) => $s->education_qualification   ?? [])->unique();
+        $extExpIds   = $externalSubs->flatMap(fn($s) => $s->experience_qualification  ?? [])->unique();
+        $extTrainIds = $externalSubs->flatMap(fn($s) => $s->training_qualification    ?? [])->unique();
+        $extEligIds  = $externalSubs->flatMap(fn($s) => $s->eligibility_qualification ?? [])->unique();
 
-            // --- EXTERNAL (Eloquent models) chunked at 1000 ---
-            $extEducations    = $extEduIds->chunk(1000)->flatMap(fn($c) => Education_background::whereIn('id', $c)->get()->all())->keyBy('id');
-            $extExperiences   = $extExpIds->chunk(1000)->flatMap(fn($c) => Work_experience::whereIn('id', $c)->get()->all())->keyBy('id');
-            $extTrainings     = $extTrainIds->chunk(1000)->flatMap(fn($c) => Learning_development::whereIn('id', $c)->get()->all())->keyBy('id');
-            $extEligibilities = $extEligIds->chunk(1000)->flatMap(fn($c) => Civil_service_eligibity::whereIn('id', $c)->get()->all())->keyBy('id');
+        $intEduIds   = $internalSubs->flatMap(fn($s) => $s->education_qualification   ?? [])->unique();
+        $intExpIds   = $internalSubs->flatMap(fn($s) => $s->experience_qualification  ?? [])->unique();
+        $intTrainIds = $internalSubs->flatMap(fn($s) => $s->training_qualification    ?? [])->unique();
+        $intEligIds  = $internalSubs->flatMap(fn($s) => $s->eligibility_qualification ?? [])->unique();
 
-            // --- INTERNAL (DB tables) chunked at 1000 ---
-            $intEducations    = $intEduIds->chunk(1000)->flatMap(fn($c) => DB::table('xEducation')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
-            // $intExperiences   = $intExpIds->chunk(1000)->flatMap(fn($c) => DB::table('xExperience')->whereIn('ID', $c)->get()->all())->keyBy('ID');
-            // ✅ TAMA — i-loop per submission
-            $intExperiences = collect();
-            foreach ($internalSubs as $submission) {
-                // ✅ i-find muna ang Submission model para ma-call ang method
-                $submissionModel = Submission::find($submission->id);
-                $records = $submissionModel->getExperienceRecordsInternal(
-                    $submission->ControlNo,
-                    $submission->experience_qualification ?? []
-                );
-                $intExperiences = $intExperiences->merge($records);
-            }
-            $intExperiences = $intExperiences->keyBy('id');
+        // --- EXTERNAL (Eloquent models) chunked at 1000 ---
+        $extEducations    = $extEduIds->chunk(1000)->flatMap(fn($c) => Education_background::whereIn('id', $c)->get()->all())->keyBy('id');
+        $extExperiences   = $extExpIds->chunk(1000)->flatMap(fn($c) => Work_experience::whereIn('id', $c)->get()->all())->keyBy('id');
+        $extTrainings     = $extTrainIds->chunk(1000)->flatMap(fn($c) => Learning_development::whereIn('id', $c)->get()->all())->keyBy('id');
+        $extEligibilities = $extEligIds->chunk(1000)->flatMap(fn($c) => Civil_service_eligibity::whereIn('id', $c)->get()->all())->keyBy('id');
 
-            $intTrainings     = $intTrainIds->chunk(1000)->flatMap(fn($c) => DB::table('xTrainings')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
-            $intEligibilities = $intEligIds->chunk(1000)->flatMap(fn($c) => DB::table('xCivilService')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
+        // --- INTERNAL (DB tables) chunked at 1000 ---
+        $intEducations    = $intEduIds->chunk(1000)->flatMap(fn($c) => DB::table('xEducation')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
+        $intExperiences   = $intExpIds->chunk(1000)->flatMap(fn($c) => DB::table('xExperience')->whereIn('ID', $c)->get()->all())->keyBy('ID');
+        $intTrainings     = $intTrainIds->chunk(1000)->flatMap(fn($c) => DB::table('xTrainings')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
+        $intEligibilities = $intEligIds->chunk(1000)->flatMap(fn($c) => DB::table('xCivilService')->whereIn('PMID', $c)->get()->all())->keyBy('PMID');
 
-            // --- BULK FETCH nPersonalInfo ---
-            $nPersonalInfoIds = $externalSubs->pluck('nPersonalInfo_id')->unique();
-            $nPersonalInfos   = DB::table('nPersonalInfo')
-                ->whereIn('id', $nPersonalInfoIds)
-                ->select('id', 'firstname', 'lastname')
-                ->get()->keyBy('id');
+        // --- BULK FETCH nPersonalInfo ---
+        $nPersonalInfoIds = $externalSubs->pluck('nPersonalInfo_id')->unique();
+        $nPersonalInfos   = DB::table('nPersonalInfo')
+            ->whereIn('id', $nPersonalInfoIds)
+            ->select('id', 'firstname', 'lastname')
+            ->get()->keyBy('id');
 
-            // --- BULK FETCH xPersonal and vwActive ---
-            $controlNos = $internalSubs->pluck('ControlNo')->unique();
+        // --- BULK FETCH xPersonal and vwActive ---
+        $controlNos = $internalSubs->pluck('ControlNo')->unique();
 
-            $xPersonals = $controlNos->chunk(1000)->flatMap(
-                fn($c) => DB::table('xPersonal')->whereIn('ControlNo', $c)->select('ControlNo', 'Firstname', 'Surname')->get()->all()
-            )->keyBy('ControlNo');
+        $xPersonals = $controlNos->chunk(1000)->flatMap(
+            fn($c) => DB::table('xPersonal')->whereIn('ControlNo', $c)->select('ControlNo', 'Firstname', 'Surname')->get()->all()
+        )->keyBy('ControlNo');
 
-            $tempReorgs = $controlNos->chunk(1000)->flatMap(
-                fn($c) => DB::table('vwActive')->whereIn('ControlNo', $c)->select('ControlNo', 'Office', 'Designation')->get()->all()
-            )->keyBy('ControlNo');
+        $tempReorgs = $controlNos->chunk(1000)->flatMap(
+            fn($c) => DB::table('vwActive')->whereIn('ControlNo', $c)->select('ControlNo', 'Office', 'Designation')->get()->all()
+        )->keyBy('ControlNo');
 
-            // --- BULK FETCH yOffice ---
-            $officeNames = $jobPosts->pluck('Office')->unique();
-            $offices = DB::table('yOffice')
-                ->whereIn('Descriptions', $officeNames)
-                ->select('Descriptions', 'Abbr')
-                ->get()->keyBy('Descriptions');
+        // --- BULK FETCH xService (for internal experience records) ---
+        // Group by ControlNo so we can look up per submission
+        // --- BULK FETCH xService (for internal experience) grouped by ControlNo ---
+        $intServiceRecords = $controlNos->chunk(1000)->flatMap(
+            fn($c) => DB::table('xService')
+                ->whereIn('ControlNo', $c)
+                ->select('PMID as id', 'ControlNo', 'FromDate as WFrom', 'ToDate as WTo', 'Designation as WPosition', 'Office as WCompany')
+                ->orderBy('FromDate')
+                ->get()->all()
+        )->groupBy('ControlNo');
 
-            Log::info('bulk fetches done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+        // --- BULK FETCH yOffice ---
+        $officeNames = $jobPosts->pluck('Office')->unique();
+        $offices = DB::table('yOffice')
+            ->whereIn('Descriptions', $officeNames)
+            ->select('Descriptions', 'Abbr')
+            ->get()->keyBy('Descriptions');
 
-            // =====================================================
-            // BUILD RESPONSE — no queries inside the loop
-            // =====================================================
-            $responseJobs = [];
+        \Log::info('bulk fetches done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
 
-            foreach ($jobPosts as $job) {
-                $office     = $offices->get($job->Office);
-                $applicants = [];
+        // =====================================================
+        // BUILD RESPONSE — no queries inside the loop
+        // =====================================================
+        $responseJobs = [];
 
-                foreach ($submissionsByJob->get($job->id, collect()) as $submission) {
+        foreach ($jobPosts as $job) {
+            $office     = $offices->get($job->Office);
+            $applicants = [];
 
-                    // =====================
-                    // EXTERNAL (nPersonalInfo_id set)
-                    // =====================
-                    if ($submission->nPersonalInfo_id) {
+            foreach ($submissionsByJob->get($job->id, collect()) as $submission) {
 
-                        $personalInfo = $nPersonalInfos->get($submission->nPersonalInfo_id);
-                        if (!$personalInfo) continue;
+                // =====================
+                // EXTERNAL (nPersonalInfo_id set)
+                // =====================
+                if ($submission->nPersonalInfo_id) {
 
-                        $educationRecords   = $extEducations->filter(fn($r) => in_array($r->id, $submission->education_qualification   ?? []));
-                        // ✅ consistent na — 'id' na lahat
-                        $experienceRecords = $extExperiences->filter(
-                            fn($r) => in_array($r->id, $submission->experience_qualification ?? [])
-                        );
+                    $personalInfo = $nPersonalInfos->get($submission->nPersonalInfo_id);
+                    if (!$personalInfo) continue;
 
-                        $trainingRecords    = $extTrainings->filter(fn($r) => in_array($r->id, $submission->training_qualification    ?? []));
-                        $eligibilityRecords = $extEligibilities->filter(fn($r) => in_array($r->id, $submission->eligibility_qualification ?? []));
+                    $educationRecords   = $extEducations->filter(fn($r) => in_array($r->id, $submission->education_qualification   ?? []));
+                    $experienceRecords  = $extExperiences->filter(fn($r) => in_array($r->id, $submission->experience_qualification  ?? []));
+                    $trainingRecords    = $extTrainings->filter(fn($r) => in_array($r->id, $submission->training_qualification    ?? []));
+                    $eligibilityRecords = $extEligibilities->filter(fn($r) => in_array($r->id, $submission->eligibility_qualification ?? []));
 
-                        $applicants[] = [
-                            'firstname'          => $personalInfo->firstname,
-                            'lastname'           => $personalInfo->lastname,
-                            'status'             => $submission->status,
-                            'applicant_status'   => 'OUTSIDER',
+                    $applicants[] = [
+                        'firstname'          => $personalInfo->firstname,
+                        'lastname'           => $personalInfo->lastname,
+                        'status'             => $submission->status,
+                        'applicant_status'   => 'OUTSIDER',
 
-                            'education'          => $educationRecords->values(),
-                            'experience'         => $experienceRecords->values(),
-                            'training'           => $trainingRecords->values(),
-                            'eligibility'        => $eligibilityRecords->values(),
+                        'education'          => $educationRecords->values(),
+                        'experience'         => $experienceRecords->values(),
+                        'training'           => $trainingRecords->values(),
+                        'eligibility'        => $eligibilityRecords->values(),
 
-                            'education_remark'   => $submission->education_remark   ?? null,
-                            'experience_remark'  => $submission->experience_remark  ?? null,
-                            'training_remark'    => $submission->training_remark    ?? null,
-                            'eligibility_remark' => $submission->eligibility_remark ?? null,
+                        'education_remark'   => $submission->education_remark   ?? null,
+                        'experience_remark'  => $submission->experience_remark  ?? null,
+                        'training_remark'    => $submission->training_remark    ?? null,
+                        'eligibility_remark' => $submission->eligibility_remark ?? null,
 
-                            'education_text'     => $this->formatEducationForQualifiedExternal($educationRecords),
-                            'experience_text'    => $this->formatExperienceForQualifiedExternal($experienceRecords),
-                            'training_text'      => $this->formatTrainingForQualifiedExternal($trainingRecords),
-                            'eligibility_text'   => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
-                        ];
-                    }
-
-                    // =====================
-                    // INTERNAL (ControlNo set)
-                    // =====================
-                    elseif (!empty($submission->ControlNo)) {
-
-                        $personal  = $xPersonals->get($submission->ControlNo);
-                        $tempReorg = $tempReorgs->get($submission->ControlNo);
-
-                        if (!$personal) continue;
-
-                        $educationRecords   = $intEducations->filter(fn($r) => in_array($r->PMID, $submission->education_qualification   ?? []));
-                        // $experienceRecords  = $intExperiences->filter(fn($r) => in_array($r->ID,   $submission->experience_qualification  ?? []));
-                        $experienceRecords = $intExperiences->filter(
-                            fn($r) => in_array($r->id, $submission->experience_qualification ?? [])
-                        );
-
-                        $trainingRecords    = $intTrainings->filter(fn($r) => in_array($r->PMID, $submission->training_qualification    ?? []));
-                        $eligibilityRecords = $intEligibilities->filter(fn($r) => in_array($r->PMID, $submission->eligibility_qualification ?? []));
-
-                        $applicants[] = [
-                            'controlno'           => $submission->ControlNo,
-                            'firstname'           => $personal->Firstname,
-                            'lastname'            => $personal->Surname,
-                            'current_designation' => $tempReorg->Designation ?? null,
-                            'office'              => $tempReorg->Office       ?? null,
-                            'status'              => $submission->status,
-                            'applicant_status'    => 'INTERNAL',
-
-                            'education'           => $educationRecords->values(),
-                            'experience'          => $experienceRecords->values(),
-                            'training'            => $trainingRecords->values(),
-                            'eligibility'         => $eligibilityRecords->values(),
-
-                            'education_remark'    => $submission->education_remark   ?? null,
-                            'experience_remark'   => $submission->experience_remark  ?? null,
-                            'training_remark'     => $submission->training_remark    ?? null,
-                            'eligibility_remark'  => $submission->eligibility_remark ?? null,
-
-                            'education_text'      => $this->formatEducationForQualifiedInternal($educationRecords),
-                            'experience_text'     => $this->formatExperienceForQualifiedInternal($experienceRecords),
-                            'training_text'       => $this->formatTrainingForQualifiedInternal($trainingRecords),
-                            'eligibility_text'    => $this->formatEligibilityForQualifiedInternal($eligibilityRecords),
-                        ];
-                    }
+                        'education_text'     => $this->formatEducationForQualifiedExternal($educationRecords),
+                        'experience_text'    => $this->formatExperienceForQualifiedExternal($experienceRecords),
+                        'training_text'      => $this->formatTrainingForQualifiedExternal($trainingRecords),
+                        'eligibility_text'   => $this->formatEligibilityForQualifiedExternal($eligibilityRecords),
+                    ];
                 }
 
-                $responseJobs[] = [
-                    'id'              => $job->id,
-                    'Office'          => $job->Office,
-                    'yOffice'         => $office->Descriptions ?? $job->Office,
-                    'Abbr'            => $office->Abbr         ?? null,
-                    'Position'        => $job->Position,
-                    'ItemNo'          => $job->ItemNo,
-                    'SalaryGrade'     => $job->SalaryGrade,
-                    'criteria'        => $job->criteria,
-                    'criteria_rating' => $job->criteriaRatings,
-                    'applicants'      => $applicants,
-                ];
+                // =====================
+                // INTERNAL (ControlNo set)
+                // =====================
+                // elseif (!empty($submission->ControlNo)) {
+
+                //     $personal  = $xPersonals->get($submission->ControlNo);
+                //     $tempReorg = $tempReorgs->get($submission->ControlNo);
+
+                //     if (!$personal) continue;
+
+                //     $educationRecords   = $intEducations->filter(fn($r) => in_array($r->PMID, $submission->education_qualification ?? []));
+                //     $eligibilityRecords = $intEligibilities->filter(fn($r) => in_array($r->PMID, $submission->eligibility_qualification ?? []));
+                //     $trainingRecords    = $intTrainings->filter(fn($r) => in_array($r->PMID, $submission->training_qualification ?? []));
+
+                //     // ✅ Merge xExperience + xService records for this ControlNo
+                //     $xExpRecords     = $intExperiences->filter(fn($r) => in_array($r->ID, $submission->experience_qualification ?? []))->values();
+                //     $xServiceRecords = collect($intServiceRecords->get($submission->ControlNo, []))
+                //         ->map(function ($r) {
+                //             // ✅ Safe date parser — tries multiple formats
+                //             $parseDate = function ($dateStr) {
+                //                 if (empty($dateStr)) return null;
+                //                 $clean = strtoupper(trim($dateStr));
+                //                 if ($clean === 'CURRENT' || $clean === '') return date('m/d/Y');
+
+                //                 // Try common formats
+                //                 foreach (['Y-m-d', 'm/d/Y', 'd/m/Y', 'Y/m/d', 'm-d-Y', 'd-m-Y'] as $format) {
+                //                     $parsed = \DateTime::createFromFormat($format, $dateStr);
+                //                     if ($parsed !== false) {
+                //                         return $parsed->format('m/d/Y');
+                //                     }
+                //                 }
+
+                //                 // Last resort — strtotime
+                //                 $ts = strtotime($dateStr);
+                //                 return $ts !== false ? date('m/d/Y', $ts) : null;
+                //             };
+
+                //             $r->WFrom = $parseDate($r->WFrom);
+
+                //             $wTo = strtoupper(trim($r->WTo ?? ''));
+                //             $r->WTo = ($wTo === '' || $wTo === 'CURRENT')
+                //                 ? date('m/d/Y')
+                //                 : $parseDate($r->WTo);
+
+                //             return $r;
+                //         });
+
+                //     $experienceRecords = $xExpRecords->merge($xServiceRecords->values());
+
+                //     $applicants[] = [
+                //         'controlno'           => $submission->ControlNo,
+                //         'firstname'           => $personal->Firstname,
+                //         'lastname'            => $personal->Surname,
+                //         'current_designation' => $tempReorg->Designation ?? null,
+                //         'office'              => $tempReorg->Office       ?? null,
+                //         'status'              => $submission->status,
+                //         'applicant_status'    => 'INTERNAL',
+
+                //         'education'           => $educationRecords->values(),
+                //         'experience'          => $experienceRecords->values(),
+                //         'training'            => $trainingRecords->values(),
+                //         'eligibility'         => $eligibilityRecords->values(),
+
+                //         'education_remark'    => $submission->education_remark   ?? null,
+                //         'experience_remark'   => $submission->experience_remark  ?? null,
+                //         'training_remark'     => $submission->training_remark    ?? null,
+                //         'eligibility_remark'  => $submission->eligibility_remark ?? null,
+
+                //         'education_text'      => $this->formatEducationForQualifiedInternal($educationRecords),
+                //         'experience_text'     => $this->formatExperienceForQualifiedInternal($experienceRecords),
+                //         'training_text'       => $this->formatTrainingForQualifiedInternal($trainingRecords),
+                //         'eligibility_text'    => $this->formatEligibilityForQualifiedInternal($eligibilityRecords),
+                //     ];
+                // }
+                // =====================
+                // INTERNAL (ControlNo set)
+                // =====================
+                elseif (!empty($submission->ControlNo)) {
+
+                    $personal  = $xPersonals->get($submission->ControlNo);
+                    $tempReorg = $tempReorgs->get($submission->ControlNo);
+
+                    if (!$personal) continue;
+
+                    $educationRecords   = $intEducations->filter(fn($r) => in_array($r->PMID, $submission->education_qualification ?? []));
+                    $trainingRecords    = $intTrainings->filter(fn($r) => in_array($r->PMID, $submission->training_qualification ?? []));
+                    $eligibilityRecords = $intEligibilities->filter(fn($r) => in_array($r->PMID, $submission->eligibility_qualification ?? []));
+
+                    // ✅ xService records — match exactly what getExperienceRecordsInternal does
+                    $serviceRecords = collect($intServiceRecords->get($submission->ControlNo, []));
+
+                    // ✅ Find latest record (by WTo then WFrom) — same logic as original
+                    $latestServiceId = $serviceRecords
+                        ->sortByDesc(fn($r) => [$r->WTo, $r->WFrom])
+                        ->first()?->id;
+
+                    $serviceRecords = $serviceRecords->map(function ($r) use ($latestServiceId) {
+                        $isLatest = $r->id === $latestServiceId;
+
+                        $toDate = !empty($r->WTo) ? strtotime($r->WTo) : null;
+
+                        // ✅ Cap future WTo to today only on latest record
+                        if ($isLatest && $toDate && $toDate > time()) {
+                            $toDate = time();
+                        }
+
+                        $r->WFrom = !empty($r->WFrom) ? date('m/d/Y', strtotime($r->WFrom)) : null;
+                        $r->WTo   = $toDate ? date('m/d/Y', $toDate) : null;
+                        $r->experience_status = 'SERVICE';
+                        return $r;
+                    });
+
+                    // ✅ xExperience records filtered by qualification IDs
+                    $xExpRecords = $intExperiences->filter(
+                        fn($r) => in_array($r->ID, $submission->experience_qualification ?? [])
+                    )->values()->map(function ($r) {
+                        $r->id = $r->ID;
+
+                        $r->WFrom = (!empty($r->WFrom) && strtoupper(trim($r->WFrom)) !== 'CURRENT')
+                            ? date('m/d/Y', strtotime($r->WFrom))
+                            : null;
+
+                        $wTo = strtoupper(trim($r->WTo ?? ''));
+                        $r->WTo = ($wTo === 'CURRENT' || $wTo === '')
+                            ? date('m/d/Y')
+                            : date('m/d/Y', strtotime($r->WTo));
+
+                        $r->experience_status = 'EXPERIENCE';
+                        return $r;
+                    });
+
+                    // ✅ Merge — same as original return $serviceRecords->merge($experienceRecords)
+                    $experienceRecords = $serviceRecords->merge($xExpRecords->values());
+
+                    $applicants[] = [
+                        'controlno'           => $submission->ControlNo,
+                        'firstname'           => $personal->Firstname,
+                        'lastname'            => $personal->Surname,
+                        'current_designation' => $tempReorg->Designation ?? null,
+                        'office'              => $tempReorg->Office       ?? null,
+                        'status'              => $submission->status,
+                        'applicant_status'    => 'INTERNAL',
+
+                        'education'           => $educationRecords->values(),
+                        'experience'          => $experienceRecords->values(),
+                        'training'            => $trainingRecords->values(),
+                        'eligibility'         => $eligibilityRecords->values(),
+
+                        'education_remark'    => $submission->education_remark   ?? null,
+                        'experience_remark'   => $submission->experience_remark  ?? null,
+                        'training_remark'     => $submission->training_remark    ?? null,
+                        'eligibility_remark'  => $submission->eligibility_remark ?? null,
+
+                        'education_text'      => $this->formatEducationForQualifiedInternal($educationRecords),
+                        'experience_text'     => $this->formatExperienceForQualifiedInternal($experienceRecords),
+                        'training_text'       => $this->formatTrainingForQualifiedInternal($trainingRecords),
+                        'eligibility_text'    => $this->formatEligibilityForQualifiedInternal($eligibilityRecords),
+                    ];
+                }
             }
 
-            \Log::info('before json encode', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
-
-            return response()->json([
-                'Header'   => 'Applicants Qualified Standard',
-                'Date'     => Carbon::parse($postDate)->format('F d, Y') . ' Publication',
-                'jobPosts' => $responseJobs,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'file'    => $e->getFile(),
-                'line'    => $e->getLine(),
-            ], 500);
+            $responseJobs[] = [
+                'id'              => $job->id,
+                'Office'          => $job->Office,
+                'yOffice'         => $office->Descriptions ?? $job->Office,
+                'Abbr'            => $office->Abbr         ?? null,
+                'Position'        => $job->Position,
+                'ItemNo'          => $job->ItemNo,
+                'SalaryGrade'     => $job->SalaryGrade,
+                'criteria'        => $job->criteria,
+                'criteria_rating' => $job->criteriaRatings,
+                'applicants'      => $applicants,
+            ];
         }
+
+        \Log::info('before json encode', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+
+        $payload = [
+            'Header'   => 'Applicants Qualified Standard',
+            'Date'     => Carbon::parse($postDate)->format('F d, Y') . ' Publication',
+            'jobPosts' => $responseJobs,
+        ];
+
+        \Log::info('json encode start', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+
+        $json = json_encode($payload);
+
+        \Log::info('json encode done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB', 'size_mb' => round(strlen($json) / 1024 / 1024, 2)]);
+
+        return response($json, 200)->header('Content-Type', 'application/json');
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine(),
+        ], 500);
     }
+}
 
     // list of unqualified applicants for job post publication
     public function listUnQualified($postDate)
