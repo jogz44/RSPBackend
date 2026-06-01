@@ -6,6 +6,7 @@ use App\Models\LibRemark;
 use App\Services\LibraryService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LibraryController extends Controller
 {
@@ -23,10 +24,16 @@ class LibraryController extends Controller
      */
     public function store(Request $request)
     {
-        $validatedData = $request->validate([
-            'remarks' => 'required|string|unique:lib_remarks,remarks',
-            'category' => 'required|string'
-        ]);
+            $validatedData = $request->validate([
+                'remarks' => [
+                    'required',
+                    'string',
+                    Rule::unique('lib_remarks', 'remarks')
+                        ->where('category', strtoupper($request->input('category'))),
+                ],
+                'category' => 'required|string'
+            ]);
+
 
         $validatedData['remarks'] = strtoupper($validatedData['remarks']);
         $validatedData['category'] = strtoupper($validatedData['category']);
