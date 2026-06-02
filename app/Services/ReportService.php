@@ -1622,20 +1622,45 @@ class ReportService
     // --- INTERNAL format helpers ---
 
     public function formatEducationForQualifiedInternal($educationRecords)
-    {
-        if ($educationRecords->isEmpty()) {
-            return '.';
-        }
-
-        $formatted = [];
-        foreach ($educationRecords as $edu) {
-            $degree = $edu->Degree ?? '';
-            $unit   = $edu->NumUnits ?? '';
-            $formatted[] = "• {$degree} ({$unit} units)";
-        }
-
-        return implode('<br>', $formatted);
+{
+    if ($educationRecords->isEmpty()) {
+        return '.';
     }
+
+    $formatted = [];
+    foreach ($educationRecords as $edu) {
+        $degree = trim($edu->Degree ?? '');
+        $unit   = trim($edu->NumUnits ?? '');
+        $Education  = trim($edu->Education ?? '');  // ← check your actual column name in xEducation
+
+        $Education = $degree ?: $Education;
+
+        if (empty($Education)) {
+            continue;
+        }
+
+        $unitPart = $unit ? " ({$unit} units)" : '';
+        $formatted[] = "• {$Education}{$unitPart}";
+    }
+
+    return implode('<br>', $formatted);
+}
+
+    // public function formatEducationForQualifiedInternal($educationRecords)
+    // {
+    //     if ($educationRecords->isEmpty()) {
+    //         return '.';
+    //     }
+
+    //     $formatted = [];
+    //     foreach ($educationRecords as $edu) {
+    //         $degree = $edu->Degree ?? '';
+    //         $unit   = $edu->NumUnits ?? '';
+    //         $formatted[] = "• {$degree} ({$unit} units)";
+    //     }
+
+    //     return implode('<br>', $formatted);
+    // }
 
     public function formatExperienceForQualifiedInternal($experienceRecords)
     {
