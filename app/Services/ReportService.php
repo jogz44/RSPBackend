@@ -1551,7 +1551,7 @@ class ReportService
     foreach ($educationRecords as $edu) {
         $degree = trim($edu->degree ?? '');
         $unit   = trim($edu->highest_units ?? '');
-        $level  = trim($edu->level ?? '');
+        $level  = trim($edu->school_name ?? '');
 
         // Build a meaningful label — fall back to level if degree is blank
         $label = $degree ?: $level;
@@ -1631,7 +1631,7 @@ class ReportService
     foreach ($educationRecords as $edu) {
         $degree = trim($edu->Degree ?? '');
         $unit   = trim($edu->NumUnits ?? '');
-        $Education  = trim($edu->Education ?? '');  // ← check your actual column name in xEducation
+        $Education  = trim($edu->School ?? '');  // ← check your actual column name in xEducation
 
         $Education = $degree ?: $Education;
 
