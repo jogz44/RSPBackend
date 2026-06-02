@@ -147,7 +147,7 @@ class ApplicantSubmissionController extends Controller
                 })
                 ->with([
                     'nPersonalInfo:id,firstname,lastname,date_of_birth',
-                    'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
+                    'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status,ItemNo,PageNo',
                 ])
                 ->get()
                 ->map(function ($item) {
@@ -174,7 +174,7 @@ class ApplicantSubmissionController extends Controller
                 })
                 ->with([
                     'xPersonal',
-                    'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status',
+                    'jobPost:id,Position,Office,SalaryGrade,salaryMin,salaryMax,status,ItemNo,PageNo',
                 ])
                 ->get()
                 ->map(function ($item) {
