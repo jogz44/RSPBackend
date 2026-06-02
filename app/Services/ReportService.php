@@ -1038,7 +1038,7 @@ class ReportService
     //new list of qualified
     public function listQualified($postDate)
 {
-    \Log::info('php ini', [
+    Log::info('php ini', [
         'memory_limit' => ini_get('memory_limit'),
         'php_ini'      => php_ini_loaded_file()
     ]);
@@ -1049,7 +1049,7 @@ class ReportService
         // ✅ Normalize any date format to Y-m-d
         $postDate = Carbon::parse($postDate)->toDateString();
 
-        \Log::info('postDate normalized', ['postDate' => $postDate]);
+        Log::info('postDate normalized', ['postDate' => $postDate]);
 
         // =====================================================
         // FETCH JOB POSTS (no submissions in with())
@@ -1088,7 +1088,7 @@ class ReportService
                 return $s;
             });
 
-        \Log::info('submissions fetched', ['count' => $allSubmissionsRaw->count(), 'memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+        Log::info('submissions fetched', ['count' => $allSubmissionsRaw->count(), 'memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
 
         // ✅ Group submissions by job_batches_rsp_id
         $submissionsByJob = $allSubmissionsRaw->groupBy('job_batches_rsp_id');
@@ -1158,7 +1158,7 @@ class ReportService
             ->select('Descriptions', 'Abbr')
             ->get()->keyBy('Descriptions');
 
-        \Log::info('bulk fetches done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+        Log::info('bulk fetches done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
 
         // =====================================================
         // BUILD RESPONSE — no queries inside the loop
@@ -1207,81 +1207,7 @@ class ReportService
                     ];
                 }
 
-                // =====================
-                // INTERNAL (ControlNo set)
-                // =====================
-                // elseif (!empty($submission->ControlNo)) {
-
-                //     $personal  = $xPersonals->get($submission->ControlNo);
-                //     $tempReorg = $tempReorgs->get($submission->ControlNo);
-
-                //     if (!$personal) continue;
-
-                //     $educationRecords   = $intEducations->filter(fn($r) => in_array($r->PMID, $submission->education_qualification ?? []));
-                //     $eligibilityRecords = $intEligibilities->filter(fn($r) => in_array($r->PMID, $submission->eligibility_qualification ?? []));
-                //     $trainingRecords    = $intTrainings->filter(fn($r) => in_array($r->PMID, $submission->training_qualification ?? []));
-
-                //     // ✅ Merge xExperience + xService records for this ControlNo
-                //     $xExpRecords     = $intExperiences->filter(fn($r) => in_array($r->ID, $submission->experience_qualification ?? []))->values();
-                //     $xServiceRecords = collect($intServiceRecords->get($submission->ControlNo, []))
-                //         ->map(function ($r) {
-                //             // ✅ Safe date parser — tries multiple formats
-                //             $parseDate = function ($dateStr) {
-                //                 if (empty($dateStr)) return null;
-                //                 $clean = strtoupper(trim($dateStr));
-                //                 if ($clean === 'CURRENT' || $clean === '') return date('m/d/Y');
-
-                //                 // Try common formats
-                //                 foreach (['Y-m-d', 'm/d/Y', 'd/m/Y', 'Y/m/d', 'm-d-Y', 'd-m-Y'] as $format) {
-                //                     $parsed = \DateTime::createFromFormat($format, $dateStr);
-                //                     if ($parsed !== false) {
-                //                         return $parsed->format('m/d/Y');
-                //                     }
-                //                 }
-
-                //                 // Last resort — strtotime
-                //                 $ts = strtotime($dateStr);
-                //                 return $ts !== false ? date('m/d/Y', $ts) : null;
-                //             };
-
-                //             $r->WFrom = $parseDate($r->WFrom);
-
-                //             $wTo = strtoupper(trim($r->WTo ?? ''));
-                //             $r->WTo = ($wTo === '' || $wTo === 'CURRENT')
-                //                 ? date('m/d/Y')
-                //                 : $parseDate($r->WTo);
-
-                //             return $r;
-                //         });
-
-                //     $experienceRecords = $xExpRecords->merge($xServiceRecords->values());
-
-                //     $applicants[] = [
-                //         'controlno'           => $submission->ControlNo,
-                //         'firstname'           => $personal->Firstname,
-                //         'lastname'            => $personal->Surname,
-                //         'current_designation' => $tempReorg->Designation ?? null,
-                //         'office'              => $tempReorg->Office       ?? null,
-                //         'status'              => $submission->status,
-                //         'applicant_status'    => 'INTERNAL',
-
-                //         'education'           => $educationRecords->values(),
-                //         'experience'          => $experienceRecords->values(),
-                //         'training'            => $trainingRecords->values(),
-                //         'eligibility'         => $eligibilityRecords->values(),
-
-                //         'education_remark'    => $submission->education_remark   ?? null,
-                //         'experience_remark'   => $submission->experience_remark  ?? null,
-                //         'training_remark'     => $submission->training_remark    ?? null,
-                //         'eligibility_remark'  => $submission->eligibility_remark ?? null,
-
-                //         'education_text'      => $this->formatEducationForQualifiedInternal($educationRecords),
-                //         'experience_text'     => $this->formatExperienceForQualifiedInternal($experienceRecords),
-                //         'training_text'       => $this->formatTrainingForQualifiedInternal($trainingRecords),
-                //         'eligibility_text'    => $this->formatEligibilityForQualifiedInternal($eligibilityRecords),
-                //     ];
-                // }
-                // =====================
+             
                 // INTERNAL (ControlNo set)
                 // =====================
                 elseif (!empty($submission->ControlNo)) {
@@ -1382,7 +1308,7 @@ class ReportService
             ];
         }
 
-        \Log::info('before json encode', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+    Log::info('before json encode', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
 
         $payload = [
             'Header'   => 'Applicants Qualified Standard',
@@ -1390,11 +1316,11 @@ class ReportService
             'jobPosts' => $responseJobs,
         ];
 
-        \Log::info('json encode start', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
+        Log::info('json encode start', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB']);
 
         $json = json_encode($payload);
 
-        \Log::info('json encode done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB', 'size_mb' => round(strlen($json) / 1024 / 1024, 2)]);
+        Log::info('json encode done', ['memory' => memory_get_usage(true) / 1024 / 1024 . ' MB', 'size_mb' => round(strlen($json) / 1024 / 1024, 2)]);
 
         return response($json, 200)->header('Content-Type', 'application/json');
 
@@ -1600,21 +1526,46 @@ class ReportService
 
     // --- EXTERNAL format helpers ---
 
+    // public function formatEducationForQualifiedExternal($educationRecords)
+    // {
+    //     if ($educationRecords->isEmpty()) {
+    //         return '';
+    //     }
+
+    //     $formatted = [];
+    //     foreach ($educationRecords as $edu) {
+    //         $degree = $edu->degree ?? '';
+    //         $unit   = $edu->highest_units ?? '';
+    //         $formatted[] = "• {$degree} ({$unit} units)";
+    //     }
+
+    //     return implode('<br>', $formatted);
+    // }
     public function formatEducationForQualifiedExternal($educationRecords)
-    {
-        if ($educationRecords->isEmpty()) {
-            return '';
-        }
-
-        $formatted = [];
-        foreach ($educationRecords as $edu) {
-            $degree = $edu->degree ?? '';
-            $unit   = $edu->highest_units ?? '';
-            $formatted[] = "• {$degree} ({$unit} units)";
-        }
-
-        return implode('<br>', $formatted);
+{
+    if ($educationRecords->isEmpty()) {
+        return '';
     }
+
+    $formatted = [];
+    foreach ($educationRecords as $edu) {
+        $degree = trim($edu->degree ?? '');
+        $unit   = trim($edu->highest_units ?? '');
+        $level  = trim($edu->level ?? '');
+
+        // Build a meaningful label — fall back to level if degree is blank
+        $label = $degree ?: $level;
+
+        if (empty($label)) {
+            continue; // skip records with nothing useful
+        }
+
+        $unitPart = $unit ? " ({$unit} units)" : '';
+        $formatted[] = "• {$label}{$unitPart}";
+    }
+
+    return implode('<br>', $formatted);
+}
 
     public function formatExperienceForQualifiedExternal($experienceRecords)
     {
