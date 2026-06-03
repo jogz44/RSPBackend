@@ -838,6 +838,8 @@ class ApplicantService
             'rating_score.user_id as rater_id',
             'users.name as rater_name',
             'users.role_type',
+            'users.prefix',
+            'users.suffix',
             'users.representative',
             'users.position',
             'rating_score.nPersonalInfo_id',
@@ -870,6 +872,8 @@ class ApplicantService
             'position' => $r->position,
             'role_type' => $r->role_type,
             'representative' => $r->representative,
+            'prefix' => $r->prefix,
+            'suffix' => $r->suffix,
         ])->unique('rater_id')->values();
 
         // Group scores by applicant
