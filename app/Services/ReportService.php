@@ -1813,7 +1813,7 @@ class ReportService
     }
 
     // applicant ranking
-    public function ranking($jobpostId, $request)
+    public function ranking($jobpostId)
     {
         $jobpost = JobBatchesRsp::findOrFail($jobpostId);
 
@@ -2005,6 +2005,10 @@ class ReportService
             'position'          => $jobpost->Position    ?? null,
             'Salary_Grade'      => $jobpost->SalaryGrade ?? null,
             'Plantilla_Item_No' => $jobpost->ItemNo      ?? null,
+            'publication_date' =>
+                Carbon::parse($jobpost->post_date)->format('F d, Y')
+                . ' - ' .
+                Carbon::parse($jobpost->end_date)->format('F d, Y'),
             'data'              => $collection,
         ]);
     }
