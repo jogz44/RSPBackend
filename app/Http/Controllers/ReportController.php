@@ -163,17 +163,22 @@ class ReportController extends Controller
 
 
     // list of qualified applicants  for job post publication
-    public function listQualifiedApplicantsPublication($postDate)
+    public function listQualifiedApplicantsPublication($postDate,Request $request)
     {
-        $result = $this->reportService->listQualified($postDate);
+
+        $applicantType = $request->query('applicantType'); // 'internal', 'external', or null (all)
+
+        $result = $this->reportService->listQualified($postDate,$applicantType);
 
         return $result;
     }
 
     // list of Unqualified applicants  for job post publication
-    public function listUnQualifiedApplicantsPublication($postDate)
+    public function listUnQualifiedApplicantsPublication($postDate, Request $request)
     {
-        $result = $this->reportService->listUnQualified($postDate);
+
+         $applicantType = $request->query('applicantType'); // 'internal', 'external', or null (all)
+        $result = $this->reportService->listUnQualified($postDate, $applicantType);
 
         return $result;
     }

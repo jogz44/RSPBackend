@@ -47,13 +47,13 @@ class rating_score extends Model
     // rating_score.php (Model)
 
     // ✅ Internal applicant (nPersonalInfo)
-    public function internalApplicant()
+    public function externalApplicant()
     {
         return $this->belongsTo(nPersonal_info::class, 'nPersonalInfo_id', 'id');
     }
 
     // ✅ External applicant (xPersonal)
-    public function externalApplicant()
+    public function internalApplicant()
     {
         return $this->belongsTo(XPersonal::class, 'ControlNo', 'ControlNo');
     }

@@ -910,7 +910,7 @@ class ScheduleService
         }
 
         return [
-            trim("$firstname $lastname"),
+            trim(ucwords(strtolower("$firstname $lastname"))),
             $email,
             $contactNumber,
         ];
@@ -1077,7 +1077,7 @@ class ScheduleService
                 continue;
             }
 
-            $fullname      = trim("{$applicant->firstname} {$applicant->lastname}");
+         $fullname = trim(ucwords(strtolower("{$applicant->firstname} {$applicant->lastname}")));
             $email         = $applicant->email_address    ?? null;
             $contactNumber = $applicant->cellphone_number ?? null;
 
@@ -1088,15 +1088,15 @@ class ScheduleService
             $purok    = $applicant->Rpurok               ?? '';
             $lastname = $applicant->lastname             ?? '';
 
-            $educationRecords   = $submission->getEducationRecordsExternal();  // ✅
-            $experienceRecords  = $submission->getExperienceRecordsExternal();
-            $trainingRecords    = $submission->getTrainingRecordsExternal();
-            $eligibilityRecords = $submission->getEligibilityRecordsExternal();
+            // $educationRecords   = $submission->getEducationRecordsExternal();  // ✅
+            // $experienceRecords  = $submission->getExperienceRecordsExternal();
+            // $trainingRecords    = $submission->getTrainingRecordsExternal();
+            // $eligibilityRecords = $submission->getEligibilityRecordsExternal();
 
-            $educationText   = $this->formatEducationForEmailExternal($educationRecords);   // ✅
-            $experienceText  = $this->formatExperienceForEmailExternal($experienceRecords);
-            $trainingText    = $this->formatTrainingForEmailExternal($trainingRecords);
-            $eligibilityText = $this->formatEligibilityForEmailExternal($eligibilityRecords);
+            // $educationText   = $this->formatEducationForEmailExternal($educationRecords);   // ✅
+            // $experienceText  = $this->formatExperienceForEmailExternal($experienceRecords);
+            // $trainingText    = $this->formatTrainingForEmailExternal($trainingRecords);
+            // $eligibilityText = $this->formatEligibilityForEmailExternal($eligibilityRecords);
 
         // =====================
         // INTERNAL — has ControlNo
@@ -1122,7 +1122,8 @@ class ScheduleService
                 continue;
             }
 
-            $fullname      = trim("{$internalApplicant->Firstname} {$internalApplicant->Surname}");
+            // $fullname      = trim("{$internalApplicant->Firstname} {$internalApplicant->Surname}");
+            $fullname = trim(ucwords(strtolower("{$internalApplicant->Firstname} {$internalApplicant->Surname}")));
             $email         = $internalApplicant->EmailAdd        ?? null;
             $contactNumber = $internalApplicant->cellphone_number ?? null;
 
@@ -1133,15 +1134,15 @@ class ScheduleService
             $purok    = $internalApplicant->Rpurok    ?? '';
             $lastname = $internalApplicant->Surname   ?? '';
 
-            $educationRecords   = $submission->getEducationRecordsInternal();  // ✅
-            $experienceRecords  = $submission->getExperienceRecordsInternal($submission->ControlNo);
-            $trainingRecords    = $submission->getTrainingRecordsInternal();
-            $eligibilityRecords = $submission->getEligibilityRecordsInternal();
+            // $educationRecords   = $submission->getEducationRecordsInternal();  // ✅
+            // $experienceRecords  = $submission->getExperienceRecordsInternal($submission->ControlNo);
+            // $trainingRecords    = $submission->getTrainingRecordsInternal();
+            // $eligibilityRecords = $submission->getEligibilityRecordsInternal();
 
-            $educationText   = $this->formatEducationForEmailInternal($educationRecords);   // ✅
-            $experienceText  = $this->formatExperienceForEmailInternal($experienceRecords);
-            $trainingText    = $this->formatTrainingForEmailInternal($trainingRecords);
-            $eligibilityText = $this->formatEligibilityForEmailInternal($eligibilityRecords);
+            // $educationText   = $this->formatEducationForEmailInternal($educationRecords);   // ✅
+            // $experienceText  = $this->formatExperienceForEmailInternal($experienceRecords);
+            // $trainingText    = $this->formatTrainingForEmailInternal($trainingRecords);
+            // $eligibilityText = $this->formatEligibilityForEmailInternal($eligibilityRecords);
         }
 
         if (empty($email)) {
@@ -1163,10 +1164,10 @@ class ScheduleService
                     'position'  => $position,
                     'office'    => $office,
 
-                    'education_qualification'   => $educationText,
-                    'experience_qualification'  => $experienceText,
-                    'training_qualification'    => $trainingText,
-                    'eligibility_qualification' => $eligibilityText,
+                    // 'education_qualification'   => $educationText,
+                    // 'experience_qualification'  => $experienceText,
+                    // 'training_qualification'    => $trainingText,
+                    // 'eligibility_qualification' => $eligibilityText,
 
                     'education_remark'   => $submission->education_remark   ?? '',
                     'experience_remark'  => $submission->experience_remark  ?? '',

@@ -140,7 +140,7 @@
         <!-- Recipient -->
         <div class="recipient">
             <p>
-                <strong>Mr/Ms. {{ $fullname }}</strong>
+                <strong>Dear {{ $fullname }}</strong>
                 {{ ucfirst(strtolower($Rpurok)) }}
                 {{ ucwords(strtolower($street)) }}
                 {{ ucwords(strtolower($barangay)) }}<br>
@@ -149,9 +149,9 @@
             </p>
         </div>
 
-        <div class="recipient">
+        <!-- <div class="recipient">
             Dear Mr/Ms. {{ $lastname }},
-        </div>
+        </div> -->
 
         <!-- Content -->
         <div class="content">
@@ -171,33 +171,30 @@
                     <tr>
                         <th style="width: 15%;">Prescribed QS</th>
                         <th style="width: 35%;">Position Requirements</th>
-                        <th style="width: 35%;">Mr/Ms. {{ $lastname }}'s Qualification</th>
-                        <th style="width: 15%;">Remarks</th>
+                        <!-- <th style="width: 35%;">Mr/Ms. {{ $lastname }}'s Qualification</th> -->
+                        <th style="width: 15%;">Assessment</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td><strong>Education</strong></td>
                         <td>{!! nl2br(e($education_qs)) !!}</td>
-                        <td>{!! $education_qualification !!}</td>
                         <td>{{ $education_remark }}</td>
                     </tr>
                     <tr>
                         <td><strong>Training</strong></td>
                         <td>{!! nl2br(e($training_qs)) !!}</td>
-                        <td>{!! $training_qualification !!}</td>
                         <td>{{ $training_remark }}</td>
                     </tr>
                     <tr>
                         <td><strong>Experience</strong></td>
                         <td>{!! nl2br(e($experience_qs)) !!}</td>
-                        <td>{!! $experience_qualification !!}</td>
+                  
                         <td>{{ $experience_remark }}</td>
                     </tr>
                     <tr>
                         <td><strong>Eligibility</strong></td>
                         <td>{!! nl2br(e($eligibility_qs)) !!}</td>
-                        <td>{!! $eligibility_qualification !!}</td>
                         <td>{{ $eligibility_remark }}</td>
                     </tr>
                 </tbody>
