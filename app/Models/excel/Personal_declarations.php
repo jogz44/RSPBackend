@@ -48,13 +48,13 @@ class Personal_declarations extends Model
         'response_39', //reason
 
         // Q40
-        'question_40a',
+        'question_40a', //IP
         'response_40a', //reason
 
-        'question_40b',
+        'question_40b', // PWD
         'response_40b', //reason
 
-        'question_40c',
+        'question_40c', // SOLO PARENT
         'response_40c', //reason
 
 
