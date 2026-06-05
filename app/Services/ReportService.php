@@ -1763,9 +1763,9 @@ class ReportService
         if (empty($label)) {
             continue; // skip records with nothing useful
         }
-
-        $unitPart = $unit ? " ({$unit} units)" : '';
-        $formatted[] = "• {$label}{$unitPart}";
+$unitPart = ($unit && (float)$unit > 0) ? " ({$unit} units)" : '';
+// Log::info('unit check', ['unit' => $unit, 'cast' => (float)$unit, 'result' => $unitPart]);
+          $formatted[] = "• " . trim("{$label}{$unitPart}");
     }
 
     return implode('<br>', $formatted);
@@ -1843,8 +1843,11 @@ class ReportService
             continue;
         }
 
-        $unitPart = $unit ? " ({$unit} units)" : '';
-        $formatted[] = "• {$Education}{$unitPart}";
+        // $unitPart = $unit ? " ({$unit} units)" : '';
+        // $formatted[] = "• {$Education}{$unitPart}";
+        $unitPart = ($unit && (float)$unit > 0) ? " ({$unit} units)" : '';
+// Log::info('unit check', ['unit' => $unit, 'cast' => (float)$unit, 'result' => $unitPart]);
+          $formatted[] = "• " . trim("{$Education}{$unitPart}");
     }
 
     return implode('<br>', $formatted);
