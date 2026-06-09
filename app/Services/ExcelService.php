@@ -922,31 +922,49 @@ class ExcelService
             ->pluck('level', 'ID'); // keyed by ID → level value
 
         // ── Normalize submissions ─────────────────────────────────────────────────
-        $normalized = $submissions->map(function ($submission) use ($employeeStatuses) {
+        // ── Normalize submissions ─────────────────────────────────────────────────
+        $normalized = $submissions->map(function ($submission) use ($employeeStatuses, $plantillaStructures, $plantillaLevels) {
 
             $x = $submission->xPersonal;
-
             if (!$x) return null;
 
             $employeement_status = $employeeStatuses->get($submission->ControlNo);
 
-            $info = [
-                'firstname'        => trim($x->Firstname),
-                'lastname'         => trim($x->Surname),
-                'current_position' => $employeement_status->Designation ?? '',
-                'office'           => $employeement_status->Office      ?? '',
-                'status'           => $employeement_status->Status      ?? '',
-                'sg'           => $employeement_status->Grades      ?? '',
-            ];
+            // Resolve position level per submission's job post
+            $plantillaStructure = $plantillaStructures->get($submission->ControlNo);
+            $structureId        = $plantillaStructure?->ID;
+            $positionLevel      = $structureId ? ($plantillaLevels->get($structureId) ?? '') : '';
 
             return [
                 'submission_id'    => $submission->id,
                 'ControlNo'        => $submission->ControlNo,
                 'applicant_status' => $submission->status,
-                'personal_info'    => $info,
-                'job_post'         => $submission->jobPost,
+                'personal_info'    => [
+                    'firstname'        => trim($x->Firstname),
+                    'lastname'         => trim($x->Surname),
+                    'current_position' => $employeement_status->Designation ?? '',
+                    'office'           => $employeement_status->Office      ?? '',
+                    'status'           => $employeement_status->Status      ?? '',
+                    'sg'               => $employeement_status->Grades      ?? '',
+                    'position_level'   => $positionLevel,
+                ],
+                'job_post' => $submission->jobPost,
             ];
         })->filter()->values();
+
+        // ── Deduplicate: one row per ControlNo, collect all job posts ─────────────
+        $deduplicated = $normalized
+            ->groupBy('ControlNo')
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return [
+                    'ControlNo'     => $first['ControlNo'],
+                    'personal_info' => $first['personal_info'],
+                    'job_posts'     => $group->map(fn($item) => $item['job_post'])->filter()->values(),
+                ];
+            })
+            ->values();
 
         if ($normalized->isEmpty()) {
             return $this->infoMessage('No internal applicant records could be resolved', 200);
@@ -962,25 +980,28 @@ class ExcelService
         }
 
         // ── Write data to sheet ───────────────────────────────────────────────────
+        // ── Write data to sheet ───────────────────────────────────────────────────
         $row = 7;
         $no  = 1;
-        foreach ($normalized as $item) {
+
+        foreach ($deduplicated as $item) {
             $info     = $item['personal_info'];
-            $jobPost  = $item['job_post'];
             $fullName = trim($info['lastname'] . ', ' . $info['firstname']);
 
-            // Step 3: resolve position level from pre-fetched maps
-            $plantillaStructure = $plantillaStructures->get($item['ControlNo']);
-            $structureId        = $plantillaStructure?->ID;
-            $positionLevel      = $structureId ? ($plantillaLevels->get($structureId) ?? '') : '';
+            // Join all positions applied for into one cell
+            $positionsApplied = $item['job_posts']
+                ->map(fn($jp) => $jp?->Position)
+                ->filter()
+                ->implode(', ');
 
             $sheet->setCellValue("A{$row}", $no);
             $sheet->setCellValue("B{$row}", $fullName);
             $sheet->setCellValue("C{$row}", $info['current_position']);
             $sheet->setCellValue("D{$row}", $info['office']);
-            $sheet->setCellValue("E{$row}", $positionLevel);
+            $sheet->setCellValue("E{$row}", $info['position_level']);
             $sheet->setCellValue("F{$row}", $info['status']);
-            $sheet->setCellValue("G{$row}", $info['sg']); // ← was duplicate F
+            $sheet->setCellValue("G{$row}", $info['sg']);
+            // $sheet->setCellValue("H{$row}", $positionsApplied); // all jobs applied
 
             $row++;
             $no++;
