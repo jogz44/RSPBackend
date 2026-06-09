@@ -742,4 +742,166 @@ class ReportController extends Controller
 
         return $this->excelService->getApplicantUnQualifiedExcel($validated);
     }
+
+
+       // internal applicant with designation
+    public function internalApplicantDesignation(Request $request)
+    {
+        $validated = $request->validate([
+            'post_date' => 'required',
+        ]);
+
+        return $this->excelService->internalApplicantDesignation($validated);
+    }
+
+
+//     // ✅ Private helper — returns array, not JSON response
+// public function demographic()
+// {
+//     $external = Submission::query()
+//         ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
+//         ->leftJoin('personal_declarations as pd', 'pd.nPersonalInfo_id', '=', 'p.id')
+//         ->select(
+//             DB::raw('MIN(p.id) as nPersonal_id'),
+//             'p.firstname',
+//             'p.lastname',
+//             'p.sex',
+//             'p.civil_status',
+//             DB::raw('CAST(p.date_of_birth AS VARCHAR(20)) as date_of_birth'),
+//             DB::raw('COUNT(submission.id) as jobpost'),
+//             DB::raw("'external' as applicant_type"),
+//             DB::raw('NULL as ControlNo'),
+//             DB::raw('pd.question_40a as ip'),          // ✅ aliased to ip
+//             DB::raw('pd.question_40b as pwd'),         // ✅ aliased to pwd
+//             DB::raw('pd.question_40c as solo_parent')  // ✅ aliased to solo_parent
+//         )
+//         ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth', 'pd.question_40a', 'pd.question_40b', 'pd.question_40c',    'p.sex',
+//             'p.civil_status',);
+
+//    $internal = Submission::query()
+//     ->whereNull('submission.nPersonalInfo_id')
+//     ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
+//     ->join('xPersonalAddt as xpdt', 'submission.ControlNo', '=', 'xpdt.ControlNo')
+//     ->select(
+//         DB::raw('NULL as nPersonal_id'),
+//         'xp.Firstname as firstname',
+//         'xp.Surname as lastname',
+//         'xp.Sex as sex',
+//         'xp.CivilStatus as civil_status',
+//         DB::raw('CONVERT(VARCHAR(20), xp.BirthDate, 101) as date_of_birth'),
+//         DB::raw('COUNT(submission.id) as jobpost'),
+//         DB::raw("'internal' as applicant_type"),
+//         'submission.ControlNo',
+//         'xpdt.IP as ip',        // ✅ real data, no duplicate NULL below
+//         'xpdt.PWD as pwd',
+//         'xpdt.SOLOP as solo_parent'
+//     )
+//     ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo', 'xpdt.IP', 'xpdt.PWD', 'xpdt.SOLOP',      'xp.Sex',
+//         'xp.CivilStatus',);
+
+//     $query = $external->unionAll($internal);
+
+//     $results = DB::table(DB::raw("({$query->toSql()}) as combined"))
+//         ->mergeBindings($query->getQuery())
+//         ->get();
+// $internalCount = $results->where('applicant_type', 'internal')->count();
+// $externalCount = $results->where('applicant_type', 'external')->count();
+
+// $externalResults = $results->where('applicant_type', 'external');
+// $internalResults = $results->where('applicant_type', 'internal');
+
+// // ── Gender counts ─────────────────────────────────────────────────────────
+// $extGenderCounts = $externalResults->groupBy(fn($r) => strtolower($r->sex ?? 'unknown'));
+// $intGenderCounts = $internalResults->groupBy(fn($r) => strtolower($r->sex ?? 'unknown'));
+
+// // ── Civil status counts ───────────────────────────────────────────────────
+// $extCivilCounts = $externalResults->groupBy(fn($r) => strtolower($r->civil_status ?? 'unknown'));
+// $intCivilCounts = $internalResults->groupBy(fn($r) => strtolower($r->civil_status ?? 'unknown'));
+
+// // ── IP / PWD / Solo Parent counts ────────────────────────────────────────
+// $extIpCounts         = $externalResults->groupBy(fn($r) => strtolower($r->ip         ?? 'no'));
+// $extPwdCounts        = $externalResults->groupBy(fn($r) => strtolower($r->pwd        ?? 'no'));
+// $extSoloParentCounts = $externalResults->groupBy(fn($r) => strtolower($r->solo_parent ?? 'no'));
+
+// $intIpCounts         = $internalResults->groupBy(fn($r) => strtolower($r->ip         ?? 'no'));
+// $intPwdCounts        = $internalResults->groupBy(fn($r) => strtolower($r->pwd        ?? 'no'));
+// $intSoloParentCounts = $internalResults->groupBy(fn($r) => strtolower($r->solo_parent ?? 'no'));
+
+// return [
+//     'internal_actual'          => $internalCount,
+//     'external_actual'          => $externalCount,
+//     'total_application_actual' => $internalCount + $externalCount,
+//     'summary' => [
+//         'external' => [
+//             'gender' => [
+//                 'male'   => $extGenderCounts->get('male')?->count()   ?? 0,
+//                 'female' => $extGenderCounts->get('female')?->count() ?? 0,
+//             ],
+//             'civil_status' => [
+//                 'single'    => $extCivilCounts->get('single')?->count()    ?? 0,
+//                 'married'   => $extCivilCounts->get('married')?->count()   ?? 0,
+//                 'separated' => $extCivilCounts->get('separated')?->count() ?? 0,
+//             ],
+//             'ip' => [
+//                 'yes' => $extIpCounts->get('yes')?->count() ?? 0,
+//                 'no'  => $extIpCounts->get('no')?->count()  ?? 0,
+//             ],
+//             'pwd' => [
+//                 'yes' => $extPwdCounts->get('yes')?->count() ?? 0,
+//                 'no'  => $extPwdCounts->get('no')?->count()  ?? 0,
+//             ],
+//             'solo_parent' => [
+//                 'yes' => $extSoloParentCounts->get('yes')?->count() ?? 0,
+//                 'no'  => $extSoloParentCounts->get('no')?->count()  ?? 0,
+//             ],
+//         ],
+//         'internal' => [
+//             'gender' => [
+//                 'male'   => $intGenderCounts->get('male')?->count()   ?? 0,
+//                 'female' => $intGenderCounts->get('female')?->count() ?? 0,
+//             ],
+//             'civil_status' => [
+//                 'single'    => $intCivilCounts->get('single')?->count()    ?? 0,
+//                 'married'   => $intCivilCounts->get('married')?->count()   ?? 0,
+//                 'separated' => $intCivilCounts->get('separated')?->count() ?? 0,
+//             ],
+//             'ip' => [
+//                 'yes' => $intIpCounts->get('yes')?->count() ?? 0,
+//                 'no'  => $intIpCounts->get('no')?->count()  ?? 0,
+//             ],
+//             'pwd' => [
+//                 'yes' => $intPwdCounts->get('yes')?->count() ?? 0,
+//                 'no'  => $intPwdCounts->get('no')?->count()  ?? 0,
+//             ],
+//             'solo_parent' => [
+//                 'yes' => $intSoloParentCounts->get('yes')?->count() ?? 0,
+//                 'no'  => $intSoloParentCounts->get('no')?->count()  ?? 0,
+//             ],
+//         ],
+//         'combined' => [
+//             'gender' => [
+//                 'male'   => ($extGenderCounts->get('male')?->count()   ?? 0) + ($intGenderCounts->get('male')?->count()   ?? 0),
+//                 'female' => ($extGenderCounts->get('female')?->count() ?? 0) + ($intGenderCounts->get('female')?->count() ?? 0),
+//             ],
+//             'civil_status' => [
+//                 'single'    => ($extCivilCounts->get('single')?->count()    ?? 0) + ($intCivilCounts->get('single')?->count()    ?? 0),
+//                 'married'   => ($extCivilCounts->get('married')?->count()   ?? 0) + ($intCivilCounts->get('married')?->count()   ?? 0),
+//                 'separated' => ($extCivilCounts->get('separated')?->count() ?? 0) + ($intCivilCounts->get('separated')?->count() ?? 0),
+//             ],
+//             'ip' => [
+//                 'yes' => ($extIpCounts->get('yes')?->count() ?? 0) + ($intIpCounts->get('yes')?->count() ?? 0),
+//                 'no'  => ($extIpCounts->get('no')?->count()  ?? 0) + ($intIpCounts->get('no')?->count()  ?? 0),
+//             ],
+//             'pwd' => [
+//                 'yes' => ($extPwdCounts->get('yes')?->count() ?? 0) + ($intPwdCounts->get('yes')?->count() ?? 0),
+//                 'no'  => ($extPwdCounts->get('no')?->count()  ?? 0) + ($intPwdCounts->get('no')?->count()  ?? 0),
+//             ],
+//             'solo_parent' => [
+//                 'yes' => ($extSoloParentCounts->get('yes')?->count() ?? 0) + ($intSoloParentCounts->get('yes')?->count() ?? 0),
+//                 'no'  => ($extSoloParentCounts->get('no')?->count()  ?? 0) + ($intSoloParentCounts->get('no')?->count()  ?? 0),
+//             ],
+//         ],
+//     ],
+// ];
+// }
 }

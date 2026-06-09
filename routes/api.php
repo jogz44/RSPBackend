@@ -261,7 +261,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/', [JobBatchesRspController::class, 'storeJobPost']);   //  create a new job post
         Route::post('/republished', [JobBatchesRspController::class, 'republished']);   // republish job-batches-rsp
-
         Route::put('/jobpost/{JobPostingId}', [JobBatchesRspController::class, 'jobpostUnoccupied']);   // update the  job-post status to unoccupied there is no applicant hired
         // Route::delete('/{id}', [JobBatchesRspController::class, 'destroy']); // delete job post
         Route::get('/{PositionID}/{ItemNo}', [JobBatchesRspController::class, 'show']);
@@ -290,9 +289,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('employee')->group(function () {
         //  Route::get('/list', [AppointmentController::class, 'employee']); // employe list
-
         Route::get('/applicant/xpds', [xPDSController::class, 'getPersonalDataSheet']); // employee pds
-
         Route::post('/update/{controlNo}', [EmployeeController::class, 'updateEmployeeCredentials']); //  updating the  employee appoitment
         Route::get('/photo/{controlNo}', [EmployeeController::class, 'proxyImageInternal']); //  proxy-image get on the 2.205 ip
       
@@ -324,6 +321,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/applicant', [ReportController::class, 'getApplicantExcel']); // generate excel list of job post 
         Route::post('/applicant/qualified', [ReportController::class, 'getApplicantQualifiedExcel']); // qualified applicant
         Route::post('/applicant/unqualified', [ReportController::class, 'getApplicantUnQualifiedExcel']); // unqualified applicant
+        Route::get('/demographic', [ReportController::class, 'demographic']); // unqualified applicant
+
+        Route::post('/internal/applicant/designation', [ReportController::class, 'internalApplicantDesignation']); // applincat internal with designation
+
 
 
 
@@ -365,6 +366,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // all applicant 
         Route::get('/applicant/{date}', [ApplicantSubmissionController::class, 'applicantApplied']);
+
+        // //get all applicant internal qualified
+        // Route::get('/applicant/qualified/{date}', [ReportController::class, 'listQualifiedApplicantsPublication']); 
+
     });
 
     Route::post('/submissions/multiple', [ExportApplicantController::class, 'exportApplicant']); // store applicant multiple on jobpost usong export

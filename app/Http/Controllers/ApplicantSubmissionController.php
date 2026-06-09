@@ -350,9 +350,11 @@ class ApplicantSubmissionController extends Controller
     }
 
     // get all applicant 
-    public function applicantApplied($date)
+    public function applicantApplied($date,Request $request)
     {
-        $result = $this->applicantService->applicantApplied($date);
+        $applicantType = $request->query('applicantType'); // 'internal', 'external', or null (all)
+
+        $result = $this->applicantService->applicantApplied($date, $applicantType);
 
         return $result;
     }

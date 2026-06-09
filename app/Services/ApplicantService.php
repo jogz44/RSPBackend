@@ -1438,8 +1438,7 @@ class ApplicantService
     // }
 
     // fetch the  applicant list applied
-    public function applicantApplied($postDate)
-    {
+public function applicantApplied($postDate, ?string $applicantType = null)    {
         try {
             // ── 1. Parse the incoming date (handles "April 27, 2026" or "2026-04-27") ──
             $parsedDate = \Carbon\Carbon::parse($postDate)->format('Y-m-d');
@@ -1454,21 +1453,22 @@ class ApplicantService
             }
 
             // ── 3. Get all submissions for those job posts ────────────────────────────
-            $submissions = Submission::select(
-                'id',
-                'nPersonalInfo_id',
-                // 'xPersonal_id',   // adjust to your actual FK column name
-                'ControlNo',
-                'job_batches_rsp_id',
-                'status'
-            )
-                ->whereIn('job_batches_rsp_id', $jobPostIds)
-                ->with([
-                    'nPersonalInfo:id,firstname,lastname,date_of_birth,cellphone_number,email_address',
-                    // 'xPersonal',
-                    'jobPost:id,Position,Office,SalaryGrade,ItemNo,status',
-                ])
-                ->get();
+           $submissions = Submission::select(
+        'id',
+        'nPersonalInfo_id',
+        'ControlNo',
+        'job_batches_rsp_id',
+        'status'
+    )
+    ->whereIn('job_batches_rsp_id', $jobPostIds)
+    ->when($applicantType === 'internal', fn($q) => $q->whereNotNull('ControlNo')->whereNull('nPersonalInfo_id'))
+    ->when($applicantType === 'external', fn($q) => $q->whereNotNull('nPersonalInfo_id')->whereNull('ControlNo'))
+    ->with([
+        'nPersonalInfo:id,firstname,lastname,date_of_birth,cellphone_number,email_address',
+        'jobPost:id,Position,Office,SalaryGrade,ItemNo,status',
+    ])
+    ->get();
+
 
             // ── 4. Normalize each submission into a flat structure ────────────────────
             $normalized = $submissions->map(function ($submission) {
