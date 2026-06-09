@@ -115,7 +115,7 @@
             <ul>
                 <li>Please <strong>disregard</strong> any previous notice regarding the above interview schedule.</li>
                 <li>You will receive a <strong>new notification</strong> once a reschedule has been set.</li>
-                <li>If you have any clarifications, you may reach us through our mobile no. <strong>09973962684</strong>.</li>
+                <li>If you have any clarifications, you may reach us through our mobile no. <strong>09178659351</strong>.</li>
             </ul>
 
             <p>

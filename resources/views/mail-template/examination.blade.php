@@ -154,7 +154,7 @@
 
             <ul>
 
-                  <li>If you have any clarifications, you may reach us through our mobile no. <strong> 09973962684</strong></li>
+                  <li>If you have any clarifications, you may reach us through our mobile no. <strong> 09178659351</strong></li>
 
             </ul>
                <p>Kindly reply to this email <strong>lgutagumhrmo.recruitment@gmail.com</strong> to <strong>confirm your attendance</strong></p>
