@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
+use App\Models\vwActive;
+use App\Models\vwplantillastructure;
 use App\Models\xService;
 use App\Services\ApplicantService;
 use App\Services\ExcelService;
@@ -772,6 +774,16 @@ class ReportController extends Controller
         $result = $this->reportService->listQualifiedYellow($postDate, $applicantType);
 
         return $result;
+    }
+
+    // only green applicant tag color
+    public function applicantTagColorGreen($postDate)
+    {
+    
+        $data = $this->reportService->applicantTagColorGreen($postDate);
+
+        return $data;
+
     }
 
 }

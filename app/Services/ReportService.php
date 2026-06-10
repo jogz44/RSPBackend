@@ -26,6 +26,7 @@ use App\Models\excel\Education_background;
 use App\Models\excel\Work_experience;
 use App\Models\excel\Learning_development;
 use App\Models\excel\Civil_service_eligibity;
+use App\Traits\ApiResponseTrait;
 
 class ReportService
 {
@@ -37,7 +38,7 @@ class ReportService
     //     //
     // }
 
-
+    use ApiResponseTrait;
 
 
     // Generate Report on plantilla Structure...
@@ -2160,5 +2161,124 @@ class ReportService
             'total_jobposts'   => $jobPosts->count(),
             'data'             => $jobPosts,
         ]);
+    }
+
+
+     public function applicantTagColorGreen($postDate)
+    {
+    
+        // ── Get job post IDs for the given date ───────────────────────────────────
+        $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)->get();
+
+        if ($jobPosts->isEmpty()) {
+            return $this->infoMessage('No job posts found for the given date', 200);
+        }
+
+        $jobPostIds = $jobPosts->pluck('id');
+
+        // ── Get internal submissions (ControlNo set, no nPersonalInfo_id) ────────
+        $internalSubmissions = Submission::select(
+                'id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status', 'tag_color'
+            )
+            ->where('status', 'Qualified')
+            ->where('tag_color', 'Green')
+            ->whereNotNull('ControlNo')
+            ->whereNull('nPersonalInfo_id')
+            ->whereIn('job_batches_rsp_id', $jobPostIds)
+            ->with([
+                'jobPost:id,Position,Office,SalaryGrade,ItemNo,status,post_date,end_date,level,tblStructureDetails_ID',
+                'xPersonal',
+                'xPersonalAddt',
+                'xPersonalDiversity',
+            ])
+            ->get();
+
+        // ── Get external submissions (nPersonalInfo_id set, no ControlNo) ────────
+        $externalSubmissions = Submission::select(
+                'id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status', 'tag_color'
+            )
+            ->where('status', 'Qualified')
+            ->where('tag_color', 'Green')
+            ->whereNotNull('nPersonalInfo_id')
+            ->whereNull('ControlNo')
+            ->whereIn('job_batches_rsp_id', $jobPostIds)
+            ->with([
+                'jobPost:id,Position,Office,SalaryGrade,ItemNo,status,post_date,end_date,level,tblStructureDetails_ID',
+            ])
+            ->get();
+
+        if ($internalSubmissions->isEmpty() && $externalSubmissions->isEmpty()) {
+            return $this->infoMessage('No qualified Green applicants found for the given date', 200);
+        }
+
+        // ── Bulk-fetch internal personal info ─────────────────────────────────────
+        $controlNos = $internalSubmissions->pluck('ControlNo');
+
+        $employeeStatuses = vwActive::select('ControlNo', 'Firstname', 'Surname', 'Designation', 'Office', 'Status', 'Grades')
+            ->whereIn('ControlNo', $controlNos)
+            ->get()
+            ->keyBy('ControlNo');
+
+        // ── Bulk-fetch external personal info ─────────────────────────────────────
+        $nPersonalInfoIds = $externalSubmissions->pluck('nPersonalInfo_id')->unique();
+
+        $nPersonalInfos = DB::table('nPersonalInfo')
+            ->whereIn('id', $nPersonalInfoIds)
+            ->select('id', 'firstname', 'lastname',)
+            ->get()
+            ->keyBy('id');
+
+        // ── Normalize internal submissions ────────────────────────────────────────
+        $normalizedInternal = $internalSubmissions->map(function ($submission) use ($employeeStatuses) {
+            $x       = $submission->xPersonal;
+            $jobPost = $submission->jobPost;   // ✅ use eager-loaded relation
+
+            if (!$x || !$jobPost) return null;
+
+            $employeeStatus = $employeeStatuses->get($submission->ControlNo);
+
+            return [
+                'submission_id'    => $submission->id,
+                'ControlNo'        => $submission->ControlNo,
+                'tag_color'        => $submission->tag_color,
+                'applicant_status' => 'INTERNAL',
+                'firstname'        => trim($x->Firstname),
+                'lastname'         => trim($x->Surname),
+                'current_position' => $employeeStatus->Designation ?? '',
+                'applied_office'   => $jobPost->Office,
+                'applied_position' => $jobPost->Position,
+                'itemNo'           => $jobPost->ItemNo,   // ✅ fixed typo: was $jobPost->office
+            ];
+        })->filter()->values();
+
+        // ── Normalize external submissions ────────────────────────────────────────
+        $normalizedExternal = $externalSubmissions->map(function ($submission) use ($nPersonalInfos) {
+            $personalInfo = $nPersonalInfos->get($submission->nPersonalInfo_id);
+            $jobPost      = $submission->jobPost;   // ✅ use eager-loaded relation
+
+            if (!$personalInfo || !$jobPost) return null;
+
+            return [
+                'submission_id'    => $submission->id,
+                'nPersonalInfo_id' => $submission->nPersonalInfo_id,
+                'tag_color'        => $submission->tag_color,
+                'applicant_status' => 'EXTERNAL',
+                'firstname'        => $personalInfo->firstname,
+                'lastname'         => $personalInfo->lastname,
+                'applied_office'   => $jobPost->Office,
+                'applied_position' => $jobPost->Position,
+                'itemNo'           => $jobPost->ItemNo,   // ✅ fixed typo
+                'current_position' => $employeeStatus->Designation ?? 'N/A',
+            ];
+        })->filter()->values();
+
+        // ── Merge both ────────────────────────────────────────────────────────────
+        $normalized = $normalizedInternal->merge($normalizedExternal)->values();
+
+        if ($normalized->isEmpty()) {
+            return $this->infoMessage('No applicant records could be resolved', 200);
+        }
+
+        return $this->successMessage($normalized, 'Green qualified applicants fetched successfully', 200);
     }
 }

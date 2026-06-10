@@ -371,6 +371,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // list of qualified applicants  tag color yellow
         Route::get('/applicant/qualified/yellow/{date}', [ReportController::class, 'listQualifiedApplicantsPublicationYellow']); 
+        
+        //only green applicant have tag color
+        Route::get('/applicant/green/{date}', [ReportController::class, 'applicantTagColorGreen']); 
+
 
 
     });
