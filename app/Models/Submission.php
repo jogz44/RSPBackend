@@ -42,7 +42,8 @@ class Submission extends Model
         'exam_total_score',
         'exam_date',
         'exam_remarks',
-        'is_emailed'
+        'is_emailed',
+        'tag_color'
 
     ];
 

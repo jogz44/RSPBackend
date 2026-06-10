@@ -253,6 +253,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // delete the submission of the applicant
         Route::delete('/delete/submission/{submissionId}', [SubmissionController::class, 'deleteApplicantSubmission']);  
+        
+        //applicant tag_color
+        Route::post('/tag/color', [SubmissionController::class, 'tagColor']);  
 
 
     });
@@ -322,7 +325,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/applicant/qualified', [ReportController::class, 'getApplicantQualifiedExcel']); // qualified applicant
         Route::post('/applicant/unqualified', [ReportController::class, 'getApplicantUnQualifiedExcel']); // unqualified applicant
         Route::get('/demographic', [ReportController::class, 'demographic']); // unqualified applicant
-
         Route::post('/internal/applicant/designation', [ReportController::class, 'internalApplicantDesignation']); // applincat internal with designation
 
 
@@ -367,8 +369,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // all applicant 
         Route::get('/applicant/{date}', [ApplicantSubmissionController::class, 'applicantApplied']);
 
-        // //get all applicant internal qualified
-        // Route::get('/applicant/qualified/{date}', [ReportController::class, 'listQualifiedApplicantsPublication']); 
+        // get all applicant where qualified
+        Route::get('/qualified/{date}', [ReportController::class, 'listOfApplicantQualified']); 
 
     });
 

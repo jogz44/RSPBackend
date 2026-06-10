@@ -546,6 +546,7 @@ class RaterService
                 'exam_score'       => (int) $submission->exam_score,
                 'firstname'       => $info['firstname'] ?? '',
                 'lastname'        => $info['lastname'] ?? '',
+                'tag_color'       => $submission->tag_color,
 
                 // applicant score
                 'applicant_exam_score' => $examScore ? [
