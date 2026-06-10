@@ -961,6 +961,7 @@ class ScheduleService
                 . "Date: {$date}\n"
                 . "Time: {$time}\n"
                 . "Venue: {$venue}\n\n"
+                . "To confirm your attendance kindly send your Full Name to this number 09998387221, non confirmation would be presumed non attendance to the {$label}.\n\n"
                 . "Please be on time and check your email for further details.\n\n"
                 . "Thank you!";
         }
