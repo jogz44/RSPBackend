@@ -95,13 +95,13 @@ class SubmissionController extends Controller
         $validated = $request->validate([
             'submission_id' => 'required|array|min:1',        // array|min:1 not array:min1
             'submission_id.*' => 'required|exists:submission,id', // exists not exist, wildcard for array, lowercase id
-            'tag_color' => 'required|string',
+            'tag_color' => 'nullable',
         ]);
 
         // whereIn since submission_id is an array
         $updated = Submission::whereIn('id', $validated['submission_id'])
-            ->update(['tag_color' => $validated['tag_color']]);  // missing semicolon before, used $updateApplicant which was never defined
-
+            ->update(['tag_color' => $validated['tag_color'] ?? null]);
+            
         return $this->successMessage($updated, 'Tag color updated successfully', 200);
     }
 }
