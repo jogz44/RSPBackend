@@ -1633,7 +1633,7 @@ public function applicantApplied($postDate, ?string $applicantType = null)    {
             $allSubmissions = DB::table('submission')
                 ->whereIn('job_batches_rsp_id', $jobPostIds)
                 ->where('status', 'Qualified')
-                ->select('id', 'job_batches_rsp_id', 'nPersonalInfo_id', 'ControlNo', 'status')
+                ->select('id', 'job_batches_rsp_id', 'nPersonalInfo_id', 'ControlNo', 'status','tag_color')
                 ->get();
 
             // Split into external and internal
@@ -1685,6 +1685,7 @@ public function applicantApplied($postDate, ?string $applicantType = null)    {
                             'lastname'         => $personalInfo->lastname,
                             'status'           => $submission->status,
                             'applicant_status' => 'EXTERNAL',
+                            'tag_color' => $submission->tag_color,
                         ], $base);
                     }
 
@@ -1700,6 +1701,7 @@ public function applicantApplied($postDate, ?string $applicantType = null)    {
                             'lastname'         => $personal->Surname,
                             'status'           => $submission->status,
                             'applicant_status' => 'INTERNAL',
+                            'tag_color' => $submission->tag_color,
                         ], $base);
                     }
                 }

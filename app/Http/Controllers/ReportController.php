@@ -761,4 +761,17 @@ class ReportController extends Controller
 
        return $applicant;
     }
+
+    
+    // list of qualified applicants  tag_color yellow
+    public function listQualifiedApplicantsPublicationYellow($postDate, Request $request)
+    {
+
+        $applicantType = $request->query('applicantType'); // 'internal', 'external', or null (all)
+
+        $result = $this->reportService->listQualifiedYellow($postDate, $applicantType);
+
+        return $result;
+    }
+
 }

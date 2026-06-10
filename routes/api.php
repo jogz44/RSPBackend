@@ -327,10 +327,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/demographic', [ReportController::class, 'demographic']); // unqualified applicant
         Route::post('/internal/applicant/designation', [ReportController::class, 'internalApplicantDesignation']); // applincat internal with designation
 
-
-
-
-
     });
 
 
@@ -360,6 +356,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // list of job post publication
        Route::get('/list-date/publication', [ReportController::class, 'listDate']);
+
        // request job post list base on the publication date send
         Route::post('/publication-job', [ReportController::class, 'jobPublication']);
 
@@ -371,6 +368,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // get all applicant where qualified
         Route::get('/qualified/{date}', [ReportController::class, 'listOfApplicantQualified']); 
+
+        // list of qualified applicants  tag color yellow
+        Route::get('/applicant/qualified/yellow/{date}', [ReportController::class, 'listQualifiedApplicantsPublicationYellow']); 
+
 
     });
 
