@@ -1197,6 +1197,7 @@ class RaterService
             ->whereIn('submission.job_batches_rsp_id', $jobBatchIds)
             ->where('status', 'Qualified')
             ->select(
+                'tag_color',
                 DB::raw('MIN(p.id) as nPersonal_id'),
                 DB::raw('NULL as ControlNo'),
                 'p.firstname',
@@ -1204,8 +1205,9 @@ class RaterService
                 DB::raw(" CONVERT(DATE, p.date_of_birth, 103) as date_of_birth"),
                 DB::raw('COUNT(submission.id) as applied_job'),
                 DB::raw("'external' as applicant_type")
+
             )
-            ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
+            ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth','submission.tag_color');
 
         if ($search) {
             $external->where(function ($q) use ($search) {
@@ -1223,6 +1225,7 @@ class RaterService
             ->whereIn('submission.job_batches_rsp_id', $jobBatchIds)
             ->where('status', 'Qualified')
             ->select(
+                 'tag_color',
                 DB::raw('NULL as nPersonal_id'),
                 'submission.ControlNo',
                 DB::raw('xp.Firstname as firstname'),
@@ -1231,7 +1234,7 @@ class RaterService
                 DB::raw('COUNT(submission.id) as applied_job'),
                 DB::raw("'internal' as applicant_type")
             )
-            ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo');
+            ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo','submission.tag_color');
 
         if ($search) {
             $internal->where(function ($q) use ($search) {
