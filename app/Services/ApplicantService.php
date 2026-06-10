@@ -1612,4 +1612,113 @@ public function applicantApplied($postDate, ?string $applicantType = null)    {
             ], 500);
         }
     }
+
+       // list of applicant where qualified
+    public function ApplicantQualified($postDate)
+    {
+        try {
+            $postDate = Carbon::parse($postDate)->toDateString();
+
+            $jobPosts = JobBatchesRsp::whereDate('post_date', $postDate)
+                ->select('id', 'Position', 'ItemNo', 'SalaryGrade', 'Office')
+                ->get();
+
+            if ($jobPosts->isEmpty()) {
+                return response()->json(['message' => 'No job posts found for this date.'], 200);
+            }
+
+            $jobPostIds = $jobPosts->pluck('id');
+
+            // Fetch all qualified submissions
+            $allSubmissions = DB::table('submission')
+                ->whereIn('job_batches_rsp_id', $jobPostIds)
+                ->where('status', 'Qualified')
+                ->select('id', 'job_batches_rsp_id', 'nPersonalInfo_id', 'ControlNo', 'status')
+                ->get();
+
+            // Split into external and internal
+            $externalSubs = $allSubmissions->whereNotNull('nPersonalInfo_id');
+            $internalSubs = $allSubmissions->whereNotNull('ControlNo')->where('nPersonalInfo_id', null);
+
+            // Group all submissions by job post
+            $submissionsByJob = $allSubmissions->groupBy('job_batches_rsp_id');
+
+            // Fetch external applicant info
+            $nPersonalInfoIds = $externalSubs->pluck('nPersonalInfo_id')->unique();
+            $nPersonalInfos = DB::table('nPersonalInfo')
+                ->whereIn('id', $nPersonalInfoIds)
+                ->select('id', 'firstname', 'lastname')
+                ->get()
+                ->keyBy('id');
+
+            // Fetch internal applicant info (chunked for large sets)
+            $controlNos = $internalSubs->pluck('ControlNo')->unique()->values()->toArray();
+            $xPersonals = DB::table('xPersonal')
+                ->whereIn('ControlNo', $controlNos)
+                ->select('ControlNo', 'Firstname', 'Surname')
+                ->get()
+                ->keyBy('ControlNo');
+
+            // Build response
+            $responseApplicants = [];
+
+            foreach ($jobPosts as $job) {
+
+
+                foreach ($submissionsByJob->get($job->id, collect()) as $submission) {
+
+                    $base = [
+                        'Office'      => $office->Descriptions ?? $job->Office,
+                        'Position'    => $job->Position,
+                        'ItemNo'      => $job->ItemNo,
+                        'SalaryGrade' => $job->SalaryGrade,
+                    ];
+
+                    // External
+                    if (!empty($submission->nPersonalInfo_id)) {
+                        $personalInfo = $nPersonalInfos->get($submission->nPersonalInfo_id);
+                        if (!$personalInfo) continue;
+
+                        $responseApplicants[] = array_merge([
+                            'submission_id'        => $submission->id,
+                            'firstname'        => $personalInfo->firstname,
+                            'lastname'         => $personalInfo->lastname,
+                            'status'           => $submission->status,
+                            'applicant_status' => 'EXTERNAL',
+                        ], $base);
+                    }
+
+                    // Internal
+                    elseif (!empty($submission->ControlNo)) {
+                        $personal = $xPersonals->get($submission->ControlNo);
+                        if (!$personal) continue;
+
+                        $responseApplicants[] = array_merge([
+                            'submission_id'        => $submission->id,
+                            'controlno'        => $submission->ControlNo,
+                            'firstname'        => $personal->Firstname,
+                            'lastname'         => $personal->Surname,
+                            'status'           => $submission->status,
+                            'applicant_status' => 'INTERNAL',
+                        ], $base);
+                    }
+                }
+            }
+
+            $payload = [
+                'Header'     => 'Applicants Qualified Standard',
+                'Date'       => Carbon::parse($postDate)->format('F d, Y') . ' Publication',
+                'applicants' => $responseApplicants,
+            ];
+
+            return response()->json($payload, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ], 500);
+        }
+    }
 }
