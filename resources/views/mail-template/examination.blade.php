@@ -63,7 +63,8 @@
             color: #666;
             border-radius: 5px;
         }
-         .letterhead {
+
+        .letterhead {
             text-align: center;
             margin-bottom: 30px;
         }
@@ -90,44 +91,61 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-           .header-image{
+
+        .header-image {
 
             width: 100%;
             height: 140px;
+        }
+
+        .date {
+            font-size: 11pt;
+            margin: 30px 0 20px 0;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-    <!-- Letterhead -->
-       <div>
+        <!-- Letterhead -->
+        <div>
 
             <img src="{{ $message->embed(public_path('images/emailHeader.png')) }}" alt="Logo" class="header-image">
 
         </div>
 
+        <!-- Date -->
+        <div class="date">
+            {{ $date }}
+        </div>
 
         <div class="content">
-            <p>Dear <strong>{{ $fullname }}</strong>,</p>
+            <p>Dear <strong>{{ $fullname }}</strong><br>
+                {{ ucfirst(strtolower($Rpurok)) }}
+                {{ ucwords(strtolower($street)) }}
+                {{ ucwords(strtolower($barangay)) }}<br>
+                {{ ucwords(strtolower($city)) }}
+                {{ ucwords(strtolower($province)) }}
+
+
+            </p>
             <p>Greetings of Peace and Safety!</p>
 
             <p>
                 This pertains to your application for the <strong>{{ $position }},</strong> Item No.<strong>{{ $ItemNo }}</strong>
-                 <!-- SG <strong>{{ $SalaryGrade }}</strong> -->
+                <!-- SG <strong>{{ $SalaryGrade }}</strong> -->
                 in the <strong>{{ $office }}</strong>.
             </p>
 
 
-             <p>
-                Having qualified to the position, please be informed that you are scheduled to take a
-                Competency-Based Written Examination as one of the evaluation assessment tool on our
-                recruitment process. As such, kindly refer to the examination schedule below:
+            <p>
+                Having qualified to the position, please be informed that you are scheduled for a <strong>Competency-Based Examination</strong>
+                as part of our recruitment process. As such, kindly refer to the exam schedule below:
             </p>
 
             <p>
                 <strong>Examination Details:</strong><br>
-                <strong>Date:</strong> {{ $date }}<br>
+                <strong>Date:</strong> {{ $date_exam }}<br>
                 <strong>Time:</strong> {{ $time }}<br>
                 <strong>Venue:</strong> {{ $venue }}<br>
 
@@ -144,12 +162,9 @@
                 </li>
             </ul>
 
-             <p>The City Goverment of Tagum thru the Human Resource Merit Promotion and Selection
-                Board (HRMPSB) upholds the principle of Equal Employment Opportunity. All
-                applicants are treated fairly and evaluated based on merit, fitness, and qualifications,
-                without discrimination on the basis of gender, age, civil status, disability, religion, or
-                other protected characteristics.
-             </p>
+            <p> The City Government of Tagum thru the Human Resource Merit Promotion and Selection Board (HRMPSB) upholds the principle of Equal Employment Opportunity.
+                All applicants are treated fairly and evaluated based on merit, fitness, and qualifications, without discrimination on the basis of gender, age, civil status, disability, religion, or other protected characteristics.
+            </p>
 
 
 
@@ -159,16 +174,16 @@
 
         </div>
 
-              <!-- Signature -->
+        <!-- Signature -->
         <div class="signature-section">
-              <p><strong>(SGD.) EDGARD C. DE GUZMAN</strong><br>
+            <p><strong>(SGD.) EDGARD C. DE GUZMAN</strong><br>
                 City Administrator<br>
                 Authorized Representative of the City Mayor<br>
                 Chairperson
             </p>
 
         </div>
-    <!-- Footer -->
+        <!-- Footer -->
 
         <div style="
                 margin-top: 60px;

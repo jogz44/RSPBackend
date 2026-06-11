@@ -69,6 +69,10 @@
             font-weight: bold;
             font-size: 15px;
         }
+           .date {
+            font-size: 11pt;
+            margin: 30px 0 20px 0;
+        }
     </style>
 </head>
 
@@ -80,8 +84,20 @@
             <img src="{{ $message->embed(public_path('images/emailHeader.png')) }}" alt="Logo" class="header-image">
         </div>
 
+          <!-- Date -->
+        <div class="date">
+            {{ $date }}
+        </div>
         <div class="content">
-            <p>Dear <strong>{{ $fullname }}</strong>,</p>
+             <p>Dear <strong>{{ $fullname }}</strong><br>
+                {{ ucfirst(strtolower($Rpurok)) }}
+                {{ ucwords(strtolower($street)) }}
+                {{ ucwords(strtolower($barangay)) }}<br>
+                {{ ucwords(strtolower($city)) }}
+                {{ ucwords(strtolower($province)) }}
+
+
+            </p>
             <p>Greetings of Peace and Safety!</p>
 
             <p>
@@ -101,7 +117,7 @@
 
             <p>
                 <strong>Cancelled Interview Details:</strong><br>
-                <strong>Date:</strong> {{ $date }}<br>
+                <strong>Date:</strong> {{ $date_cancel }}<br>
                 <strong>Time:</strong> {{ $time }}<br>
                 <strong>Venue:</strong> {{ $venue }}<br>
             </p>

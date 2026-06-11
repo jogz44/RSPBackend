@@ -149,20 +149,15 @@
             </p>
         </div>
 
-        <!-- <div class="recipient">
-            Dear Mr/Ms. {{ $lastname }},
-        </div> -->
+        <div class="recipient">
+            Dear {{ $fullname }},
+        </div>
 
         <!-- Content -->
         <div class="content">
             <p>
-                This refers to your application for the <strong>{{ $position }}</strong> position in
-                the <strong>{{ $office }}</strong> of the City Government of Tagum.
-            </p>
-
-            <p>
-                We regret to inform you that based on the evaluation of your qualifications vis-à-vis the
-                qualification standards (QS) for the position, as shown below:
+                We wish to inform you that after careful evaluation of your application for the position of <strong>{{ $position }}</strong> in
+                the <strong>{{ $office }}</strong>, the Human Resource Merit Promotion and Selection Board (HRMPSB) has determined that you do not meet either of the minimum Qualification Standard (QS) of the position to wit:
             </p>
 
             <!-- Qualification Comparison Table -->
@@ -189,7 +184,7 @@
                     <tr>
                         <td><strong>Experience</strong></td>
                         <td>{!! nl2br(e($experience_qs)) !!}</td>
-                  
+
                         <td>{{ $experience_remark }}</td>
                     </tr>
                     <tr>
@@ -201,10 +196,15 @@
             </table>
 
             <p>
-                With this, we highly encourage you to still take part in our future employment opportunities
-                for position/s that will be deemed fit to your qualifications.
+                We appreciate your interest in joining the City Government of Tagum and commend your effort in applying for the position. We encourage you to continue enhancing your qualifications and to apply for future vacancies that match your credentials.
             </p>
-            <p>Thank you.</p>
+            <p>
+                The City Government of Tagum upholds the principle of Equal Employment Opportunity and ensures that all applicants are evaluated fairly based on merit, fitness, and qualifications, without discrimination on the basis of gender, age, civil status, disability, religion, or other protected characteristics.
+            </p>
+            <p>
+                If you have any questions or concerns, please do not hesitate to contact us at <strong>09178659351</strong>
+            </p>
+            <p>Thank you for your understanding.</p>
             <p>Sincerely,</p>
         </div>
 
