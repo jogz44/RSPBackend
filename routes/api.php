@@ -375,6 +375,9 @@ Route::middleware('auth:sanctum')->group(function () {
         //only green applicant have tag color
         Route::get('/applicant/green/{date}', [ReportController::class, 'applicantTagColorGreen']); 
 
+        // list of applicant no rating score
+        Route::post('/applicant/no-rating-score', [ReportController::class, 'applicantNoRatingScores']); 
+
 
 
     });

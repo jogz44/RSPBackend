@@ -2281,4 +2281,99 @@ class ReportService
 
         return $this->successMessage($normalized, 'Green qualified applicants fetched successfully', 200);
     }
+
+
+     // get applicant no rating score for the manual
+  public function getApplicantListNoRatingScore($validated)
+{
+    $user = User::where('id', $validated['raterId'])->first();
+
+    $jobBatch = JobBatchesRsp::with([
+        'criteriaRatings' => function ($query) {
+            $query->select('id', 'job_batches_rsp_id')
+                ->with(['educations', 'experiences', 'trainings', 'performances', 'behaviorals']);
+        },
+        'criteria' => function ($query) {
+            $query->select('id', 'job_batches_rsp_id', 'Education', 'Eligibility', 'Training', 'Experience');
+        }
+    ])
+        ->select('id', 'Office', 'Position', 'ItemNo', 'SalaryGrade')
+        ->where('id', $validated['job_batches_rsp_id'])
+        ->first();
+
+    if (!$jobBatch) {
+        return response()->json(['message' => 'Job batch not found'], 404);
+    }
+
+    // ── Fetch all Qualified submissions for this job batch ───────────────
+    $submissions = Submission::where('job_batches_rsp_id', $validated['job_batches_rsp_id'])
+        ->where('status', 'Qualified')
+        ->with('nPersonalInfo:id,firstname,lastname')
+        ->get();
+
+    // ── Build applicant list ─────────────────────────────────────────────
+    $applicants = $submissions->map(function ($submission) {
+
+        $isExternal = !is_null($submission->nPersonalInfo_id);
+
+        if ($isExternal) {
+            $firstname = $submission->nPersonalInfo?->firstname ?? null;
+            $lastname  = $submission->nPersonalInfo?->lastname  ?? null;
+        } else {
+            $internal  = DB::table('xPersonal')
+                ->where('ControlNo', $submission->ControlNo)
+                ->select('Firstname', 'Surname')
+                ->first();
+            $firstname = $internal?->Firstname ?? null;
+            $lastname  = $internal?->Surname   ?? null;
+        }
+
+        return [
+            'nPersonalInfo_id' => $submission->nPersonalInfo_id,
+            'ControlNo'        => $submission->ControlNo,
+            'firstname'        => $firstname,
+            'lastname'         => $lastname,
+        ];
+    });
+
+    $criteria = $jobBatch->criteriaRatings->first();
+    $qs       = $jobBatch->criteria->first();
+
+    return response()->json([
+        'office'       => $jobBatch->Office,
+        'position'     => $jobBatch->Position,
+        'item_no'      => $jobBatch->ItemNo,
+        'salary_grade' => $jobBatch->SalaryGrade,
+
+        'qs' => $qs ? [
+            'education'   => $qs->Education,
+            'experience'  => $qs->Experience,
+            'training'    => $qs->Training,
+            'eligibility' => $qs->Eligibility,
+        ] : null,
+
+        'criteria' => $criteria ? [
+            'education'   => $criteria->educations,
+            'experience'  => $criteria->experiences,
+            'training'    => $criteria->trainings,
+            'performance' => $criteria->performances,
+            'behavioral'  => $criteria->behaviorals,
+            'exams'       => $criteria->exams,
+        ] : null,
+
+        'applicants' => $applicants,
+
+        'rater_assigned' => [
+            'id'             => $user->id,
+            'name'           => $user->name,
+            'role'           => $user->role           ?? 'City Administrator',
+            'representative' => $user->representative ?? '',
+            'position'       => $user->position       ?? '',
+            'role_type'      => $user->role_type      ?? '',
+            'prefix'         => $user->prefix         ?? '',
+            'suffix'         => $user->suffix         ?? '',
+        ],
+    ]);
+}
+
 }

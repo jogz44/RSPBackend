@@ -8,5 +8,9 @@ class xPersonalAddt extends Model
 {
     //
 
-    protected $table = 'xPersonalAddt';
+  // App\Models\xPersonalAddt
+protected $table = 'xPersonalAddt';
+protected $primaryKey = 'ControlNo';
+public $incrementing = false;
+public $keyType = 'string';
 }

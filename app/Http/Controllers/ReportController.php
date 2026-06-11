@@ -786,4 +786,21 @@ class ReportController extends Controller
 
     }
 
+
+    // get applicant without rating scores
+    public function applicantNoRatingScores(Request $request)
+    {
+
+        $validated = $request->validate([
+            'job_batches_rsp_id' => 'required|exists:job_batches_rsp,id',
+            'raterId' => 'required|exists:users,id'
+        ]);
+
+
+        $data = $this->reportService->getApplicantListNoRatingScore($validated);
+
+        return $data;
+    }
+
+
 }
