@@ -46,7 +46,7 @@ class SendApplicantSms implements ShouldQueue
             . "&destination={$number}"
             . "&content={$content}";
 
-        $response = Http::timeout(15)->get($url);
+        $response = Http::timeout(60)->get($url);
 
         if (!$response->successful()) {
             Log::warning('SMS failed', [
