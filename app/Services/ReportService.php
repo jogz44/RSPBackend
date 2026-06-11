@@ -2334,7 +2334,7 @@ class ReportService
             'firstname'        => $firstname,
             'lastname'         => $lastname,
         ];
-    });
+    })->sortBy(fn($a) => strtolower($a['firstname']))->values();
 
     $criteria = $jobBatch->criteriaRatings->first();
     $qs       = $jobBatch->criteria->first();
