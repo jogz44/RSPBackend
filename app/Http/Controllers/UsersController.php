@@ -115,6 +115,7 @@ class UsersController extends Controller
                 'viewLibraryAccess' => optional($user->rspControl)->viewLibraryAccess ?? false,
                 'modifyLibraryAccess' => optional($user->rspControl)->modifyLibraryAccess ?? false,
 
+                'reportRaterManagementAccess' => optional($user->rspControl)->reportRaterManagementAccess ?? false,
 
 
             ],

@@ -43,6 +43,7 @@ class UserRspControl extends Model
 
         'viewLibraryAccess',
         'modifyLibraryAccess',
+        'reportRaterManagementAccess'
     ];
 
     // In UserRspControl.php

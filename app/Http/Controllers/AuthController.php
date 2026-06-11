@@ -89,6 +89,7 @@ class AuthController extends Controller
 
                     'viewLibraryAccess' => $request->input('permissions.viewLibraryAccess', false),
                     'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
+                    'reportRaterManagementAccess' => $request->input('permissions.reportRaterManagementAccess', false),
 
                 ]);
             }
@@ -306,6 +307,7 @@ class AuthController extends Controller
 
                 'permissions.viewLibraryAccess' => 'boolean',
                 'permissions.modifyLibraryAccess' => 'boolean',
+                'permissions.reportRaterManagementAccess' => 'boolean',
 
 
 
@@ -369,6 +371,7 @@ class AuthController extends Controller
 
                         'viewLibraryAccess' => $request->input('permissions.viewLibraryAccess', false),
                         'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
+                        'reportRaterManagementAccess' => $request->input('permissions.reportRaterManagementAccess', false),
 
 
                     ]);
@@ -403,6 +406,7 @@ class AuthController extends Controller
                         'viewLibraryAccess' => $request->input('permissions.viewLibraryAccess', false),
                         'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
 
+                        'reportRaterManagementAccess' => $request->input('permissions.reportRaterManagementAccess', false),
 
 
                     ]);
