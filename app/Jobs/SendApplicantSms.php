@@ -69,7 +69,8 @@ class SendApplicantSms implements ShouldQueue
     $baseUrl = config('app.sms_api_url');
     $apiUser = config('app.sms_api_user');
     $apiPass = config('app.sms_api_pass');
-    $port    = rand(1, 4); // spread load across ports
+    // $port    = rand(1, 4); // spread load across ports
+    $port    = config('app.sms_api_port');
 
     $url = "{$baseUrl}"
         . "?1500101=account={$apiUser}"
@@ -79,7 +80,7 @@ class SendApplicantSms implements ShouldQueue
         . "&content={$content}";
 
     try {
-        $response = Http::timeout(30)->get($url);
+        $response = Http::timeout(60)->get($url);
     } catch (\Illuminate\Http\Client\ConnectionException $e) {
         Log::warning('SMS gateway timeout, will retry', [
             'number'  => $number,
