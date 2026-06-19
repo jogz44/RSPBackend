@@ -257,6 +257,9 @@ Route::middleware('auth:sanctum')->group(function () {
         //applicant tag_color
         Route::post('/tag/color', [SubmissionController::class, 'tagColor']);  
 
+        // update the application status
+        Route::post('/application', [SubmissionController::class, 'applicantStatusUpdate']);  
+
 
     });
 
@@ -275,9 +278,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // get the list of unqualified on specific job post 
         Route::get('/applicant/unqualified/{jobPostId}', [JobBatchesRspController::class, 'getApplicantUnqualifiedOnJobPost']);
         Route::get('/applicant/qualification/remarks/{jobPostId}/{submissionId}', [JobBatchesRspController::class, 'getApplicantUnqualifiedQualificationRemarks']);
-
-
-
     });
 
 
