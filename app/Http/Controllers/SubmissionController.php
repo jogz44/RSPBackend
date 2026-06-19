@@ -104,4 +104,18 @@ class SubmissionController extends Controller
             
         return $this->successMessage($updated, 'Tag color updated successfully', 200);
     }
+
+    // application_status
+    public function applicantStatusUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'submission_id'      => 'required|exists:submission,id',
+            'application_status' => 'required|string'
+        ]);
+
+        $updateApplication = Submission::where('id', $validated['submission_id'])
+            ->update(['application_status' => $validated['application_status']]);
+
+        return $this->successMessage($updateApplication, 'Applicant Status updated successfully', 200);
+    }
 }

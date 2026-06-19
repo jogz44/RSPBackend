@@ -43,7 +43,8 @@ class Submission extends Model
         'exam_date',
         'exam_remarks',
         'is_emailed',
-        'tag_color'
+        'tag_color',
+        'application_status'
 
     ];
 
