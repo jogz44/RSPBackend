@@ -110,7 +110,7 @@ class SubmissionController extends Controller
     {
         $validated = $request->validate([
             'submission_id'      => 'required|exists:submission,id',
-            'application_status' => 'required|string'
+            'application_status' => 'nullable|string'
         ]);
 
         $updateApplication = Submission::where('id', $validated['submission_id'])
