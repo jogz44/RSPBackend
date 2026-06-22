@@ -130,7 +130,7 @@ class ApplicantSubmissionController extends Controller
             $sqlLastname  = "'{$lastname}'";
 
             // ── External applicants — nPersonalInfo uses DD/MM/YYYY (format 103) ────
-            $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
+            $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status','application_status')
                 ->whereNotNull('nPersonalInfo_id')
                 ->whereHas('nPersonalInfo', function ($query) use ($sqlFirstname, $sqlLastname, $sqlDate) {
                     $query
@@ -157,7 +157,7 @@ class ApplicantSubmissionController extends Controller
                 });
 
             // ── Internal applicants — xPersonal uses YYYY-MM-DD (format 120) ────────
-            $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status')
+            $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status','application_status')
                 ->whereNull('nPersonalInfo_id')
                 ->whereHas('xPersonal', function ($query) use ($sqlFirstname, $sqlLastname, $sqlDate) {
                     $query
