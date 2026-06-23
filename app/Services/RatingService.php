@@ -9,7 +9,7 @@ class RatingService
     public $training;
     public $performance;
     public $bei;
-    public $exam_percentage;
+    // public $exam_percentage;
 
     public function __construct(
         $education   = 0,
@@ -24,7 +24,7 @@ class RatingService
         $this->training    = $training;
         $this->performance = $performance;
         $this->bei         = $bei;
-        $this->exam_percentage = $exam_percentage;
+        // $this->exam_percentage = $exam_percentage;
     }
 
     /**
@@ -58,49 +58,58 @@ class RatingService
      * @param array $scores Array of rating arrays.
      * @return array
      */
-    public static function computeFinalScore(array $scores): array
-    {
-        $count = count($scores);
+ public static function computeFinalScore(array $scores): array
+{
+    $count = count($scores);
 
-        if ($count === 0) {
-            return [
-                'education'   => "0.00",
-                'experience'  => "0.00",
-                'training'    => "0.00",
-                'performance' => "0.00",
-                'bei'         => "0.00",
-                'exam_score'    => "0.00",
-                'total_qs'    => "0.00",
-                'grand_total' => "0.00",
-            ];
-        }
-
-        // Always averaged across all raters (same as before)
-        $education   = array_sum(array_column($scores, 'education'))   / $count;
-        $experience  = array_sum(array_column($scores, 'experience'))  / $count;
-        $training    = array_sum(array_column($scores, 'training'))    / $count;
-        $performance = array_sum(array_column($scores, 'performance')) / $count;
-
-        // BEI — null is skipped (same existing logic)
-        $bei  = self::averageNullable($scores, 'bei');
-
-        // Exam — null is skipped (same logic as BEI)
-        $exam_score = self::averageNullable($scores, 'exam_score');
-
-        $total_qs    = $education + $experience + $training + $performance;
-        $grand_total = $total_qs + $bei + $exam_score;
-
+    if ($count === 0) {
         return [
-            'education'   => number_format($education,   2, '.', ''),
-            'experience'  => number_format($experience,  2, '.', ''),
-            'training'    => number_format($training,    2, '.', ''),
-            'performance' => number_format($performance, 2, '.', ''),
-            'bei'         => number_format($bei,         2, '.', ''),
-            'exam_score'        => number_format($exam_score,        2, '.', ''),
-            'total_qs'    => number_format($total_qs,    2, '.', ''),
-            'grand_total' => number_format($grand_total, 2, '.', ''),
+            'education'      => "0.00",
+            'experience'     => "0.00",
+            'training'       => "0.00",
+            'performance'    => "0.00",
+            'bei'            => "0.00",
+            'exam_score'     => "0.00",
+            'total_qs'       => "0.00",
+            'grand_total'    => "0.00",
         ];
     }
+
+    // Always averaged across all raters
+    $education   = array_sum(array_column($scores, 'education'))   / $count;
+    $experience  = array_sum(array_column($scores, 'experience'))  / $count;
+    $training    = array_sum(array_column($scores, 'training'))    / $count;
+    $performance = array_sum(array_column($scores, 'performance')) / $count;
+
+    // BEI — null is skipped, averaged across raters
+    $bei = self::averageNullable($scores, 'bei');
+
+    // ✅ exam_percentage — NOT averaged, take first non-null value
+    // Belongs to the applicant (via submission), not per rater
+    $exam_percentage = null;
+    foreach ($scores as $s) {
+        if (!is_null($s['exam_percentage'] ?? null)) {
+            $exam_percentage = (float)$s['exam_percentage'];
+            break;
+        }
+    }
+    $exam_percentage = $exam_percentage ?? 0.0;
+
+    $total_qs    = $education + $experience + $training + $performance;
+    $grand_total = $total_qs + $bei + $exam_percentage;
+
+
+    return [
+        'education'       => number_format($education,       2, '.', ''),
+        'experience'      => number_format($experience,      2, '.', ''),
+        'training'        => number_format($training,        2, '.', ''),
+        'performance'     => number_format($performance,     2, '.', ''),
+        'bei'             => number_format($bei,             2, '.', ''),
+        'exam_score' => number_format($exam_percentage, 2, '.', ''),
+        'total_qs'        => number_format($total_qs,        2, '.', ''),
+        'grand_total'     => number_format($grand_total,     2, '.', ''),
+    ];
+}
 
     public static function addRanking(array $applicants): array
     {
