@@ -18,7 +18,8 @@ class ApplicantExamScore extends Model
               'exam_type',
               'exam_total_score',
               'exam_date',
-              'exam_remarks'
+              'exam_remarks',
+              'exam_percentage'
 
     ];
 
