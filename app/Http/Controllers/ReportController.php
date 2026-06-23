@@ -802,5 +802,15 @@ class ReportController extends Controller
         return $data;
     }
 
+      // list of applicant withdraw there application
+    public function listApplicantWithdrawApplication($postDate, Request $request)
+    {
+
+        $applicantType = $request->query('applicantType'); // 'internal', 'external', or null (all)
+
+        $result = $this->reportService->getApplicantWithdrawApplication($postDate, $applicantType);
+
+        return $result;
+    }
 
 }

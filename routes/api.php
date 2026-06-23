@@ -378,6 +378,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // list of applicant no rating score
         Route::post('/applicant/no-rating-score', [ReportController::class, 'applicantNoRatingScores']); 
 
+        // list of applicant withraw  application 
+        Route::get('/applicant/withraw/application/{date}', [ReportController::class, 'listApplicantWithdrawApplication']); 
+
+
 
 
     });

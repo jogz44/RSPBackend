@@ -916,6 +916,10 @@ class ReportService
             $allSubmissionsRaw = DB::table('submission')
                 ->whereIn('job_batches_rsp_id', $jobPostIds)
                 ->where('status', 'Qualified')
+                ->where(function ($query) {
+                    $query->whereNull('application_status')
+                        ->orWhere('application_status', '!=', 'Withdrawn');
+                })
                 ->when($applicantType === 'internal', fn($q) => $q->whereNotNull('ControlNo')->whereNull('nPersonalInfo_id'))
                 ->when($applicantType === 'external', fn($q) => $q->whereNotNull('nPersonalInfo_id')->whereNull('ControlNo'))
                 ->select(
@@ -2508,5 +2512,189 @@ class ReportService
                 'suffix'         => $user->suffix         ?? '',
             ],
         ]);
+    }
+
+
+    // fetch the  applicant list applied
+    public function getApplicantWithdrawApplication($postDate, ?string $applicantType = null)
+    {
+        try {
+            // ── 1. Parse the incoming date (handles "April 27, 2026" or "2026-04-27") ──
+            $parsedDate = \Carbon\Carbon::parse($postDate)->format('Y-m-d');
+
+            // ── 2. Get all job post IDs for that post_date ────────────────────────────
+            $jobPostIds = JobBatchesRsp::whereDate('post_date', $parsedDate)
+                ->pluck('id');
+
+            if ($jobPostIds->isEmpty()) {
+
+                return $this->infoMessage('No job posts found for the given date', 200);
+            }
+
+            // ── 3. Get all submissions for those job posts ────────────────────────────
+            $submissions = Submission::select(
+                'id',
+                'nPersonalInfo_id',
+                'ControlNo',
+                'job_batches_rsp_id',
+                'status',
+                'application_status'
+            )
+                ->where('application_status', 'Withdrawn')
+                ->whereIn('job_batches_rsp_id', $jobPostIds)
+                ->when($applicantType === 'internal', fn($q) => $q->whereNotNull('ControlNo')->whereNull('nPersonalInfo_id'))
+                ->when($applicantType === 'external', fn($q) => $q->whereNotNull('nPersonalInfo_id')->whereNull('ControlNo'))
+
+                ->with([
+                    'nPersonalInfo:id,firstname,lastname,date_of_birth,cellphone_number,email_address',
+                    'jobPost:id,Position,Office,SalaryGrade,ItemNo,status',
+                ])
+                ->get();
+
+
+            // ── 4. Normalize each submission into a flat structure ────────────────────
+            $normalized = $submissions->map(function ($submission) {
+                $isExternal = ! is_null($submission->nPersonalInfo_id);
+
+                if ($isExternal && $submission->nPersonalInfo) {
+                    $info = [
+                        'id'            => $submission->nPersonalInfo->id,
+                        'firstname'     => trim($submission->nPersonalInfo->firstname),
+                        'lastname'      => trim($submission->nPersonalInfo->lastname),
+                        // 'date_of_birth' => $submission->nPersonalInfo->date_of_birth, // keep raw for grouping
+
+                        // 'cellphone_number' => $submission->nPersonalInfo->cellphone_number,  // ← add
+                        // 'email_address'    => $submission->nPersonalInfo->email_address,
+                    ];
+                } elseif (! $isExternal && $submission->xPersonal) {
+                    $info = [
+                        'id'            => $submission->xPersonal->id,  // adjust PK name
+                        'firstname'     => trim($submission->xPersonal->Firstname),
+                        'lastname'      => trim($submission->xPersonal->Surname),
+                        // 'date_of_birth' => $submission->xPersonal->BirthDate,
+                        // 'email_address' => $submission->xPersonalAddt->EmailAdd,
+                        // 'cellphone_number' => $submission->xPersonalAddt->CellphoneNo,
+                    ];
+                } else {
+                    $info = null;
+                }
+
+                return [
+                    'submission_id'         => $submission->id,
+                    'nPersonalInfo_id'      => $submission->nPersonalInfo_id,
+                    'ControlNo'             => $submission->ControlNo,
+                    'job_batches_rsp_id'    => $submission->job_batches_rsp_id,
+                    'applicant_status'      => $submission->status,
+                    'application_status'      => $submission->application_status,
+                    'applicant_type'        => $isExternal ? 'external' : 'internal',
+                    'personal_info'         => $info,
+                    'job_post'              => $submission->jobPost,
+                ];
+            })->filter(fn($s) => ! is_null($s['personal_info'])); // skip if no personal info found
+
+            // ── 5. Group by person: lowercase name + normalized birthdate ─────────────
+            $grouped = $normalized->groupBy(function ($item) {
+                $firstname = strtolower(trim($item['personal_info']['firstname']));
+                $lastname  = strtolower(trim($item['personal_info']['lastname']));
+
+                // Normalize date to Y-m-d regardless of source format
+                // try {
+                //     $dob = \Carbon\Carbon::parse($item['personal_info']['date_of_birth'])->format('Y-m-d');
+                // } catch (\Exception $e) {
+                //     $dob = $item['personal_info']['date_of_birth'];
+                // }
+
+                return "{$firstname}|{$lastname}";
+            });
+
+            // ── 6. Build the final response ───────────────────────────────────────────
+            // ── 6. Build the final response ───────────────────────────────────────────
+            $result = $grouped->values()->map(function ($group) {
+                $first      = $group->first();
+                $personInfo = $first['personal_info'];
+
+                // try {
+                //     $dobFormatted = \Carbon\Carbon::parse($personInfo['date_of_birth'])->format('d/m/Y');
+                // } catch (\Exception $e) {
+                //     $dobFormatted = $personInfo['date_of_birth'];
+                // }
+
+                $applications = $group->map(function ($submission) {
+                    $jp = $submission['job_post'];
+                    return [
+                        'submission_id'      => $submission['submission_id'],
+                        'nPersonalInfo_id'   => $submission['nPersonalInfo_id'],
+                        'ControlNo'          => $submission['ControlNo'],
+                        'job_batches_rsp_id' => $submission['job_batches_rsp_id'],
+                        'applicant_status'   => $submission['applicant_status'],
+                        'applicant_type'     => $submission['applicant_type'],
+                        'application_status'     => $submission['application_status'],
+                        'job_post'           => $jp ? [
+                            'id'          => $jp->id,
+                            'Position'    => $jp->Position,
+                            'Office'      => $jp->Office,
+                            'SalaryGrade' => $jp->SalaryGrade,
+                            'ItemNo'      => $jp->ItemNo,
+                        ] : null,
+
+                    ];
+                })->values();
+
+                // Determine type from the first application
+                $applicantType = $first['applicant_type'];
+
+                return [
+                    'applicant_type' => $applicantType,
+                    'applicant' => [
+                        'id'                    => $personInfo['id'],
+                        'firstname'             => $personInfo['firstname'],
+                        'lastname'              => $personInfo['lastname'] ?? null,
+                        // 'date_of_birth'         => $dobFormatted ?? null,
+                        // 'cellphone_number'      => $personInfo['cellphone_number'] ?? null,
+                        // 'email_address'         => $personInfo['email_address'] ?? null,
+                        'applicant_application' => $applications,
+                    ],
+                ];
+            });
+
+            if ($result->isEmpty()) {
+                return $this->infoMessage('No applicants found for the given date');
+            }
+            // ── 7. Separate into external and internal ────────────────────────────────
+            $external = $result->filter(fn($item) => $item['applicant_type'] === 'external')
+                ->map(fn($item) => $item['applicant'])
+                ->sortBy(fn($applicant) => strtolower($applicant['lastname'])) // sort A-Z by lastname
+                ->values();
+
+            $internal = $result->filter(fn($item) => $item['applicant_type'] === 'internal')
+                ->map(fn($item) => $item['applicant'])
+                ->sortBy(fn($applicant) => strtolower($applicant['lastname'])) // sort A-Z by lastname
+                ->values();
+
+
+            return $this->successMessage([
+                'post_date' =>  Carbon::parse($parsedDate)->format('F d, Y'),
+                'data'      => [
+                    'external' => $external,
+                    'internal' => $internal,
+                ],
+            ], 'Applicants retrieved successfully.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json([
+                'success'  => false,
+                'message'  => $e->getMessage(),
+                'sql'      => $e->getSql(),
+                'bindings' => $e->getBindings(),
+                'file'     => $e->getFile(),
+                'line'     => $e->getLine(),
+            ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ], 500);
+        }
     }
 }
