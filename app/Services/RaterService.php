@@ -429,7 +429,7 @@ class RaterService
             ->where('status', 'qualified')
            ->where(function ($query) {
                 $query->whereNull('application_status')
-                    ->orWhere('application_status', '!=', 'withdraw');
+                    ->orWhere('application_status', '!=', 'Withdrawn');
             })
             ->get();
 
