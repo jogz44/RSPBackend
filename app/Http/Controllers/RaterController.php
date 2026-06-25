@@ -7,12 +7,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ApplicantDetailsResource;
 use App\Http\Resources\ApplicantRaterResource;
 use App\Models\criteria\criteria_rating;
+use App\Models\Job_batches_user;
 use App\Models\JobBatchesRsp;
 use App\Models\rating_score;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\ApplicantService;
 use App\Services\RaterService;
+use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 
 class RaterController extends Controller
 {
+    use ApiResponseTrait;
 
     protected $raterService;
     protected $applicantService;
@@ -237,5 +240,26 @@ class RaterController extends Controller
         $data = $this->raterService->getScoreOfApplicantRateByRater($validated);
 
         return $data;
+    }
+
+    //updating job assigned rating status
+    public function updateJobAssignedRatingStatus(Request $request)
+    {
+        $validatedData = $request->validate([
+            'job_post_assign_id' => 'required|exists:job_batches_user,id', // fixed: exist -> exists
+            'status'             => 'required|in:returned,complete',        // add valid statuses
+        ]);
+
+        $data = Job_batches_user::find($validatedData['job_post_assign_id']);
+
+        if (!$data) {
+            return $this->errorMessage('Rater not found.', 404);
+        }
+
+        $data->update([
+            'status' => $validatedData['status'],
+        ]);
+
+        return $this->successMessage($data, 'Status updated successfully.', 200);
     }
 }
