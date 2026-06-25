@@ -405,16 +405,18 @@ class RaterService
         $assignedJobs = \App\Models\JobBatchesRsp::select('id', 'Office', 'Position')
             ->whereIn('id', $jobBatchesUser->keys())
             ->get()
-            ->map(function ($job) use ($jobBatchesUser) {
-                $job->submitted = isset($jobBatchesUser[$job->id])
-                    && $jobBatchesUser[$job->id]->status === 'complete';
+                ->map(function ($job) use ($jobBatchesUser) {
+                $pivot = $jobBatchesUser[$job->id] ?? null;
+                $job->submitted          = $pivot && $pivot->status === 'complete';
+                $job->rater_rating_status = $pivot->status ?? null; // ✅ attach status per job
                 return $job;
             });
 
-        return response()->json([
+            return response()->json([
             'status'        => true,
-            'assigned_jobs' => $assignedJobs
+            'assigned_jobs' => $assignedJobs, // ✅ return the collection directly
         ]);
+
     }
     // fetch the criteria and applicant of job post
     public function getCriteriaOfJobpostAndApplicant($id) // jobpost id
@@ -735,18 +737,31 @@ class RaterService
             // ✅ Check if already submitted
             $jobBatchId = $data[0]['job_batches_rsp_id'] ?? null;
 
-            $exists = rating_score::where('user_id', $userId)
+            // $exists = rating_score::where('user_id', $userId)
+            //     ->where('job_batches_rsp_id', $jobBatchId)
+            //     ->where('submitted', true)
+            //     ->exists();
+
+            // if ($exists) {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => 'You have already submitted your scores for this job post.',
+            //         'close_form' => true
+            //     ], 409);
+            // }
+                $alreadyComplete = DB::table('job_batches_user')
+                ->where('user_id', $userId)
                 ->where('job_batches_rsp_id', $jobBatchId)
-                ->where('submitted', true)
+                ->where('status', 'complete')
                 ->exists();
 
-            if ($exists) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You have already submitted your scores for this job post.',
-                    'close_form' => true
-                ], 409);
-            }
+        if ($alreadyComplete) {
+            return response()->json([
+                'success'    => false,
+                'message'    => 'You have already submitted your scores for this job post.',
+                'close_form' => true
+            ], 409);
+        }
 
             $results = [];
             $errors = [];
@@ -790,26 +805,51 @@ class RaterService
                 $validated = $validator->validated();
 
                 // Create record with submitted = true
-                $submission = rating_score::create([
-                    'user_id' => $userId,
-                    'nPersonalInfo_id' => $validated['nPersonalInfo_id'],
-                    'ControlNo' => $validated['ControlNo'],
-                    'job_batches_rsp_id' => $validated['job_batches_rsp_id'],
-                    'education_score' => $validated['education_score'] ?? 0,                   // ← default 0
-                    'experience_score' => $validated['experience_score'] ?? 0,
-                    'training_score' => $validated['training_score'] ?? 0,
-                    'performance_score' => $validated['performance_score'] ?? 0,
-                    'behavioral_score' => $validated['behavioral_score'],
-                    'exam_score'      => $validated['exam_score'] ?? null,
-                    'exam_percentage' => $validated['exam_percentage'] ?? null,
-                    'total_qs' => $validated['total_qs'],
-                    'grand_total' => $validated['grand_total'],
-                    'ranking' => $validated['ranking'],
-                    'evaluated_at' => now(),
-                    'submitted' => true,
-                    'rater_name' => $raterName, // ✅ automatically assign rater's name
+                // $submission = rating_score::create([
+                //     'user_id' => $userId,
+                //     'nPersonalInfo_id' => $validated['nPersonalInfo_id'],
+                //     'ControlNo' => $validated['ControlNo'],
+                //     'job_batches_rsp_id' => $validated['job_batches_rsp_id'],
+                //     'education_score' => $validated['education_score'] ?? 0,                   // ← default 0
+                //     'experience_score' => $validated['experience_score'] ?? 0,
+                //     'training_score' => $validated['training_score'] ?? 0,
+                //     'performance_score' => $validated['performance_score'] ?? 0,
+                //     'behavioral_score' => $validated['behavioral_score'],
+                //     'exam_score'      => $validated['exam_score'] ?? null,
+                //     'exam_percentage' => $validated['exam_percentage'] ?? null,
+                //     'total_qs' => $validated['total_qs'],
+                //     'grand_total' => $validated['grand_total'],
+                //     'ranking' => $validated['ranking'],
+                //     'evaluated_at' => now(),
+                //     'submitted' => true,
+                //     'rater_name' => $raterName, // ✅ automatically assign rater's name
 
-                ]);
+                // ]);
+                $submission = rating_score::updateOrCreate(
+                    // ✅ Match keys only (unique identifier)
+                    [
+                        'user_id'            => $userId,
+                        'nPersonalInfo_id'   => $validated['nPersonalInfo_id'],
+                        'ControlNo'          => $validated['ControlNo'],
+                        'job_batches_rsp_id' => $validated['job_batches_rsp_id'],
+                    ],
+                    // ✅ Values to insert or update
+                    [
+                        'education_score'   => $validated['education_score'] ?? 0,
+                        'experience_score'  => $validated['experience_score'] ?? 0,
+                        'training_score'    => $validated['training_score'] ?? 0,
+                        'performance_score' => $validated['performance_score'] ?? 0,
+                        'behavioral_score'  => $validated['behavioral_score'],
+                        'exam_score'        => $validated['exam_score'] ?? null,
+                        'exam_percentage'   => $validated['exam_percentage'] ?? null,
+                        'total_qs'          => $validated['total_qs'],
+                        'grand_total'       => $validated['grand_total'],
+                        'ranking'           => $validated['ranking'],
+                        'evaluated_at'      => now(),
+                        'submitted'         => true,
+                        'rater_name'        => $raterName,
+                    ]
+                );
 
                 $results[] = $submission;
             }
