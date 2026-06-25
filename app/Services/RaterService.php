@@ -337,7 +337,7 @@ class RaterService
                     'job_batches_rsp.Position'
                 )
                     ->withCount('submissions')
-                    ->withPivot('status');
+                    ->withPivot(['id','status']);
             }])
             ->findOrFail($raterId);
 
@@ -349,6 +349,7 @@ class RaterService
                 'Position' => $job->Position,
                 'applicant' => (string) $job->submissions_count,
                 'status' => $job->pivot->status, // ✅ consistent field
+                'job_post_assign_id' => $job->pivot->id, // ✅ consistent field
             ];
         });
 
@@ -364,36 +365,57 @@ class RaterService
     }
 
     // fetch assigned job post on rater
+    // public function getAssignedJobs($request)
+    // {
+
+    //     $user = Auth::user();
+
+    //     // $today = Carbon::today();
+
+    //     $jobBatchIds = DB::table('job_batches_user')
+    //         ->where('user_id', $user->id)
+    //         ->pluck('job_batches_rsp_id');
+
+    //     $assignedJobs = \App\Models\JobBatchesRsp::select('id', 'Office', 'Position')
+    //         ->whereIn('id', $jobBatchIds)
+    //         ->get()
+    //         ->map(function ($job) use ($user) {
+    //             $job->submitted = rating_score::where('user_id', $user->id)
+    //                 ->where('job_batches_rsp_id', $job->id)
+    //                 ->where('submitted', true)
+    //                 ->exists();
+    //             return $job;
+    //         });
+
+    //     return response()->json([
+    //         'status' => true,
+    //         'assigned_jobs' => $assignedJobs
+    //     ]);
+    // }
+
     public function getAssignedJobs($request)
     {
-
         $user = Auth::user();
 
-        // $today = Carbon::today();
-
-        $jobBatchIds = DB::table('job_batches_user')
+        $jobBatchesUser = DB::table('job_batches_user')
             ->where('user_id', $user->id)
-
-            ->pluck('job_batches_rsp_id');
+            ->get()
+            ->keyBy('job_batches_rsp_id'); // key by job id for easy lookup
 
         $assignedJobs = \App\Models\JobBatchesRsp::select('id', 'Office', 'Position')
-            ->whereIn('id', $jobBatchIds)
-            // ->whereDate('end_date', '<=', $today) // ✅ only include job posts that are already posted
+            ->whereIn('id', $jobBatchesUser->keys())
             ->get()
-            ->map(function ($job) use ($user) {
-                $job->submitted = rating_score::where('user_id', $user->id)
-                    ->where('job_batches_rsp_id', $job->id)
-                    ->where('submitted', true)
-                    ->exists();
+            ->map(function ($job) use ($jobBatchesUser) {
+                $job->submitted = isset($jobBatchesUser[$job->id])
+                    && $jobBatchesUser[$job->id]->status === 'complete';
                 return $job;
             });
 
         return response()->json([
-            'status' => true,
+            'status'        => true,
             'assigned_jobs' => $assignedJobs
         ]);
     }
-
     // fetch the criteria and applicant of job post
     public function getCriteriaOfJobpostAndApplicant($id) // jobpost id
     {
@@ -427,7 +449,7 @@ class RaterService
 
             ])
             ->where('status', 'qualified')
-           ->where(function ($query) {
+            ->where(function ($query) {
                 $query->whereNull('application_status')
                     ->orWhere('application_status', '!=', 'Withdrawn');
             })
@@ -1211,7 +1233,7 @@ class RaterService
                 DB::raw("'external' as applicant_type")
 
             )
-            ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth','submission.tag_color');
+            ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth', 'submission.tag_color');
 
         if ($search) {
             $external->where(function ($q) use ($search) {
@@ -1229,7 +1251,7 @@ class RaterService
             ->whereIn('submission.job_batches_rsp_id', $jobBatchIds)
             ->where('status', 'Qualified')
             ->select(
-                 'tag_color',
+                'tag_color',
                 DB::raw('NULL as nPersonal_id'),
                 'submission.ControlNo',
                 DB::raw('xp.Firstname as firstname'),
@@ -1238,7 +1260,7 @@ class RaterService
                 DB::raw('COUNT(submission.id) as applied_job'),
                 DB::raw("'internal' as applicant_type")
             )
-            ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo','submission.tag_color');
+            ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo', 'submission.tag_color');
 
         if ($search) {
             $internal->where(function ($q) use ($search) {
