@@ -247,7 +247,7 @@ class RaterController extends Controller
     {
         $validatedData = $request->validate([
             'job_post_assign_id' => 'required|exists:job_batches_user,id', // fixed: exist -> exists
-            'status'             => 'required|in:returned,complete',        // add valid statuses
+            'status'             => 'required|in:Returned',        // add valid statuses
         ]);
 
         $data = Job_batches_user::find($validatedData['job_post_assign_id']);
