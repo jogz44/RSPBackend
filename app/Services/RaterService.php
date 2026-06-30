@@ -337,7 +337,7 @@ class RaterService
                     'job_batches_rsp.Position'
                 )
                     ->withCount('submissions')
-                    ->withPivot(['id','status']);
+                    ->withPivot(['id', 'status']);
             }])
             ->findOrFail($raterId);
 
@@ -405,18 +405,17 @@ class RaterService
         $assignedJobs = \App\Models\JobBatchesRsp::select('id', 'Office', 'Position')
             ->whereIn('id', $jobBatchesUser->keys())
             ->get()
-                ->map(function ($job) use ($jobBatchesUser) {
+            ->map(function ($job) use ($jobBatchesUser) {
                 $pivot = $jobBatchesUser[$job->id] ?? null;
                 $job->submitted          = $pivot && $pivot->status === 'complete';
                 $job->rater_rating_status = $pivot->status ?? null; // ✅ attach status per job
                 return $job;
             });
 
-            return response()->json([
+        return response()->json([
             'status'        => true,
             'assigned_jobs' => $assignedJobs, // ✅ return the collection directly
         ]);
-
     }
     // fetch the criteria and applicant of job post
     public function getCriteriaOfJobpostAndApplicant($id) // jobpost id
@@ -737,31 +736,19 @@ class RaterService
             // ✅ Check if already submitted
             $jobBatchId = $data[0]['job_batches_rsp_id'] ?? null;
 
-            // $exists = rating_score::where('user_id', $userId)
-            //     ->where('job_batches_rsp_id', $jobBatchId)
-            //     ->where('submitted', true)
-            //     ->exists();
-
-            // if ($exists) {
-            //     return response()->json([
-            //         'success' => false,
-            //         'message' => 'You have already submitted your scores for this job post.',
-            //         'close_form' => true
-            //     ], 409);
-            // }
-                $alreadyComplete = DB::table('job_batches_user')
+            $alreadyComplete = DB::table('job_batches_user')
                 ->where('user_id', $userId)
                 ->where('job_batches_rsp_id', $jobBatchId)
                 ->where('status', 'complete')
                 ->exists();
 
-        if ($alreadyComplete) {
-            return response()->json([
-                'success'    => false,
-                'message'    => 'You have already submitted your scores for this job post.',
-                'close_form' => true
-            ], 409);
-        }
+            if ($alreadyComplete) {
+                return response()->json([
+                    'success'    => false,
+                    'message'    => 'You have already submitted your scores for this job post.',
+                    'close_form' => true
+                ], 409);
+            }
 
             $results = [];
             $errors = [];
@@ -1003,25 +990,15 @@ class RaterService
                 );
 
                 $results[] = $submission;
+                // ✅ Auto-update pivot table when a rater has scored
+                DB::table('job_batches_user')
+                    ->where('user_id', $userId)
+                    // ->where('job_batches_rsp_id', $jobBatchId)
+                    ->where('job_batches_rsp_id', $validated['job_batches_rsp_id'])
+                    ->update(['status' => 'pending']);
             }
 
-            // Log activity after
-            // if ($user instanceof \App\Models\User) {
-            //     $jobBatchIds = collect($results)->pluck('job_batches_rsp_id')->unique()->join(', ');
-            //     activity($user->name)
-            //         ->causedBy($user)
-            //         ->performedOn($user)
-            //         ->withProperties([
-            //             'username' => $user->username,
-            //             'role' => $user->role?->role_name,
-            //             'office' => $user->office,
-            //             'ip' => $request->ip(),
-            //             'user_agent' => $request->header('User-Agent'),
-            //             'job_batches_rsp_ids' => $jobBatchIds,
-            //             'saved_count' => count($results),
-            //         ])
-            //         ->log("Rater {$user->name} saved draft scores for job post batch ID: {$jobBatchIds}.");
-            // }
+
             // Log activity after saving drafts
             if ($user instanceof \App\Models\User && !empty($results)) {
                 $jobBatchIds = collect($results)->pluck('job_batches_rsp_id')->unique();
