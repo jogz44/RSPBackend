@@ -140,7 +140,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/delete/{id}', [SubmissionController::class, 'delete']);
         Route::post('/draft', [RaterController::class, 'draftApplicantScore']); // draft score for applicant rating score
         Route::post('/score', [RaterController::class, 'storeApplicantScore']); // final submission of the applicant score
-        Route::put('/returned', [RaterController::class, 'updateJobAssignedRingStatus']); // update returned to edit the rating of the applicant
+        Route::put('/returned', [RaterController::class, 'updateJobAssignedRatingStatus']); // update returned to edit the rating of the applicant
     });
 
     Route::prefix('appointment')->group(function () {
@@ -150,6 +150,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [AppointmentController::class, 'appiontment']); // manual appointment
         Route::get('/position', [AppointmentController::class, 'position']);
         Route::get('/vice/name/{position}/{status}', [AppointmentController::class, 'getEmployeePreviousDesignation']);
+        Route::get('/advance/list', [AppointmentController::class, 'appiontmentListAdvance']);
     });
 
     Route::prefix('vw-Active')->group(function () {
