@@ -105,10 +105,9 @@ class PlantillaService
             // ->leftJoin('vwActive', 'vwplantillaStructure.ControlNo', '=', 'vwActive.ControlNo')
             ->leftJoin('yDesignation', 'vwplantillaStructure.PositionID', '=', 'yDesignation.PMID')
             ->where('vwplantillaStructure.office', $office)
-            ->get();
-
-
-
+            ->get()
+            ->unique('ID') // keep only one row per plantilla item ID
+         ->values();
 
 
         // $plantilla = $query->get();
