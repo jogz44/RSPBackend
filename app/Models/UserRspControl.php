@@ -43,7 +43,10 @@ class UserRspControl extends Model
 
         'viewLibraryAccess',
         'modifyLibraryAccess',
-        'reportRaterManagementAccess'
+        'reportRaterManagementAccess',
+        'viewAdvanceAppointmentAccess',
+         'modifyAdvanceAppointmentAccess',
+         'reportAdvanceAppointmentAccess'
     ];
 
     // In UserRspControl.php

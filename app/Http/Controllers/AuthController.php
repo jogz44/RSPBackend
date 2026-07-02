@@ -90,6 +90,9 @@ class AuthController extends Controller
                     'viewLibraryAccess' => $request->input('permissions.viewLibraryAccess', false),
                     'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
                     'reportRaterManagementAccess' => $request->input('permissions.reportRaterManagementAccess', false),
+                    'viewAdvanceAppointmentAccess' => $request->input('permissions.viewAdvanceAppointmentAccess', false),
+                    'modifyAdvanceAppointmentAccess' => $request->input('permissions.modifyAdvanceAppointmentAccess', false),
+                    'reportAdvanceAppointmentAccess' => $request->input('permissions.reportAdvanceAppointmentAccess', false),
 
                 ]);
             }
@@ -308,6 +311,9 @@ class AuthController extends Controller
                 'permissions.viewLibraryAccess' => 'boolean',
                 'permissions.modifyLibraryAccess' => 'boolean',
                 'permissions.reportRaterManagementAccess' => 'boolean',
+                    'permissions.viewAdvanceAppointmentAccess' => 'boolean',
+                        'permissions.modifyAdvanceAppointmentAccess' => 'boolean',
+                            'permissions.reportAdvanceAppointmentAccess' => 'boolean',
 
 
 
@@ -372,7 +378,9 @@ class AuthController extends Controller
                         'viewLibraryAccess' => $request->input('permissions.viewLibraryAccess', false),
                         'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
                         'reportRaterManagementAccess' => $request->input('permissions.reportRaterManagementAccess', false),
-
+  'viewAdvanceAppointmentAccess' => $request->input('permissions.viewAdvanceAppointmentAccess', false),
+                    'modifyAdvanceAppointmentAccess' => $request->input('permissions.modifyAdvanceAppointmentAccess', false),
+                    'reportAdvanceAppointmentAccess' => $request->input('permissions.reportAdvanceAppointmentAccess', false),
 
                     ]);
                 } else {
@@ -407,7 +415,9 @@ class AuthController extends Controller
                         'modifyLibraryAccess' => $request->input('permissions.modifyLibraryAccess', false),
 
                         'reportRaterManagementAccess' => $request->input('permissions.reportRaterManagementAccess', false),
-
+  'viewAdvanceAppointmentAccess' => $request->input('permissions.viewAdvanceAppointmentAccess', false),
+                    'modifyAdvanceAppointmentAccess' => $request->input('permissions.modifyAdvanceAppointmentAccess', false),
+                    'reportAdvanceAppointmentAccess' => $request->input('permissions.reportAdvanceAppointmentAccess', false),
 
                     ]);
                 }

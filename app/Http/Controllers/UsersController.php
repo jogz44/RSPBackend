@@ -117,6 +117,9 @@ class UsersController extends Controller
 
                 'reportRaterManagementAccess' => optional($user->rspControl)->reportRaterManagementAccess ?? false,
 
+             'viewAdvanceAppointmentAccess' => optional($user->rspControl)->viewAdvanceAppointmentAccess ?? false,
+              'modifyAdvanceAppointmentAccess' => optional($user->rspControl)->modifyAdvanceAppointmentAccess ?? false,
+               'reportAdvanceAppointmentAccess' => optional($user->rspControl)->reportAdvanceAppointmentAccess ?? false,
 
             ],
         ];
