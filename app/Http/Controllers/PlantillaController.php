@@ -212,7 +212,8 @@ class PlantillaController extends Controller
                             'vicename',
                             'sepdate',
                             'sepcause'
-                        ])->orderBy('ID', 'desc'); // specify columns from TempRegAppointmentReorg
+                        ])->latest('ID')->limit(1);
+                        // ->orderBy('ID', 'desc'); // specify columns from TempRegAppointmentReorg
                     },
 
                     'plantilla' => function ($query) {
@@ -291,7 +292,8 @@ class PlantillaController extends Controller
                             'leaderlevel3',
                             'leaderlevel4',
                             'structureid',
-                        ])->orderBy('ID', 'desc');; // specify columns from TempRegAppointmentReorg
+                        ])->latest('ID')->limit(1);
+                        // ->orderBy('ID', 'desc'); // specify columns from TempRegAppointmentReorg
                     }
                 ])
                 ->where('ControlNo', $ControlNo)
