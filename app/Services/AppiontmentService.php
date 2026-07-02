@@ -8,6 +8,9 @@ use App\Models\Submission;
 use Illuminate\Http\Request;
 use App\Models\JobBatchesRsp;
 use App\Models\TempRegHistory;
+use App\Models\vwActive;
+use App\Models\xPersonal;
+use App\Traits\ApiResponseTrait;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -16,8 +19,10 @@ use Illuminate\Support\Facades\Mail;
 
 class AppiontmentService
 
-
 {
+
+    use ApiResponseTrait;
+
     public function appiontment(Request $request)
     {
 
@@ -50,7 +55,7 @@ class AppiontmentService
             'SepCause' => 'nullable|string',
 
 
-      
+
             // tempRegAppointmentReorg
             // 'sepdate' => 'nullable|date',
             // 'sepcause' => 'nullable|string',
@@ -134,7 +139,7 @@ class AppiontmentService
     }
 
 
-  private function updatePlantillaStructure($job)
+    private function updatePlantillaStructure($job)
     {
 
 
@@ -239,7 +244,7 @@ class AppiontmentService
 
         DB::table('xService')->insert([
             'ControlNo'    => $job->controlNo, // 1
-            'FromDate'     => $fromDate ?? null,// 1
+            'FromDate'     => $fromDate ?? null, // 1
             'ToDate'       =>   $toDate   ?? null, // 1
             'DesigCode'    => $designation->Codes ?? '00000', // 1
             'Designation'  => $designation->Descriptions ?? $job->Position, // 1
@@ -277,7 +282,7 @@ class AppiontmentService
 
         DB::table('tempRegAppointmentReorg')->insert([
             // 'ID'            => $nextId,
-            'ControlNo'     => $job->controlNo,//1
+            'ControlNo'     => $job->controlNo, //1
             'DesigCode'     => $designation->Codes ?? null, //1
             'NewDesignation' => $designation->Descriptions ?? $job->Position, //1
             'Designation'   => $designation->Descriptions ?? $job->Position, //1
@@ -299,13 +304,62 @@ class AppiontmentService
             // 'group',//
             'unitcode' =>     $UnitCode ?? null,
             'unit' => $job->Unit ?? null,
-            'sepdate' => $job->sepdate ?? null  ,
+            'sepdate' => $job->sepdate ?? null,
             'sepcause' => $job->sepcause ?? null,
             'vicename' => $job->vicename ?? null,
             'vicecause' => $job->vicecause ?? null
 
         ]);
-
-    
     }
+
+
+    // list of employee advance appoitment
+public function listOfEmployeeAdvance()
+{
+    $employeeActive = xPersonal::select('ControlNo', 'Surname', 'Firstname', 'MIddlename')
+        ->get();
+
+    $latestService = DB::table('xService as s')
+        ->join('xPersonal as v', 's.ControlNo', '=', 'v.ControlNo')
+        ->select(
+            's.PMID',
+            's.ControlNo',
+            's.FromDate',
+            's.ToDate',
+            's.Designation',
+            's.Office',
+            DB::raw('ROW_NUMBER() OVER (PARTITION BY s.ControlNo ORDER BY s.FromDate DESC) as rn')
+        )
+        ->get()
+        ->where('rn', 1)          // keep only the latest record per employee
+        ->keyBy('ControlNo');     // key by ControlNo so ->get() lookup works
+
+    $today = Carbon::today();
+
+    $result = $employeeActive
+        ->map(function ($employee) use ($latestService, $today) {
+            $record = $latestService->get($employee->ControlNo);
+
+            if (!$record) return null;
+
+            $fromDate = $record->FromDate ? Carbon::parse($record->FromDate) : null;
+
+            // Keep only employees whose latest FromDate hasn't started yet (advance/future appointment)
+            if (!$fromDate || $fromDate->lt($today)) return null;
+
+            $toDate = $record->ToDate ? Carbon::parse($record->ToDate) : null;
+
+            $employee->Designation = $record->Designation ?? null;
+            $employee->Office      = $record->Office      ?? $employee->Office;
+            $employee->FromDate    = $fromDate?->format('m/d/Y');
+            $employee->ToDate      = $toDate?->format('m/d/Y');
+            $employee->PMID        = $record->PMID        ?? null;
+
+            return $employee;
+        })
+        ->filter()
+        ->values();
+
+    return $result;
+}
 }

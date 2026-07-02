@@ -12,9 +12,12 @@ use Illuminate\Support\Facades\DB;
 use App\Services\AppiontmentService;
 use App\Services\ApplicantHiringService;
 use App\Services\EmployeeService;
+use App\Traits\ApiResponseTrait;
 
 class AppointmentController extends Controller
 {
+    use ApiResponseTrait;
+
     protected $appiontmentService;
     protected $hiringService;
 
@@ -166,5 +169,14 @@ class AppointmentController extends Controller
             ->get();
 
         return response()->json($employee);
+    }
+
+    // list of employee advance print appiotment
+     public function appiontmentListAdvance(Request $request)
+    {
+
+       $data = $this->appiontmentService->listOfEmployeeAdvance($request);
+
+       return $this->successMessage($data,'successfully',200);
     }
 }
