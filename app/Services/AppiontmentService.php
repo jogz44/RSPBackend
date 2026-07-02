@@ -7,6 +7,7 @@ use App\Mail\EmailApi;
 use App\Models\Submission;
 use Illuminate\Http\Request;
 use App\Models\JobBatchesRsp;
+use App\Models\TempRegAppointmentReorg;
 use App\Models\TempRegHistory;
 use App\Models\vwActive;
 use App\Models\xPersonal;
@@ -319,6 +320,10 @@ public function listOfEmployeeAdvance()
     $employeeActive = xPersonal::select('ControlNo', 'Surname', 'Firstname', 'MIddlename')
         ->get();
 
+    $tempRegByControlNo = TempRegAppointmentReorg::select('ControlNo', 'Status', 'ItemNo', 'Pages')
+        ->get()
+        ->keyBy('ControlNo');
+
     $latestService = DB::table('xService as s')
         ->join('xPersonal as v', 's.ControlNo', '=', 'v.ControlNo')
         ->select(
@@ -331,29 +336,33 @@ public function listOfEmployeeAdvance()
             DB::raw('ROW_NUMBER() OVER (PARTITION BY s.ControlNo ORDER BY s.FromDate DESC) as rn')
         )
         ->get()
-        ->where('rn', 1)          // keep only the latest record per employee
-        ->keyBy('ControlNo');     // key by ControlNo so ->get() lookup works
+        ->where('rn', 1)
+        ->keyBy('ControlNo');
 
     $today = Carbon::today();
 
     $result = $employeeActive
-        ->map(function ($employee) use ($latestService, $today) {
+        ->map(function ($employee) use ($latestService, $tempRegByControlNo, $today) {
             $record = $latestService->get($employee->ControlNo);
 
             if (!$record) return null;
 
             $fromDate = $record->FromDate ? Carbon::parse($record->FromDate) : null;
 
-            // Keep only employees whose latest FromDate hasn't started yet (advance/future appointment)
             if (!$fromDate || $fromDate->lt($today)) return null;
 
             $toDate = $record->ToDate ? Carbon::parse($record->ToDate) : null;
 
+            $tempReg = $tempRegByControlNo->get($employee->ControlNo);
+
             $employee->Designation = $record->Designation ?? null;
-            $employee->Office      = $record->Office      ?? $employee->Office;
+            $employee->Office      = $record->Office ?? $employee->Office;
             $employee->FromDate    = $fromDate?->format('m/d/Y');
             $employee->ToDate      = $toDate?->format('m/d/Y');
-            $employee->PMID        = $record->PMID        ?? null;
+            $employee->PMID        = $record->PMID ?? null;
+            $employee->Status      = $tempReg->Status ?? null;
+            $employee->ItemNo      = $tempReg->ItemNo ?? null;
+            $employee->Pages      = $tempReg->Pages ?? null;
 
             return $employee;
         })

@@ -172,10 +172,10 @@ class AppointmentController extends Controller
     }
 
     // list of employee advance print appiotment
-     public function appiontmentListAdvance(Request $request)
+     public function appiontmentListAdvance()
     {
 
-       $data = $this->appiontmentService->listOfEmployeeAdvance($request);
+       $data = $this->appiontmentService->listOfEmployeeAdvance();
 
        return $this->successMessage($data,'successfully',200);
     }
