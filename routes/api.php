@@ -383,6 +383,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // list of applicant withraw  application 
         Route::get('/applicant/withraw/application/{date}', [ReportController::class, 'listApplicantWithdrawApplication']); 
 
+        // list of applicant internal report with lenght of service with current position
+        Route::get('/applicant/internal/service/{publicationDate}', [ReportController::class, 'applicantAppliedInternal']); 
+
 
 
 

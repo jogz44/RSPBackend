@@ -2697,4 +2697,189 @@ class ReportService
             ], 500);
         }
     }
+
+    // fetch applicant only internal with lenght of service and current position 
+    // fetch applicant only internal with length of service and current position
+    public function internalApplicant($postDate)
+    {
+        ini_set('max_execution_time', 3600);
+        try {
+            // ── 1. Parse the incoming date (handles "April 27, 2026" or "2026-04-27") ──
+            $parsedDate = \Carbon\Carbon::parse($postDate)->format('Y-m-d');
+
+            // ── 2. Get all job post IDs for that post_date ────────────────────────────
+            $jobPostIds = JobBatchesRsp::whereDate('post_date', $parsedDate)
+                ->pluck('id');
+
+            if ($jobPostIds->isEmpty()) {
+                return $this->infoMessage('No job posts found for the given date', 200);
+            }
+
+            // ── 3. Get all submissions for those job posts (INTERNAL ONLY) ────────────
+            $submissions = Submission::select(
+                'id',
+                'ControlNo',
+                'job_batches_rsp_id',
+                'status'
+            )
+                ->whereIn('job_batches_rsp_id', $jobPostIds)
+                ->whereNotNull('ControlNo')
+                ->whereNull('nPersonalInfo_id')
+                ->with([
+                    'xPersonal:ControlNo,Firstname,Surname,BirthDate',
+                    'xPersonalAddt:ControlNo,EmailAdd,CellphoneNo',
+                    'jobPost:id,Position,Office,SalaryGrade,ItemNo,status,PageNo',
+                ])
+                ->get();
+
+            // ── 4. Normalize each submission into a flat structure ────────────────────
+            $normalized = $submissions->map(function ($submission) {
+                if (! $submission->xPersonal) {
+                    return null;
+                }
+
+                $info = [
+                    'control_no'       => $submission->xPersonal->ControlNo,
+                    'firstname'        => trim($submission->xPersonal->Firstname),
+                    'lastname'         => trim($submission->xPersonal->Surname),
+                    'date_of_birth'    => $submission->xPersonal->BirthDate,
+                    'email_address'    => $submission->xPersonalAddt->EmailAdd ?? null,
+                    'cellphone_number' => $submission->xPersonalAddt->CellphoneNo ?? null,
+                ];
+
+                return [
+                    'submission_id'      => $submission->id,
+                    'ControlNo'          => $submission->ControlNo,
+                    'job_batches_rsp_id' => $submission->job_batches_rsp_id,
+                    'applicant_status'   => $submission->status,
+                    'personal_info'      => $info,
+                    'job_post'           => $submission->jobPost,
+                ];
+            })->filter(); // drop nulls (no personal info found)
+
+            // ── 5. Group by person: lowercase name + normalized birthdate ─────────────
+            $grouped = $normalized->groupBy(function ($item) {
+                $firstname = strtolower(trim($item['personal_info']['firstname']));
+                $lastname  = strtolower(trim($item['personal_info']['lastname']));
+
+                // Normalize date to Y-m-d regardless of source format
+                try {
+                    $dob = \Carbon\Carbon::parse($item['personal_info']['date_of_birth'])->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $dob = $item['personal_info']['date_of_birth'];
+                }
+
+                return "{$firstname}|{$lastname}|{$dob}";
+            });
+
+            // ── 6. Build the final response ───────────────────────────────────────────
+          $result = $grouped->values()->map(function ($group) {
+    $first      = $group->first();
+    $personInfo = $first['personal_info'];
+    $controlNo  = $first['ControlNo'];
+
+    try {
+        $dobCarbon    = \Carbon\Carbon::parse($personInfo['date_of_birth']);
+        $dobFormatted = $dobCarbon->format('d/m/Y');
+        $age          = $dobCarbon->age;
+    } catch (\Exception $e) {
+        $dobFormatted = $personInfo['date_of_birth'];
+        $age          = null;
+    }
+
+    // ── Current office/position (once per person, not per application) ──
+    $current_service = DB::table('xService')
+        ->where('ControlNo', $controlNo)
+        ->orderByDesc('ToDate')
+        ->orderByDesc('FromDate')
+        ->first();
+
+    $office      = $current_service->Office      ?? null;
+    $designation = $current_service->Designation ?? null;
+
+    // ── Length of service (once per person, not per application) ────────
+    $xservice  = xService::select('FromDate', 'ToDate')
+        ->where('ControlNo', $controlNo)
+        ->get();
+
+    $totalDays = 0;
+    $today     = Carbon::now();
+
+    foreach ($xservice as $service) {
+        $from = Carbon::parse($service->FromDate);
+        $to   = Carbon::parse($service->ToDate ?? now());
+
+        if ($to->isFuture())   $to   = $today;
+        if ($from->isFuture()) continue;
+
+        $totalDays += $from->diffInDays($to);
+    }
+
+    $years  = intdiv($totalDays, 365);
+    $remain = $totalDays % 365;
+    $months = intdiv($remain, 30);
+    $days   = $remain % 30;
+
+    $lengthOfService = "{$years} years, {$months} months, {$days} days";
+
+    $applications = $group->map(function ($submission) {
+        $jp = $submission['job_post'];
+
+        return [
+            'submission_id'      => $submission['submission_id'],
+            'job_batches_rsp_id' => $submission['job_batches_rsp_id'],
+            'job_post'           => $jp ? [
+                'id'          => $jp->id,
+                'Position'    => $jp->Position,
+                'Office'      => $jp->Office,
+                'SalaryGrade' => $jp->SalaryGrade,
+                'ItemNo'      => $jp->ItemNo,
+                      'PageNo'      => $jp->PageNo,
+            ] : null,
+            'applicant_status' => $submission['applicant_status'],
+        ];
+    })->values();
+
+    return [
+        'control_no'            => $personInfo['control_no'],
+        'firstname'             => $personInfo['firstname'],
+        'lastname'              => $personInfo['lastname'] ?? null,
+        'date_of_birth'         => $dobFormatted ?? null,
+        'age'                   => $age,
+        'cellphone_number'      => $personInfo['cellphone_number'] ?? null,
+        'email_address'         => $personInfo['email_address'] ?? null,
+        'lengthOfService'       => $lengthOfService,
+        'current_office'        => $office,
+        'current_position'      => $designation, // fixed the "positiion" typo too — flag if this is intentional to match a DB/frontend field
+        'applicant_application' => $applications,
+    ];
+})->sortBy(fn($applicant) => strtolower($applicant['lastname']))
+  ->values();
+
+            if ($result->isEmpty()) {
+                return $this->infoMessage('No applicants found for the given date');
+            }
+
+            return $this->successMessage([
+                'post_date' => Carbon::parse($parsedDate)->format('F d, Y'),
+                'data'      => $result,
+            ], 'Applicants retrieved successfully.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json([
+                'success'  => false,
+                'message'  => $e->getMessage(),
+                'sql'      => $e->getSql(),
+                'bindings' => $e->getBindings(),
+                'file'     => $e->getFile(),
+                'line'     => $e->getLine(),
+            ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ], 500);
+        }
+    }
 }

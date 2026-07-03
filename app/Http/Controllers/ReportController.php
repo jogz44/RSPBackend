@@ -813,4 +813,13 @@ class ReportController extends Controller
         return $result;
     }
 
+       // get applicant internal with lenght and current position 
+    public function applicantAppliedInternal($date)
+    {
+
+        $result = $this->reportService->internalApplicant($date);
+
+        return $result;
+    }
+
 }
