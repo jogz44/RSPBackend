@@ -1254,84 +1254,6 @@ class ApplicantService
             ->get();
     }
 
-    // // proxy using my app url
-    // public function proxyPdsImage($filename)
-    // {
-    //     $baseUrl = config('app.network_share_img_pds.base_url'); // 
-    //     $imageUrl = "{$baseUrl}/{$filename}";
-
-    //     $response = Http::get($imageUrl);
-
-    //     if (!$response->successful()) {
-    //         return response()->json(['message' => 'Image not found'], 404);
-    //     }
-
-    //     return response($response->body(), 200)
-    //         ->header('Content-Type', $response->header('Content-Type'));
-    // }
-
-    // list of qualified applicants  for job post publication
-
-
-
-
-    // working  applicant list 
-    //  public function listOfApplicants()
-    // {
-    //     try {
-    //     $external = Submission::query()
-    //     ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
-    //     ->select(
-    //         DB::raw('MIN(p.id) as nPersonal_id'),
-    //         'p.firstname',
-    //         'p.lastname',
-    //         DB::raw('TRY_CAST(p.date_of_birth AS DATE) as date_of_birth'), // ✅ TRY_CAST
-    //         DB::raw('COUNT(submission.id) as jobpost'),
-    //         DB::raw("'external' as applicant_type"),
-    //         DB::raw('NULL as ControlNo')
-    //     )
-    //     ->groupBy('p.firstname', 'p.lastname', 'p.date_of_birth');
-
-    // $internal = Submission::query()
-    //     ->whereNull('submission.nPersonalInfo_id')
-    //     ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
-    //     ->select(
-    //         DB::raw('NULL as nPersonal_id'),
-    //         'xp.Firstname as firstname',
-    //         'xp.Surname as lastname',
-    //         DB::raw('TRY_CAST(xp.BirthDate AS DATE) as date_of_birth'), // ✅ TRY_CAST
-    //         DB::raw('COUNT(submission.id) as jobpost'),
-    //         DB::raw("'internal' as applicant_type"),
-    //         'submission.ControlNo'
-    //     )
-    //     ->groupBy('xp.Firstname', 'xp.Surname', 'xp.BirthDate', 'submission.ControlNo');
-
-    //         $query = $external->unionAll($internal);
-
-    //         $schedule = DB::table(DB::raw("({$query->toSql()}) as combined"))
-    //             ->mergeBindings($query->getQuery())
-    //             ->get();
-
-    //         return response()->json($schedule);
-
-    //     } catch (\Illuminate\Database\QueryException $e) {
-    //         return response()->json([
-    //             'success'  => false,
-    //             'message'  => $e->getMessage(),
-    //             'sql'      => $e->getSql(),
-    //             'bindings' => $e->getBindings(),
-    //             'file'     => $e->getFile(),
-    //             'line'     => $e->getLine(),
-    //         ], 500);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => $e->getMessage(),
-    //             'file'    => $e->getFile(),
-    //             'line'    => $e->getLine(),
-    //         ], 500);
-    //     }
-    // }
 
     // fetch the  applicant list applied
     public function applicantApplied($postDate, ?string $applicantType = null)
@@ -1441,27 +1363,7 @@ class ApplicantService
                 $applications = $group->map(function ($submission) {
                     $jp = $submission['job_post'];
               
-                $xservice  = xService::select('FromDate', 'ToDate')->where('ControlNo',  $submission['ControlNo'])->get();
-                    $totalDays = 0;
-                    $today     = Carbon::now();
-
-                       foreach ($xservice as $service) {
-                    $from = Carbon::parse($service->FromDate);
-                    $to   = Carbon::parse($service->ToDate ?? now());
-
-                    if ($to->isFuture())   $to   = $today;
-                    if ($from->isFuture()) continue;
-
-                    $totalDays += $from->diffInDays($to);
-                }
-
-                   $years  = intdiv($totalDays, 365);
-                $remain = $totalDays % 365;
-                $months = intdiv($remain, 30);
-                $days   = $remain % 30;
-
-                $lengthOfService = "{$years} years, {$months} months, {$days} days";
-
+    
                     return [
                         'submission_id'      => $submission['submission_id'],
                         'nPersonalInfo_id'   => $submission['nPersonalInfo_id'],
@@ -1476,7 +1378,7 @@ class ApplicantService
                         ] : null,
                         'applicant_status'   => $submission['applicant_status'],
                         'applicant_type'     => $submission['applicant_type'],
-                        'lengthOfService' => $lengthOfService,
+                       
                     ];
                 })->values();
 
@@ -1490,7 +1392,6 @@ class ApplicantService
                         'firstname'             => $personInfo['firstname'],
                         'lastname'              => $personInfo['lastname'] ?? null,
                         'date_of_birth'         => $dobFormatted ?? null,
-                        'age'         => Carbon::createFromFormat('d/m/Y', $dobFormatted)->age,
                         'cellphone_number'      => $personInfo['cellphone_number'] ?? null,
                         'email_address'         => $personInfo['email_address'] ?? null,
                         'applicant_application' => $applications,
@@ -1649,4 +1550,6 @@ class ApplicantService
             ], 500);
         }
     }
+
+   
 }
