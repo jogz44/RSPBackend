@@ -822,4 +822,14 @@ class ReportController extends Controller
         return $result;
     }
 
+      // internal applicant with  service
+    public function internalApplicantService(Request $request)
+    {
+        $validated = $request->validate([
+            'publication_date' => 'required',
+        ]);
+
+        return $this->excelService->internalService($validated);
+    }
+
 }
