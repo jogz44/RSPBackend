@@ -157,6 +157,7 @@ class ApplicantExamScoreService
         $external = Submission::query()
             ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
             ->join('job_batches_rsp as jb', 'submission.job_batches_rsp_id', '=', 'jb.id')
+            ->where('submission.status','Qualified')
             ->whereNotNull('submission.nPersonalInfo_id')
             ->whereNotIn('submission.id', $hasExamScore) // ✅ exclude already scored
             ->select(
@@ -183,6 +184,8 @@ class ApplicantExamScoreService
         $internal = Submission::query()
             ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
             ->join('job_batches_rsp as jb', 'submission.job_batches_rsp_id', '=', 'jb.id')
+            ->where('submission.status','Qualified')
+
             ->whereNull('submission.nPersonalInfo_id')
             ->whereNotIn('submission.id', $hasExamScore) // ✅ exclude already scored
             ->select(
