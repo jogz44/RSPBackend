@@ -22,13 +22,6 @@ class AddExamScoreApplicantRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // 'submission_id' => 'required|exists:submission,id',
-            // 'exam_score' => 'required|numeric',
-            // 'exam_details' => 'required|string',
-            // 'exam_type' => 'required|string',
-            // 'exam_total_score' => 'required|integer',
-            // 'exam_date' => 'required|string',
-            // 'exam_remarks' => 'required|string',
             'applicants'                        => 'required|array|min:1',
             'applicants.*.submission_id'        => 'required|exists:submission,id',
             'applicants.*.exam_score'           => 'required|numeric',
