@@ -2699,7 +2699,6 @@ class ReportService
     }
 
     // fetch applicant only internal with lenght of service and current position 
-    // fetch applicant only internal with length of service and current position
     public function internalApplicant($postDate)
     {
         ini_set('max_execution_time', 3600);
@@ -2773,88 +2772,95 @@ class ReportService
             });
 
             // ── 6. Build the final response ───────────────────────────────────────────
-          $result = $grouped->values()->map(function ($group) {
-    $first      = $group->first();
-    $personInfo = $first['personal_info'];
-    $controlNo  = $first['ControlNo'];
+            $result = $grouped->values()->map(function ($group) {
+                $first      = $group->first();
+                $personInfo = $first['personal_info'];
+                $controlNo  = $first['ControlNo'];
 
-    try {
-        $dobCarbon    = \Carbon\Carbon::parse($personInfo['date_of_birth']);
-        $dobFormatted = $dobCarbon->format('d/m/Y');
-        $age          = $dobCarbon->age;
-    } catch (\Exception $e) {
-        $dobFormatted = $personInfo['date_of_birth'];
-        $age          = null;
-    }
+                try {
+                    $dobCarbon    = \Carbon\Carbon::parse($personInfo['date_of_birth']);
+                    $dobFormatted = $dobCarbon->format('d/m/Y');
+                    $age          = $dobCarbon->age;
+                } catch (\Exception $e) {
+                    $dobFormatted = $personInfo['date_of_birth'];
+                    $age          = null;
+                }
 
-    // ── Current office/position (once per person, not per application) ──
-    $current_service = DB::table('xService')
-        ->where('ControlNo', $controlNo)
-        ->orderByDesc('ToDate')
-        ->orderByDesc('FromDate')
-        ->first();
+                // ── Current office/position (once per person, not per application) ──
+                $current_service = xService::select('ControlNo','ToDate','FromDate','Office','Designation','Status')
+                    ->where('ControlNo', $controlNo)
+                    ->orderByDesc('ToDate')
+                    ->orderByDesc('FromDate')
+                    ->first();
 
-    $office      = $current_service->Office      ?? null;
-    $designation = $current_service->Designation ?? null;
+                $office      = $current_service->Office      ?? null;
+                $designation = $current_service->Designation ?? null;
 
-    // ── Length of service (once per person, not per application) ────────
-    $xservice  = xService::select('FromDate', 'ToDate')
-        ->where('ControlNo', $controlNo)
-        ->get();
+                if ($designation) {
+                    $designation = trim(preg_replace('/\s*\(.*?\)\s*/', '', $designation));
+                }
 
-    $totalDays = 0;
-    $today     = Carbon::now();
+                $status = $current_service->Status ?? null;
 
-    foreach ($xservice as $service) {
-        $from = Carbon::parse($service->FromDate);
-        $to   = Carbon::parse($service->ToDate ?? now());
+                // ── Length of service (once per person, not per application) ────────
+                $xservice  = xService::select('FromDate', 'ToDate')
+                    ->where('ControlNo', $controlNo)
+                    ->get();
 
-        if ($to->isFuture())   $to   = $today;
-        if ($from->isFuture()) continue;
+                $totalDays = 0;
+                $today     = Carbon::now();
 
-        $totalDays += $from->diffInDays($to);
-    }
+                foreach ($xservice as $service) {
+                    $from = Carbon::parse($service->FromDate);
+                    $to   = Carbon::parse($service->ToDate ?? now());
 
-    $years  = intdiv($totalDays, 365);
-    $remain = $totalDays % 365;
-    $months = intdiv($remain, 30);
-    $days   = $remain % 30;
+                    if ($to->isFuture())   $to   = $today;
+                    if ($from->isFuture()) continue;
 
-    $lengthOfService = "{$years} years, {$months} months, {$days} days";
+                    $totalDays += $from->diffInDays($to);
+                }
 
-    $applications = $group->map(function ($submission) {
-        $jp = $submission['job_post'];
+                $years  = intdiv($totalDays, 365);
+                $remain = $totalDays % 365;
+                $months = intdiv($remain, 30);
+                $days   = $remain % 30;
 
-        return [
-            'submission_id'      => $submission['submission_id'],
-            'job_batches_rsp_id' => $submission['job_batches_rsp_id'],
-            'job_post'           => $jp ? [
-                'id'          => $jp->id,
-                'Position'    => $jp->Position,
-                'Office'      => $jp->Office,
-                'SalaryGrade' => $jp->SalaryGrade,
-                'ItemNo'      => $jp->ItemNo,
-                      'PageNo'      => $jp->PageNo,
-            ] : null,
-            'applicant_status' => $submission['applicant_status'],
-        ];
-    })->values();
+                $lengthOfService = "{$years} years, {$months} months, {$days} days";
 
-    return [
-        'control_no'            => $personInfo['control_no'],
-        'firstname'             => $personInfo['firstname'],
-        'lastname'              => $personInfo['lastname'] ?? null,
-        'date_of_birth'         => $dobFormatted ?? null,
-        'age'                   => $age,
-        'cellphone_number'      => $personInfo['cellphone_number'] ?? null,
-        'email_address'         => $personInfo['email_address'] ?? null,
-        'lengthOfService'       => $lengthOfService,
-        'current_office'        => $office,
-        'current_position'      => $designation, // fixed the "positiion" typo too — flag if this is intentional to match a DB/frontend field
-        'applicant_application' => $applications,
-    ];
-})->sortBy(fn($applicant) => strtolower($applicant['lastname']))
-  ->values();
+                $applications = $group->map(function ($submission) {
+                    $jp = $submission['job_post'];
+
+                    return [
+                        'submission_id'      => $submission['submission_id'],
+                        'job_batches_rsp_id' => $submission['job_batches_rsp_id'],
+                        'job_post'           => $jp ? [
+                            'id'          => $jp->id,
+                            'Position'    => $jp->Position,
+                            'Office'      => $jp->Office,
+                            'SalaryGrade' => $jp->SalaryGrade,
+                            'ItemNo'      => $jp->ItemNo,
+                            'PageNo'      => $jp->PageNo,
+                        ] : null,
+                        'applicant_status' => $submission['applicant_status'],
+                    ];
+                })->values();
+
+                return [
+                    'control_no'            => $personInfo['control_no'],
+                    'firstname'             => $personInfo['firstname'],
+                    'lastname'              => $personInfo['lastname'] ?? null,
+                    'date_of_birth'         => $dobFormatted ?? null,
+                    'age'                   => $age,
+                    'cellphone_number'      => $personInfo['cellphone_number'] ?? null,
+                    'email_address'         => $personInfo['email_address'] ?? null,
+                    'lengthOfService'       => $lengthOfService,
+                    'current_office'        => $office,
+                    'current_position'      => $designation, // fixed the "positiion" typo too — flag if this is intentional to match a DB/frontend field
+                    'status'      => $status,
+                    'applicant_application' => $applications,
+                ];
+            })->sortBy(fn($applicant) => strtolower($applicant['lastname']))
+                ->values();
 
             if ($result->isEmpty()) {
                 return $this->infoMessage('No applicants found for the given date');

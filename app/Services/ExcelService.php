@@ -1020,256 +1020,265 @@ class ExcelService
     }
 
     // internal only with lenght of service and  current designation
-public function internalService($validated)
-{
-    $templatePath = storage_path('app/template/applicantInternalService.xlsx');
-    $reader = IOFactory::createReader('Xlsx');
-    $reader->setIncludeCharts(true);
+    public function internalService($validated)
+    {
+        $templatePath = storage_path('app/template/applicantInternalService.xlsx');
+        $reader = IOFactory::createReader('Xlsx');
+        $reader->setIncludeCharts(true);
 
-    $spreadsheet = $reader->load($templatePath);
+        $spreadsheet = $reader->load($templatePath);
 
-    if ($spreadsheet->hasMacros()) {
-        $spreadsheet->setMacrosCode($spreadsheet->getMacrosCode());
-    }
-
-    $sheet = $spreadsheet->getActiveSheet();
-    ini_set('max_execution_time', 3600);
-
-    try {
-        // ── 1. Parse the incoming date (handles "April 27, 2026" or "2026-04-27") ──
-        $postDate         = $validated['publication_date'];
-        $parsedDate       = \Carbon\Carbon::parse($postDate)->format('Y-m-d');
-        $publicationDate  = \Carbon\Carbon::parse($parsedDate)->format('F d, Y');
-
-        // ── 2. Get all job post IDs for that post_date ────────────────────────────
-        $jobPostIds = JobBatchesRsp::whereDate('post_date', $parsedDate)
-            ->pluck('id');
-
-        if ($jobPostIds->isEmpty()) {
-            return $this->infoMessage('No job posts found for the given date', 200);
+        if ($spreadsheet->hasMacros()) {
+            $spreadsheet->setMacrosCode($spreadsheet->getMacrosCode());
         }
 
-        // ── 3. Get all submissions for those job posts (INTERNAL ONLY) ────────────
-        $submissions = Submission::select(
-            'id',
-            'ControlNo',
-            'job_batches_rsp_id',
-            'status'
-        )
-            ->whereIn('job_batches_rsp_id', $jobPostIds)
-            ->whereNotNull('ControlNo')
-            ->whereNull('nPersonalInfo_id')
-            ->with([
-                'xPersonal:ControlNo,Firstname,Surname,BirthDate',
-                'xPersonalAddt:ControlNo,EmailAdd,CellphoneNo',
-                'jobPost:id,Position,Office,SalaryGrade,ItemNo,status,PageNo',
-            ])
-            ->get();
+        $sheet = $spreadsheet->getActiveSheet();
+        ini_set('max_execution_time', 3600);
 
-        // ── 4. Normalize each submission into a flat structure ────────────────────
-        $normalized = $submissions->map(function ($submission) {
-            if (! $submission->xPersonal) {
-                return null;
+        try {
+            // ── 1. Parse the incoming date (handles "April 27, 2026" or "2026-04-27") ──
+            $postDate         = $validated['publication_date'];
+            $parsedDate       = \Carbon\Carbon::parse($postDate)->format('Y-m-d');
+            $publicationDate  = \Carbon\Carbon::parse($parsedDate)->format('F d, Y');
+
+            // ── 2. Get all job post IDs for that post_date ────────────────────────────
+            $jobPostIds = JobBatchesRsp::whereDate('post_date', $parsedDate)
+                ->pluck('id');
+
+            if ($jobPostIds->isEmpty()) {
+                return $this->infoMessage('No job posts found for the given date', 200);
             }
 
-            $info = [
-                'control_no'       => $submission->xPersonal->ControlNo,
-                'firstname'        => trim($submission->xPersonal->Firstname),
-                'lastname'         => trim($submission->xPersonal->Surname),
-                'date_of_birth'    => $submission->xPersonal->BirthDate,
-                'email_address'    => $submission->xPersonalAddt->EmailAdd ?? null,
-                'cellphone_number' => $submission->xPersonalAddt->CellphoneNo ?? null,
-            ];
-
-            return [
-                'submission_id'      => $submission->id,
-                'ControlNo'          => $submission->ControlNo,
-                'job_batches_rsp_id' => $submission->job_batches_rsp_id,
-                'applicant_status'   => $submission->status,
-                'personal_info'      => $info,
-                'job_post'           => $submission->jobPost,
-            ];
-        })->filter();
-
-        // ── 5. Group by person: lowercase name + normalized birthdate ─────────────
-        $grouped = $normalized->groupBy(function ($item) {
-            $firstname = strtolower(trim($item['personal_info']['firstname']));
-            $lastname  = strtolower(trim($item['personal_info']['lastname']));
-
-            try {
-                $dob = \Carbon\Carbon::parse($item['personal_info']['date_of_birth'])->format('Y-m-d');
-            } catch (\Exception $e) {
-                $dob = $item['personal_info']['date_of_birth'];
-            }
-
-            return "{$firstname}|{$lastname}|{$dob}";
-        });
-
-        // ── 6. Build the final response ───────────────────────────────────────────
-        $result = $grouped->values()->map(function ($group) {
-            $first      = $group->first();
-            $personInfo = $first['personal_info'];
-            $controlNo  = $first['ControlNo'];
-
-            try {
-                $dobCarbon    = \Carbon\Carbon::parse($personInfo['date_of_birth']);
-                $dobFormatted = $dobCarbon->format('d/m/Y');
-                $age          = $dobCarbon->age;
-            } catch (\Exception $e) {
-                $dobFormatted = $personInfo['date_of_birth'];
-                $age          = null;
-            }
-
-            $current_service = DB::table('xService')
-                ->where('ControlNo', $controlNo)
-                ->orderByDesc('ToDate')
-                ->orderByDesc('FromDate')
-                ->first();
-
-            $office      = $current_service->Office      ?? null;
-            $designation = $current_service->Designation ?? null;
-
-            $xservice = xService::select('FromDate', 'ToDate')
-                ->where('ControlNo', $controlNo)
+            // ── 3. Get all submissions for those job posts (INTERNAL ONLY) ────────────
+            $submissions = Submission::select(
+                'id',
+                'ControlNo',
+                'job_batches_rsp_id',
+                'status'
+            )
+                ->whereIn('job_batches_rsp_id', $jobPostIds)
+                ->whereNotNull('ControlNo')
+                ->whereNull('nPersonalInfo_id')
+                ->with([
+                    'xPersonal:ControlNo,Firstname,Surname,BirthDate',
+                    'xPersonalAddt:ControlNo,EmailAdd,CellphoneNo',
+                    'jobPost:id,Position,Office,SalaryGrade,ItemNo,status,PageNo',
+                ])
                 ->get();
 
-            $totalDays = 0;
-            $today     = Carbon::now();
+            // ── 4. Normalize each submission into a flat structure ────────────────────
+            $normalized = $submissions->map(function ($submission) {
+                if (! $submission->xPersonal) {
+                    return null;
+                }
 
-            foreach ($xservice as $service) {
-                $from = Carbon::parse($service->FromDate);
-                $to   = Carbon::parse($service->ToDate ?? now());
-
-                if ($to->isFuture())   $to   = $today;
-                if ($from->isFuture()) continue;
-
-                $totalDays += $from->diffInDays($to);
-            }
-
-            $years  = intdiv($totalDays, 365);
-            $remain = $totalDays % 365;
-            $months = intdiv($remain, 30);
-            $days   = $remain % 30;
-
-            $lengthOfService = "{$years} years, {$months} months, {$days} days";
-
-            $applications = $group->map(function ($submission) {
-                $jp = $submission['job_post'];
+                $info = [
+                    'control_no'       => $submission->xPersonal->ControlNo,
+                    'firstname'        => trim($submission->xPersonal->Firstname),
+                    'lastname'         => trim($submission->xPersonal->Surname),
+                    'date_of_birth'    => $submission->xPersonal->BirthDate,
+                    'email_address'    => $submission->xPersonalAddt->EmailAdd ?? null,
+                    'cellphone_number' => $submission->xPersonalAddt->CellphoneNo ?? null,
+                ];
 
                 return [
-                    'submission_id'      => $submission['submission_id'],
-                    'job_batches_rsp_id' => $submission['job_batches_rsp_id'],
-                    'job_post'           => $jp ? [
-                        'id'          => $jp->id,
-                        'Position'    => $jp->Position,
-                        'Office'      => $jp->Office,
-                        'SalaryGrade' => $jp->SalaryGrade,
-                        'ItemNo'      => $jp->ItemNo,
-                        'PageNo'      => $jp->PageNo,
-                    ] : null,
-                    'applicant_status' => $submission['applicant_status'],
+                    'submission_id'      => $submission->id,
+                    'ControlNo'          => $submission->ControlNo,
+                    'job_batches_rsp_id' => $submission->job_batches_rsp_id,
+                    'applicant_status'   => $submission->status,
+                    'personal_info'      => $info,
+                    'job_post'           => $submission->jobPost,
                 ];
-            })->values();
+            })->filter();
 
-            return [
-                'control_no'            => $personInfo['control_no'],
-                'firstname'             => $personInfo['firstname'],
-                'lastname'              => $personInfo['lastname'] ?? null,
-                'date_of_birth'         => $dobFormatted ?? null,
-                'age'                   => $age,
-                'cellphone_number'      => $personInfo['cellphone_number'] ?? null,
-                'email_address'         => $personInfo['email_address'] ?? null,
-                'lengthOfService'       => $lengthOfService,
-                'current_office'        => $office,
-                'current_position'      => $designation,
-                'applicant_application' => $applications,
-            ];
-        })->sortBy(fn($applicant) => strtolower($applicant['lastname']))
-          ->values();
+            // ── 5. Group by person: lowercase name + normalized birthdate ─────────────
+            $grouped = $normalized->groupBy(function ($item) {
+                $firstname = strtolower(trim($item['personal_info']['firstname']));
+                $lastname  = strtolower(trim($item['personal_info']['lastname']));
 
-        // ── Set publication date ──────────────────────────────────────────────────
-        $sheet->setCellValue("A3", $publicationDate);
+                try {
+                    $dob = \Carbon\Carbon::parse($item['personal_info']['date_of_birth'])->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $dob = $item['personal_info']['date_of_birth'];
+                }
 
-        // ── Insert extra rows if data exceeds template rows ───────────────────────
-        // Row count now needs to account for EVERY application, not one row per person,
-        // since a person with 3 applications now produces 3 rows.
-        $totalRows = $result->sum(fn($item) => $item['applicant_application']->count());
-        $extraRows = $totalRows - 5;
-        if ($extraRows > 0) {
-            $sheet->insertNewRowBefore(23, $extraRows);
+                return "{$firstname}|{$lastname}|{$dob}";
+            });
+
+            // ── 6. Build the final response ───────────────────────────────────────────
+            $result = $grouped->values()->map(function ($group) {
+                $first      = $group->first();
+                $personInfo = $first['personal_info'];
+                $controlNo  = $first['ControlNo'];
+
+                try {
+                    $dobCarbon    = \Carbon\Carbon::parse($personInfo['date_of_birth']);
+                    $dobFormatted = $dobCarbon->format('d/m/Y');
+                    $age          = $dobCarbon->age;
+                } catch (\Exception $e) {
+                    $dobFormatted = $personInfo['date_of_birth'];
+                    $age          = null;
+                }
+
+                $current_service = xService::select('ControlNo','ToDate','FromDate','Office','Designation','Status')
+                    ->where('ControlNo', $controlNo)
+                    ->orderByDesc('ToDate')
+                    ->orderByDesc('FromDate')
+                    ->first();
+
+                $office      = $current_service->Office      ?? null;
+                $designation = $current_service->Designation ?? null;
+
+                if ($designation) {
+                    $designation = trim(preg_replace('/\s*\(.*?\)\s*/', '', $designation));
+                }
+                
+                $status = $current_service->Status ?? null;
+                
+                $xservice = xService::select('FromDate', 'ToDate')
+                    ->where('ControlNo', $controlNo)
+                    ->get();
+
+                $totalDays = 0;
+                $today     = Carbon::now();
+
+                foreach ($xservice as $service) {
+                    $from = Carbon::parse($service->FromDate);
+                    $to   = Carbon::parse($service->ToDate ?? now());
+
+                    if ($to->isFuture())   $to   = $today;
+                    if ($from->isFuture()) continue;
+
+                    $totalDays += $from->diffInDays($to);
+                }
+
+                $years  = intdiv($totalDays, 365);
+                $remain = $totalDays % 365;
+                $months = intdiv($remain, 30);
+                $days   = $remain % 30;
+
+                $lengthOfService = "{$years} years, {$months} months, {$days} days";
+
+                $applications = $group->map(function ($submission) {
+                    $jp = $submission['job_post'];
+
+                    return [
+                        'submission_id'      => $submission['submission_id'],
+                        'job_batches_rsp_id' => $submission['job_batches_rsp_id'],
+                        'job_post'           => $jp ? [
+                            'id'          => $jp->id,
+                            'Position'    => $jp->Position,
+                            'Office'      => $jp->Office,
+                            'SalaryGrade' => $jp->SalaryGrade,
+                            'ItemNo'      => $jp->ItemNo,
+                            'PageNo'      => $jp->PageNo,
+                        ] : null,
+                        'applicant_status' => $submission['applicant_status'],
+                    ];
+                })->values();
+
+                return [
+                    'control_no'            => $personInfo['control_no'],
+                    'firstname'             => $personInfo['firstname'],
+                    'lastname'              => $personInfo['lastname'] ?? null,
+                    'date_of_birth'         => $dobFormatted ?? null,
+                    'age'                   => $age,
+                    'cellphone_number'      => $personInfo['cellphone_number'] ?? null,
+                    'email_address'         => $personInfo['email_address'] ?? null,
+                    'lengthOfService'       => $lengthOfService,
+                    'current_office'        => $office,
+                    'current_position'      => $designation,
+                    'status'      => $status,
+                    'applicant_application' => $applications,
+                ];
+            })->sortBy(fn($applicant) => strtolower($applicant['lastname']))
+                ->values();
+
+            // ── Set publication date ──────────────────────────────────────────────────
+            $sheet->setCellValue("A3", $publicationDate);
+
+            // ── Insert extra rows if data exceeds template rows ───────────────────────
+            // Row count now needs to account for EVERY application, not one row per person,
+            // since a person with 3 applications now produces 3 rows.
+            $totalRows = $result->sum(fn($item) => $item['applicant_application']->count());
+            $extraRows = $totalRows - 5;
+            if ($extraRows > 0) {
+                $sheet->insertNewRowBefore(23, $extraRows);
+            }
+
+            // ── Write data to sheet ───────────────────────────────────────────────────
+            // One row PER APPLICATION. Person-level fields (name/age/current position/
+            // current office/length of service) repeat on every row for that person.
+            $row = 7;
+
+            foreach ($result as $item) {
+                $fullName = trim($item['lastname'] . ', ' . $item['firstname']);
+                $appCount = $item['applicant_application']->count();
+                $startRow = $row;
+
+                foreach ($item['applicant_application'] as $index => $app) {
+                    $jp = $app['job_post'];
+
+                    // Only write person-level columns on the FIRST row for this person
+                    if ($index === 0) {
+                        $sheet->setCellValue("A{$row}", $fullName);
+                        $sheet->setCellValue("B{$row}", $item['age']);
+                        $sheet->setCellValue("C{$row}", $item['current_position']);
+                        $sheet->setCellValue("D{$row}", $item['current_office']);
+                        $sheet->setCellValue("E{$row}", $item['status']);
+                        $sheet->setCellValue("F{$row}", $item['lengthOfService']);
+                        // $sheet->setCellValue("K{$row}", $item['control_no'] ?? null);
+                    }
+
+                    // Applied-position columns are written on EVERY row
+                    $sheet->setCellValue("G{$row}", $jp['Position']    ?? null);
+                    $sheet->setCellValue("H{$row}", $jp['Office']      ?? null);
+                    $sheet->setCellValue("I{$row}", $jp['PageNo']      ?? null);
+                    $sheet->setCellValue("J{$row}", $jp['ItemNo']      ?? null);
+                    $sheet->setCellValue("K{$row}", $jp['SalaryGrade'] ?? null);
+
+                    $row++;
+                }
+
+                $endRow = $row - 1;
+
+                // Merge the person-level columns vertically if they applied to more than one position
+                if ($appCount > 1) {
+                    $sheet->mergeCells("A{$startRow}:A{$endRow}");
+                    $sheet->mergeCells("B{$startRow}:B{$endRow}");
+                    $sheet->mergeCells("C{$startRow}:C{$endRow}");
+                    $sheet->mergeCells("D{$startRow}:D{$endRow}");
+                    $sheet->mergeCells("E{$startRow}:E{$endRow}");
+                    $sheet->mergeCells("F{$startRow}:F{$endRow}");
+                    // $sheet->mergeCells("K{$startRow}:K{$endRow}");
+                }
+            }
+
+            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $writer->setIncludeCharts(true);
+
+            return new StreamedResponse(function () use ($writer) {
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type'        => 'application/vnd.ms-excel.sheet.macroEnabled.12',
+                'Content-Disposition' => 'attachment; filename="applicantInternalService.xlsx"',
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json([
+                'success'  => false,
+                'message'  => $e->getMessage(),
+                'sql'      => $e->getSql(),
+                'bindings' => $e->getBindings(),
+                'file'     => $e->getFile(),
+                'line'     => $e->getLine(),
+            ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ], 500);
         }
-
-        // ── Write data to sheet ───────────────────────────────────────────────────
-        // One row PER APPLICATION. Person-level fields (name/age/current position/
-        // current office/length of service) repeat on every row for that person.
-      $row = 7;
-
-foreach ($result as $item) {
-    $fullName = trim($item['lastname'] . ', ' . $item['firstname']);
-    $appCount = $item['applicant_application']->count();
-    $startRow = $row;
-
-    foreach ($item['applicant_application'] as $index => $app) {
-        $jp = $app['job_post'];
-
-        // Only write person-level columns on the FIRST row for this person
-        if ($index === 0) {
-            $sheet->setCellValue("A{$row}", $fullName);
-            $sheet->setCellValue("B{$row}", $item['age']);
-            $sheet->setCellValue("C{$row}", $item['current_position']);
-            $sheet->setCellValue("D{$row}", $item['current_office']);
-            $sheet->setCellValue("E{$row}", $item['lengthOfService']);
-            // $sheet->setCellValue("K{$row}", $item['control_no'] ?? null);
-        }
-
-        // Applied-position columns are written on EVERY row
-        $sheet->setCellValue("F{$row}", $jp['Position']    ?? null);
-        $sheet->setCellValue("G{$row}", $jp['Office']      ?? null);
-        $sheet->setCellValue("H{$row}", $jp['PageNo']      ?? null);
-        $sheet->setCellValue("I{$row}", $jp['ItemNo']      ?? null);
-        $sheet->setCellValue("J{$row}", $jp['SalaryGrade'] ?? null);
-
-        $row++;
     }
-
-    $endRow = $row - 1;
-
-    // Merge the person-level columns vertically if they applied to more than one position
-    if ($appCount > 1) {
-        $sheet->mergeCells("A{$startRow}:A{$endRow}");
-        $sheet->mergeCells("B{$startRow}:B{$endRow}");
-        $sheet->mergeCells("C{$startRow}:C{$endRow}");
-        $sheet->mergeCells("D{$startRow}:D{$endRow}");
-        $sheet->mergeCells("E{$startRow}:E{$endRow}");
-        // $sheet->mergeCells("K{$startRow}:K{$endRow}");
-    }
-}
-
-        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
-        $writer->setIncludeCharts(true);
-
-        return new StreamedResponse(function () use ($writer) {
-            $writer->save('php://output');
-        }, 200, [
-            'Content-Type'        => 'application/vnd.ms-excel.sheet.macroEnabled.12',
-            'Content-Disposition' => 'attachment; filename="applicantInternalService.xlsx"',
-        ]);
-    } catch (\Illuminate\Database\QueryException $e) {
-        return response()->json([
-            'success'  => false,
-            'message'  => $e->getMessage(),
-            'sql'      => $e->getSql(),
-            'bindings' => $e->getBindings(),
-            'file'     => $e->getFile(),
-            'line'     => $e->getLine(),
-        ], 500);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage(),
-            'file'    => $e->getFile(),
-            'line'    => $e->getLine(),
-        ], 500);
-    }
-}
 }
