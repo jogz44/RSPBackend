@@ -149,17 +149,22 @@ class ApplicantExamScoreService
         $perPage = $request->input('per_page', 10);
 
         // ✅ Get all submission_ids that already have exam scores
-        $hasExamScore = DB::table('applicant_exam_scores')
-            ->pluck('submission_id')
-            ->toArray();
+        // $hasExamScore = DB::table('applicant_exam_scores')
+        //     ->pluck('submission_id')
+        //     ->toArray();
 
         // ✅ External applicants — exclude those with exam scores
         $external = Submission::query()
             ->join('nPersonalInfo as p', 'submission.nPersonalInfo_id', '=', 'p.id')
             ->join('job_batches_rsp as jb', 'submission.job_batches_rsp_id', '=', 'jb.id')
-            ->where('submission.status','Qualified')
+            ->where('submission.status', 'Qualified')
             ->whereNotNull('submission.nPersonalInfo_id')
-            ->whereNotIn('submission.id', $hasExamScore) // ✅ exclude already scored
+            // ->whereNotIn('submission.id', $hasExamScore) // ✅ exclude already scored
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('applicant_exam_scores as aes')
+                    ->whereColumn('aes.submission_id', 'submission.id');
+            })
             ->select(
                 'submission.id as submission_id',
                 'p.id as nPersonal_id',
@@ -184,10 +189,15 @@ class ApplicantExamScoreService
         $internal = Submission::query()
             ->join('xPersonal as xp', 'submission.ControlNo', '=', 'xp.ControlNo')
             ->join('job_batches_rsp as jb', 'submission.job_batches_rsp_id', '=', 'jb.id')
-            ->where('submission.status','Qualified')
+            ->where('submission.status', 'Qualified')
 
             ->whereNull('submission.nPersonalInfo_id')
-            ->whereNotIn('submission.id', $hasExamScore) // ✅ exclude already scored
+            // ->whereNotIn('submission.id', $hasExamScore) // ✅ exclude already scored
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('applicant_exam_scores as aes')
+                    ->whereColumn('aes.submission_id', 'submission.id');
+            })
             ->select(
                 'submission.id as submission_id',
                 DB::raw("CAST(NULL AS BIGINT) as nPersonal_id"),
