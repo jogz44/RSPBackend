@@ -252,7 +252,7 @@ class JobBatchesRspController extends Controller
     public function jobPostCompleteStatus()
     {
         $jobs = JobBatchesRsp::select('id as jobpostId', 'Office', 'Position', 'status', 'post_date', 'end_date')
-            ->whereIn('status', ['Republished', 'rated', 'Unoccupied', 'Occupied'])
+            ->whereIn('status', ['Republished', 'rated', 'Unoccupied', 'Occupied','assessed'])
             ->get();
 
         return response()->json($jobs);
