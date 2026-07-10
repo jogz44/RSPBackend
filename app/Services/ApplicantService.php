@@ -699,7 +699,8 @@ class ApplicantService
         ], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
-    // applicant scores
+
+    // lastest code
     public function applicantFinalSummaryScore($jobpostId, $request)
     {
         $jobpost = JobBatchesRsp::findOrFail($jobpostId);
@@ -715,15 +716,30 @@ class ApplicantService
             ->where('status', 'complete')
             ->count();
 
+        // ✅ MASTER LIST OF RATERS — lahat ng assigned, may score man o wala
+        $raters = Job_batches_user::with('user')
+            ->where('job_batches_rsp_id', $jobpostId)
+            ->whereHas('user', fn($q) => $q->where('active', 1))
+            ->get()
+            ->map(fn($jbu) => [
+                'rater_id'       => $jbu->user->id,
+                'rater_name'     => $jbu->user->name,
+                'position'       => $jbu->user->position,
+                'role_type'      => $jbu->user->role_type,
+                'representative' => $jbu->user->representative,
+                'prefix'         => $jbu->user->prefix,
+                'suffix'         => $jbu->user->suffix,
+            ])
+            ->unique('rater_id')
+            ->values();
+
+        // ✅ MASTER LIST OF APPLICANTS — lahat ng submitted, may rating man o wala
+        $submissions = Submission::where('job_batches_rsp_id', $jobpostId)->get();
+
+        // Existing scores na lang (kung meron)
         $allScores = rating_score::select(
             'rating_score.id',
             'rating_score.user_id as rater_id',
-            'users.name as rater_name',
-            'users.role_type',
-            'users.prefix',
-            'users.suffix',
-            'users.representative',
-            'users.position',
             'rating_score.nPersonalInfo_id',
             'rating_score.ControlNo',
             'rating_score.job_batches_rsp_id',
@@ -732,128 +748,113 @@ class ApplicantService
             'rating_score.training_score as training',
             'rating_score.performance_score as performance',
             'rating_score.behavioral_score as bei',
-            // ❌ removed rating_score.exam_score
-            'rating_score.grand_total',
-            'nPersonalInfo.firstname',
-            'nPersonalInfo.lastname',
-            'submission.id as submission_id'
+            'rating_score.grand_total'
         )
-            ->leftJoin('nPersonalInfo', 'nPersonalInfo.id', '=', 'rating_score.nPersonalInfo_id')
-            ->leftJoin('users', 'users.id', '=', 'rating_score.user_id')
-            ->leftJoin('submission', function ($join) {
-                $join->on('submission.job_batches_rsp_id', '=', 'rating_score.job_batches_rsp_id')
-                    ->whereColumn('submission.nPersonalInfo_id', 'rating_score.nPersonalInfo_id');
-            })
             ->where('rating_score.job_batches_rsp_id', $jobpostId)
             ->get();
 
-        // ✅ Pre-load exam scores keyed by submission_id
-        $examScores = \App\Models\ApplicantExamScore::whereHas('submission', function ($q) use ($jobpostId) {
-            $q->where('job_batches_rsp_id', $jobpostId);
-        })
-            ->get()
-            ->keyBy('submission_id');
-
-        // Get all unique raters for this job post (for column headers)
-        $raters = $allScores->map(fn($r) => [
-            'rater_id'       => $r->rater_id,
-            'rater_name'     => $r->rater_name,
-            'position'       => $r->position,
-            'role_type'      => $r->role_type,
-            'representative' => $r->representative,
-            'prefix'         => $r->prefix,
-            'suffix'         => $r->suffix,
-        ])->unique('rater_id')->values();
-
-        // Group scores by applicant
         $scoresByApplicant = $allScores->groupBy(
             fn($row) => $row->nPersonalInfo_id ?: 'control_' . $row->ControlNo
         );
 
+        $examScores = \App\Models\ApplicantExamScore::whereHas('submission', function ($q) use ($jobpostId) {
+            $q->where('job_batches_rsp_id', $jobpostId);
+        })->get()->keyBy('submission_id');
+
         $applicants = [];
 
-        foreach ($scoresByApplicant as $applicantKey => $scoreRows) {
-            $firstRow  = $scoreRows->first();
-            $firstname = $firstRow->firstname;
-            $lastname  = $firstRow->lastname;
+        foreach ($submissions as $submission) {
 
-            // Fallback for internal applicants
-            if ((!$firstname || !$lastname) && $firstRow->ControlNo) {
-                $active    = vwActive::where('ControlNo', $firstRow->ControlNo)->first();
-                $firstname = $active->Firstname ?? $active->firstname ?? '';
-                $lastname  = $active->Surname   ?? $active->surname   ?? '';
+            $firstname = $submission->firstname ?? null;
+            $lastname  = $submission->lastname ?? null;
+
+            if (!$firstname || !$lastname) {
+                if ($submission->nPersonalInfo_id) {
+                    // ✅ EXTERNAL applicant — resolve name via nPersonalInfo
+                    $personal  = nPersonal_info::find($submission->nPersonalInfo_id);
+                    $firstname = $personal->firstname ?? '';
+                    $lastname  = $personal->lastname ?? '';
+                } elseif ($submission->ControlNo) {
+                    // ✅ INTERNAL applicant — resolve name via xPersonal
+                    $active    = xPersonal::where('ControlNo', $submission->ControlNo)->first();
+                    $firstname = $active->Firstname ?? $active->firstname ?? '';
+                    $lastname  = $active->Surname   ?? $active->surname   ?? '';
+                }
             }
 
-            // ✅ Resolve exam_score once per applicant from ApplicantExamScore
-            // For internal applicants (no submission_id from join), fall back to ControlNo lookup
-            $submissionId = $firstRow->submission_id;
+            $applicantKey = $submission->nPersonalInfo_id ?: 'control_' . $submission->ControlNo;
+            $scoreRows    = $scoresByApplicant->get($applicantKey, collect());
 
-            if (!$submissionId && $firstRow->ControlNo) {
-                $submissionId = \App\Models\Submission::where('job_batches_rsp_id', $jobpostId)
-                    ->where('ControlNo', $firstRow->ControlNo)
-                    ->value('id');
-            }
+            $examRecord = $examScores[$submission->id] ?? null;
+            $examScore  = $examRecord ? (float)$examRecord->exam_percentage : 0;
 
-            $examRecord = $submissionId ? ($examScores[$submissionId] ?? null) : null;
-            $examScore  = $examRecord ? (float)$examRecord->exam_percentage : null;
-
-            // ── Per-rater breakdown ──────────────────────────────────────────────
+            // ── Per-rater breakdown: LOOP SA LAHAT NG RATERS, hindi lang sa may score ──
             $raterBreakdown = [];
+            foreach ($raters as $rater) {
+                $row = $scoreRows->firstWhere('rater_id', $rater['rater_id']);
 
-            foreach ($scoreRows as $row) {
-                $total_qs = (float)$row->education
-                    + (float)$row->experience
-                    + (float)$row->training
-                    + (float)$row->performance;
+                if ($row) {
+                    $total_qs = (float)$row->education
+                        + (float)$row->experience
+                        + (float)$row->training
+                        + (float)$row->performance;
 
-                $raterBreakdown[] = [
-                    'rater_id'    => $row->rater_id,
-                    'rater_name'  => $row->rater_name,
-                    'education'   => number_format((float)$row->education,   2, '.', ''),
-                    'experience'  => number_format((float)$row->experience,  2, '.', ''),
-                    'training'    => number_format((float)$row->training,    2, '.', ''),
-                    'performance' => number_format((float)$row->performance, 2, '.', ''),
-                    'total_qs'    => number_format($total_qs,                2, '.', ''),
-                    'bei'         => $row->bei !== null ? number_format((float)$row->bei, 2, '.', '') : null,
-                    // ✅ exam_score is applicant-level, same value across all rater rows
-                    'exam_score'  => $examScore !== null ? number_format($examScore, 2, '.', '') : null,
-                ];
+                    $raterBreakdown[] = [
+                        'rater_id'    => $rater['rater_id'],
+                        'rater_name'  => $rater['rater_name'],
+                        'education'   => number_format((float)$row->education,   2, '.', ''),
+                        'experience'  => number_format((float)$row->experience,  2, '.', ''),
+                        'training'    => number_format((float)$row->training,    2, '.', ''),
+                        'performance' => number_format((float)$row->performance, 2, '.', ''),
+                        'total_qs'    => number_format($total_qs,                2, '.', ''),
+                        'bei'         => $row->bei !== null ? number_format((float)$row->bei, 2, '.', '') : '0.00',
+                        'exam_score'  => number_format($examScore, 2, '.', ''),
+                    ];
+                } else {
+                    // ✅ Wala pang rating ang rater na 'to para sa applicant na 'to — zeros
+                    $raterBreakdown[] = [
+                        'rater_id'    => $rater['rater_id'],
+                        'rater_name'  => $rater['rater_name'],
+                        'education'   => '0.00',
+                        'experience'  => '0.00',
+                        'training'    => '0.00',
+                        'performance' => '0.00',
+                        'total_qs'    => '0.00',
+                        'bei'         => '0.00',
+                        'exam_score'  => number_format($examScore, 2, '.', ''),
+                    ];
+                }
             }
 
-            // ── Averaged totals ──────────────────────────────────────────────────
             $scoresArray = $scoreRows->map(fn($row) => [
-                'education'   => (float)$row->education,
-                'experience'  => (float)$row->experience,
-                'training'    => (float)$row->training,
-                'performance' => (float)$row->performance,
-                'bei'         => $row->bei,
-                // ✅ Pass resolved exam_percentage as exam_score into RatingService
-                'exam_percentage' => $examScore, // ✅ matches RatingService key
-
+                'education'       => (float)$row->education,
+                'experience'      => (float)$row->experience,
+                'training'        => (float)$row->training,
+                'performance'     => (float)$row->performance,
+                'bei'             => $row->bei,
+                'exam_percentage' => $examScore,
             ])->toArray();
 
+            // ⚠️ kung walang score pa (empty array), tiyakin na RatingService::computeFinalScore
+            // ay nagbabalik ng zeros imbes na mag-error / null
             $computed = RatingService::computeFinalScore($scoresArray);
 
             $applicants[] = [
-                'nPersonalInfo_id' => (string)$firstRow->nPersonalInfo_id,
-                'ControlNo'        => $firstRow->ControlNo,
-                'submission_id'    => $submissionId,
+                'nPersonalInfo_id' => (string)$submission->nPersonalInfo_id,
+                'ControlNo'        => $submission->ControlNo,
+                'submission_id'    => $submission->id,
                 'firstname'        => $firstname,
                 'lastname'         => $lastname,
-
-                // Per-rater scores
                 'rater_scores'     => $raterBreakdown,
-
-                // Averaged totals
-                'total_rating'     => $computed['total_qs'],
-                'bei'              => $computed['bei'],
-                'exam_score'      => $examScore, // ✅ must match what RatingService reads
-                'final_rating'     => $computed['grand_total'],
-                'grand_total'      => $computed['grand_total'],
+                'total_rating'     => $computed['total_qs']    ?? '0.00',
+                'bei'              => $computed['bei']         ?? '0.00',
+                'exam_score'       => $examScore,
+                'final_rating'     => $computed['grand_total'] ?? '0.00',
+                'grand_total'      => $computed['grand_total'] ?? '0.00',
             ];
         }
 
-        // Search filter
+        // Search filter + ranking — pareho lang dati
         $collection = collect($applicants);
 
         if (!empty($search)) {
@@ -864,7 +865,6 @@ class ApplicantService
             })->values();
         }
 
-        // Rank after filter
         $rankedApplicants = RatingService::addRanking($collection->values()->all());
         $collection       = collect($rankedApplicants);
 
@@ -881,6 +881,189 @@ class ApplicantService
             'data'              => $collection,
         ]);
     }
+
+    // // applicant scores // old code
+    // public function applicantFinalSummaryScore($jobpostId, $request)
+    // {
+    //     $jobpost = JobBatchesRsp::findOrFail($jobpostId);
+
+    //     $criteria = criteria_rating::with(['educations', 'trainings', 'experiences', 'performances', 'exams', 'behaviorals'])
+    //         ->where('job_batches_rsp_id', $jobpostId)->get();
+
+    //     $totalAssigned = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
+    //         ->whereHas('user', fn($q) => $q->where('active', 1))
+    //         ->count();
+
+    //     $totalCompleted = Job_batches_user::where('job_batches_rsp_id', $jobpostId)
+    //         ->where('status', 'complete')
+    //         ->count();
+
+    //     $allScores = rating_score::select(
+    //         'rating_score.id',
+    //         'rating_score.user_id as rater_id',
+    //         'users.name as rater_name',
+    //         'users.role_type',
+    //         'users.prefix',
+    //         'users.suffix',
+    //         'users.representative',
+    //         'users.position',
+    //         'rating_score.nPersonalInfo_id',
+    //         'rating_score.ControlNo',
+    //         'rating_score.job_batches_rsp_id',
+    //         'rating_score.education_score as education',
+    //         'rating_score.experience_score as experience',
+    //         'rating_score.training_score as training',
+    //         'rating_score.performance_score as performance',
+    //         'rating_score.behavioral_score as bei',
+    //         // ❌ removed rating_score.exam_score
+    //         'rating_score.grand_total',
+    //         'nPersonalInfo.firstname',
+    //         'nPersonalInfo.lastname',
+    //         'submission.id as submission_id'
+    //     )
+    //         ->leftJoin('nPersonalInfo', 'nPersonalInfo.id', '=', 'rating_score.nPersonalInfo_id')
+    //         ->leftJoin('users', 'users.id', '=', 'rating_score.user_id')
+    //         ->leftJoin('submission', function ($join) {
+    //             $join->on('submission.job_batches_rsp_id', '=', 'rating_score.job_batches_rsp_id')
+    //                 ->whereColumn('submission.nPersonalInfo_id', 'rating_score.nPersonalInfo_id');
+    //         })
+    //         ->where('rating_score.job_batches_rsp_id', $jobpostId)
+    //         ->get();
+
+    //     // ✅ Pre-load exam scores keyed by submission_id
+    //     $examScores = \App\Models\ApplicantExamScore::whereHas('submission', function ($q) use ($jobpostId) {
+    //         $q->where('job_batches_rsp_id', $jobpostId);
+    //     })
+    //         ->get()
+    //         ->keyBy('submission_id');
+
+    //     // Get all unique raters for this job post (for column headers)
+    //     $raters = $allScores->map(fn($r) => [
+    //         'rater_id'       => $r->rater_id,
+    //         'rater_name'     => $r->rater_name,
+    //         'position'       => $r->position,
+    //         'role_type'      => $r->role_type,
+    //         'representative' => $r->representative,
+    //         'prefix'         => $r->prefix,
+    //         'suffix'         => $r->suffix,
+    //     ])->unique('rater_id')->values();
+
+    //     // Group scores by applicant
+    //     $scoresByApplicant = $allScores->groupBy(
+    //         fn($row) => $row->nPersonalInfo_id ?: 'control_' . $row->ControlNo
+    //     );
+
+    //     $applicants = [];
+
+    //     foreach ($scoresByApplicant as $applicantKey => $scoreRows) {
+    //         $firstRow  = $scoreRows->first();
+    //         $firstname = $firstRow->firstname;
+    //         $lastname  = $firstRow->lastname;
+
+    //         // Fallback for internal applicants
+    //         if ((!$firstname || !$lastname) && $firstRow->ControlNo) {
+    //             $active    = vwActive::where('ControlNo', $firstRow->ControlNo)->first();
+    //             $firstname = $active->Firstname ?? $active->firstname ?? '';
+    //             $lastname  = $active->Surname   ?? $active->surname   ?? '';
+    //         }
+
+    //         // ✅ Resolve exam_score once per applicant from ApplicantExamScore
+    //         // For internal applicants (no submission_id from join), fall back to ControlNo lookup
+    //         $submissionId = $firstRow->submission_id;
+
+    //         if (!$submissionId && $firstRow->ControlNo) {
+    //             $submissionId = \App\Models\Submission::where('job_batches_rsp_id', $jobpostId)
+    //                 ->where('ControlNo', $firstRow->ControlNo)
+    //                 ->value('id');
+    //         }
+
+    //         $examRecord = $submissionId ? ($examScores[$submissionId] ?? null) : null;
+    //         $examScore  = $examRecord ? (float)$examRecord->exam_percentage : null;
+
+    //         // ── Per-rater breakdown ──────────────────────────────────────────────
+    //         $raterBreakdown = [];
+
+    //         foreach ($scoreRows as $row) {
+    //             $total_qs = (float)$row->education
+    //                 + (float)$row->experience
+    //                 + (float)$row->training
+    //                 + (float)$row->performance;
+
+    //             $raterBreakdown[] = [
+    //                 'rater_id'    => $row->rater_id,
+    //                 'rater_name'  => $row->rater_name,
+    //                 'education'   => number_format((float)$row->education,   2, '.', ''),
+    //                 'experience'  => number_format((float)$row->experience,  2, '.', ''),
+    //                 'training'    => number_format((float)$row->training,    2, '.', ''),
+    //                 'performance' => number_format((float)$row->performance, 2, '.', ''),
+    //                 'total_qs'    => number_format($total_qs,                2, '.', ''),
+    //                 'bei'         => $row->bei !== null ? number_format((float)$row->bei, 2, '.', '') : null,
+    //                 // ✅ exam_score is applicant-level, same value across all rater rows
+    //                 'exam_score'  => $examScore !== null ? number_format($examScore, 2, '.', '') : null,
+    //             ];
+    //         }
+
+    //         // ── Averaged totals ──────────────────────────────────────────────────
+    //         $scoresArray = $scoreRows->map(fn($row) => [
+    //             'education'   => (float)$row->education,
+    //             'experience'  => (float)$row->experience,
+    //             'training'    => (float)$row->training,
+    //             'performance' => (float)$row->performance,
+    //             'bei'         => $row->bei,
+    //             // ✅ Pass resolved exam_percentage as exam_score into RatingService
+    //             'exam_percentage' => $examScore, // ✅ matches RatingService key
+
+    //         ])->toArray();
+
+    //         $computed = RatingService::computeFinalScore($scoresArray);
+
+    //         $applicants[] = [
+    //             'nPersonalInfo_id' => (string)$firstRow->nPersonalInfo_id,
+    //             'ControlNo'        => $firstRow->ControlNo,
+    //             'submission_id'    => $submissionId,
+    //             'firstname'        => $firstname,
+    //             'lastname'         => $lastname,
+
+    //             // Per-rater scores
+    //             'rater_scores'     => $raterBreakdown,
+
+    //             // Averaged totals
+    //             'total_rating'     => $computed['total_qs'],
+    //             'bei'              => $computed['bei'],
+    //             'exam_score'      => $examScore, // ✅ must match what RatingService reads
+    //             'final_rating'     => $computed['grand_total'],
+    //             'grand_total'      => $computed['grand_total'],
+    //         ];
+    //     }
+
+    //     // Search filter
+    //     $collection = collect($applicants);
+
+    //     if (!empty($search)) {
+    //         $collection = $collection->filter(function ($item) use ($search) {
+    //             return str_contains(strtolower($item['firstname']), strtolower($search))
+    //                 || str_contains(strtolower($item['lastname']),  strtolower($search))
+    //                 || str_contains(strtolower((string)$item['ControlNo']), strtolower($search));
+    //         })->values();
+    //     }
+
+    //     // Rank after filter
+    //     $rankedApplicants = RatingService::addRanking($collection->values()->all());
+    //     $collection       = collect($rankedApplicants);
+
+    //     return response()->json([
+    //         'jobpost_id'        => $jobpostId,
+    //         'total_assigned'    => $totalAssigned,
+    //         'total_completed'   => $totalCompleted,
+    //         'office'            => $jobpost->Office ?? null,
+    //         'position'          => $jobpost->Position ?? null,
+    //         'Salary_Grade'      => $jobpost->SalaryGrade ?? null,
+    //         'Plantilla_Item_No' => $jobpost->ItemNo ?? null,
+    //         'criteria'          => $criteria,
+    //         'raters'            => $raters,
+    //         'data'              => $collection,
+    //     ]);
+    // }
 
 
 
@@ -1258,7 +1441,7 @@ class ApplicantService
     // fetch the  applicant list applied
     public function applicantApplied($postDate, ?string $applicantType = null)
     {
-         ini_set('max_execution_time', 3600);
+        ini_set('max_execution_time', 3600);
         try {
             // ── 1. Parse the incoming date (handles "April 27, 2026" or "2026-04-27") ──
             $parsedDate = \Carbon\Carbon::parse($postDate)->format('Y-m-d');
@@ -1351,19 +1534,19 @@ class ApplicantService
                 $personInfo = $first['personal_info'];
 
                 try {
-                      $dobCarbon    = \Carbon\Carbon::parse($personInfo['date_of_birth']);
+                    $dobCarbon    = \Carbon\Carbon::parse($personInfo['date_of_birth']);
                     $dobFormatted = \Carbon\Carbon::parse($personInfo['date_of_birth'])->format('d/m/Y');
-                       $dobFormatted = $dobCarbon->format('d/m/Y');
-    $age            = $dobCarbon->age;
+                    $dobFormatted = $dobCarbon->format('d/m/Y');
+                    $age            = $dobCarbon->age;
                 } catch (\Exception $e) {
                     $dobFormatted = $personInfo['date_of_birth'];
-                     $age          = null;
+                    $age          = null;
                 }
 
                 $applications = $group->map(function ($submission) {
                     $jp = $submission['job_post'];
-              
-    
+
+
                     return [
                         'submission_id'      => $submission['submission_id'],
                         'nPersonalInfo_id'   => $submission['nPersonalInfo_id'],
@@ -1378,7 +1561,7 @@ class ApplicantService
                         ] : null,
                         'applicant_status'   => $submission['applicant_status'],
                         'applicant_type'     => $submission['applicant_type'],
-                       
+
                     ];
                 })->values();
 
@@ -1550,6 +1733,4 @@ class ApplicantService
             ], 500);
         }
     }
-
-   
 }
