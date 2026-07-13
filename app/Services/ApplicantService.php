@@ -734,7 +734,7 @@ class ApplicantService
             ->values();
 
         // ✅ MASTER LIST OF APPLICANTS — lahat ng submitted, may rating man o wala
-        $submissions = Submission::where('job_batches_rsp_id', $jobpostId)->get();
+        $submissions = Submission::where('job_batches_rsp_id', $jobpostId)->where('status','Qualified')->where('application_status', '!=', 'Withdrawn')->get();
 
         // Existing scores na lang (kung meron)
         $allScores = rating_score::select(
