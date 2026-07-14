@@ -1059,18 +1059,20 @@ class RaterService
     public function raterWithAssignedJob($jobPostId)
     {
         try {
-            $users = User::where('role_id', 2)->where('active', 1)
+            $users = User::where('role_id', 2)
+                ->where('active', 1)
+                ->whereHas('job_batches_rsp', function ($q) use ($jobPostId) {
+                    $q->where('job_batches_user.status', 'complete')
+                        ->where('job_batches_rsp.id', $jobPostId);
+                })
                 ->with(['job_batches_rsp' => function ($q) use ($jobPostId) {
-                    // Fetch only job posts assigned to the rater that are still pending
                     $q->select('job_batches_rsp.id', 'job_batches_rsp.Position', 'job_batches_rsp.post_date', 'job_batches_rsp.end_date')
-                        ->wherePivot('status', 'complete')
+                        ->wherePivot('status', 'complete') // fine here — this is the actual relation call, not inside whereHas
                         ->where('job_batches_rsp.id', $jobPostId);
                 }])
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($user) {
-
-
                     return [
                         'id' => $user->id,
                         'name' => $user->name,
@@ -1079,7 +1081,6 @@ class RaterService
                         'active' => $user->active,
                         'created_at' => $user->created_at->format('Y-m-d H:i:s'),
                         'updated_at' => $user->updated_at->format('Y-m-d H:i:s'),
-                        // Only pending job titles shown
                         'job_batches_rsp' => $user->job_batches_rsp->map(function ($job) {
                             return [
                                 'id' => $job->id,
@@ -1088,7 +1089,6 @@ class RaterService
                                 'end_date' => $job->end_date ? Carbon::parse($job->end_date)->format('m/d/Y') : null,
                             ];
                         }),
-
                     ];
                 });
 
@@ -1105,8 +1105,7 @@ class RaterService
             ], 500);
         }
     }
-
-
+  
     // fetch the score of applicant rate by rater
     public function getScoreOfApplicantRateByRater($validated) // jobpost id
     {
