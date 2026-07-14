@@ -154,10 +154,11 @@
 
               <!-- Signature -->
         <div class="signature-section">
-            <p><strong>EDGARD C. DE GUZMAN</strong></p>
-            <p>City Administrator</p>
-            <p>Authorized Representative of the City Mayor</p>
-            <p>Chairperson</p>
+            <p><strong>JANYLENE A. PALERMO</strong></p>
+            <p>CITY GOVERNMENT DEPARTMENT HEAD I (CITY HUMAN 
+                RESOURCE MANAGEMENT OFFICER)</p>
+            <!-- <p>City Human Resource Management Officer</p> -->
+            <!-- <p>Chairperson</p> -->
         </div>
 
 
