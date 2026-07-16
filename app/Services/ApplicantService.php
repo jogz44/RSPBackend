@@ -369,7 +369,8 @@ class ApplicantService
             'image_path' => $info['image_path'] ?? null,
             'image_url' => $imageUrl,
 
-            'date_of_birth' => $info['date_of_birth'] ?? null,
+          'date_of_birth' => $this->normalizeDate($info['date_of_birth'] ?? null),
+
             'place_of_birth' => $info['place_of_birth'] ?? null,
             'sex' => $info['sex'] ?? null,
             'civil_status' => $info['civil_status'] ?? null,
@@ -429,6 +430,34 @@ class ApplicantService
         ], 200, [], JSON_UNESCAPED_SLASHES); // 👈 this is the key fix
     }
 
+private function normalizeDate($date): ?string
+{
+    if (empty($date)) {
+        return null;
+    }
+
+    $formats = [
+        'Y-m-d H:i:s', // internal: 2002-06-11 00:00:00
+        'Y-m-d',
+        'd/m/Y',       // external: 29/08/1994
+        'm/d/Y',
+    ];
+
+    foreach ($formats as $format) {
+        try {
+            return \Carbon\Carbon::createFromFormat($format, trim($date))->format('m/d/Y');
+        } catch (\Exception $e) {
+            continue;
+        }
+    }
+
+    // last resort fallback
+    try {
+        return \Carbon\Carbon::parse($date)->format('m/d/Y');
+    } catch (\Exception $e) {
+        return null;
+    }
+}
     // fetch the applicant scores
     public function score($jobpostId, $request)
     {
@@ -734,8 +763,13 @@ class ApplicantService
             ->values();
 
         // ✅ MASTER LIST OF APPLICANTS — lahat ng submitted, may rating man o wala
-        $submissions = Submission::where('job_batches_rsp_id', $jobpostId)->where('status','Qualified')->where('application_status', '!=', 'Withdrawn')->get();
-
+            $submissions = Submission::where('job_batches_rsp_id', $jobpostId)
+            ->where('status', 'Qualified')
+            ->where(function ($query) {
+                $query->where('application_status', '!=', 'Withdrawn')
+                    ->orWhereNull('application_status');
+            })
+            ->get();
         // Existing scores na lang (kung meron)
         $allScores = rating_score::select(
             'rating_score.id',
