@@ -61,6 +61,7 @@ Route::prefix('rater')->group(function () {
 
 // applying route
 Route::prefix('applicant')->group(function () {
+     Route::post('/application/submission', [ApplicantSubmissionController::class, 'applicationSubmit']); // for external applicant with zip file
     Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication'])->middleware('throttle:application'); // for external applicant with zip file
     Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication'])->middleware('throttle:application'); // employyee applicant applying job
     Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication'])->middleware('throttle:application'); // confirmation for updating his excek file
@@ -220,7 +221,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('applicant')->group(function () {
         // routes/api.php
-        Route::get('/photo/{nPersonalInfoId}', [ApplicantExamScoreController::class, 'applicantPhoto']);
+        Route::get('/photo/{nPersonalInfoId}', [ApplicantSubmissionController::class, 'applicantPhoto']);
         Route::get('/list-no-exam', [ApplicantExamScoreController::class, 'listOfApplicantWithOutExamScore']); // for external applicant with zip file
 
         Route::get('/schedule-exam', [ScheduleController::class, 'applicantListExam']); // applicant dont have yet schedule for examination
