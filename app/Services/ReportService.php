@@ -800,6 +800,11 @@ class ReportService
                                 ->orOn('submission.ControlNo', '=', 'rating_score.ControlNo');
                         });
                 })
+                ->where('submission.status', 'Qualified') 
+                ->where(function ($query) {
+                 $query->where('submission.application_status', '!=', 'Withdrawn')
+                ->orWhereNull('submission.application_status');
+                    })
                 ->where('rating_score.job_batches_rsp_id', $jobPost->id)
                 ->get();
 
@@ -2049,6 +2054,11 @@ class ReportService
             ->leftJoin('applicant_exam_scores', 'applicant_exam_scores.submission_id', '=', 'submission.id') // ← new join
 
             ->where('rating_score.job_batches_rsp_id', $jobpostId)
+            ->where('submission.status', 'Qualified') 
+            ->where(function ($query) {
+            $query->where('submission.application_status', '!=', 'Withdrawn')
+                ->orWhereNull('submission.application_status');
+                 })
             ->get();
 
         $scoresByApplicant = $allScores->groupBy(
