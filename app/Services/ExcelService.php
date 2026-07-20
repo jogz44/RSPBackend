@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\JobBatchesRsp;
+use App\Models\rating_score;
 use App\Models\Submission;
+use App\Models\User;
 use App\Models\vwActive;
 use App\Models\vwplantillastructure;
 use App\Models\xService;
@@ -1120,7 +1122,7 @@ class ExcelService
                     $age          = null;
                 }
 
-                $current_service = xService::select('ControlNo','ToDate','FromDate','Office','Designation','Status')
+                $current_service = xService::select('ControlNo', 'ToDate', 'FromDate', 'Office', 'Designation', 'Status')
                     ->where('ControlNo', $controlNo)
                     ->orderByDesc('ToDate')
                     ->orderByDesc('FromDate')
@@ -1132,9 +1134,9 @@ class ExcelService
                 if ($designation) {
                     $designation = trim(preg_replace('/\s*\(.*?\)\s*/', '', $designation));
                 }
-                
+
                 $status = $current_service->Status ?? null;
-                
+
                 $xservice = xService::select('FromDate', 'ToDate')
                     ->where('ControlNo', $controlNo)
                     ->get();
@@ -1280,5 +1282,185 @@ class ExcelService
                 'line'    => $e->getLine(),
             ], 500);
         }
+    }
+
+    public function topApplicant($postDateInput)
+    {
+        $templatePath = storage_path('app/template/list_of_applicant_top_ranking.xlsx');
+        $reader = IOFactory::createReader('Xlsx');
+        $reader->setIncludeCharts(true);
+        $spreadsheet = $reader->load($templatePath);
+
+        if ($spreadsheet->hasMacros()) {
+            $spreadsheet->setMacrosCode($spreadsheet->getMacrosCode());
+        }
+
+        $templateSheet = $spreadsheet->getSheet(0); // keep reference before cloning
+
+        $postDateRaw = $postDateInput['publication_date'];
+
+        $jobPosts = JobBatchesRsp::whereDate('post_date', $postDateRaw)
+            ->select('id', 'Office', 'Division', 'Section', 'Position', 'SalaryGrade', 'ItemNo', 'post_date', 'end_date')
+            ->get();
+
+        if ($jobPosts->isEmpty()) {
+            return response()->json(['message' => 'No job posts found for this date.'], 404);
+        }
+
+        $usedTitles = [];
+
+        foreach ($jobPosts as $index => $jobPost) {
+
+            // --- ranking data for this job post (unchanged logic) ---
+            $allScores = rating_score::select(
+                'rating_score.id',
+                'rating_score.nPersonalInfo_id',
+                'rating_score.ControlNo',
+                'rating_score.job_batches_rsp_id',
+                'rating_score.education_score as education',
+                'rating_score.experience_score as experience',
+                'rating_score.training_score as training',
+                'rating_score.performance_score as performance',
+                'rating_score.behavioral_score as bei',
+                'rating_score.grand_total',
+                'nPersonalInfo.firstname as ext_firstname',
+                'nPersonalInfo.lastname as ext_lastname',
+                'xPersonal.Firstname as int_firstname',
+                'xPersonal.Surname as int_lastname',
+                'submission.id as submission_id'
+            )
+                ->leftJoin('nPersonalInfo', 'nPersonalInfo.id', '=', 'rating_score.nPersonalInfo_id')
+                ->leftJoin('xPersonal', 'xPersonal.ControlNo', '=', 'rating_score.ControlNo')
+                ->leftJoin('submission', function ($join) {
+                    $join->on('submission.job_batches_rsp_id', '=', 'rating_score.job_batches_rsp_id')
+                        ->where(function ($q) {
+                            $q->on('submission.nPersonalInfo_id', '=', 'rating_score.nPersonalInfo_id')
+                                ->orOn('submission.ControlNo', '=', 'rating_score.ControlNo');
+                        });
+                })
+                ->where('submission.status', 'Qualified')
+                ->where(function ($query) {
+                    $query->where('submission.application_status', '!=', 'Withdrawn')
+                        ->orWhereNull('submission.application_status');
+                })
+                ->where('rating_score.job_batches_rsp_id', $jobPost->id)
+                ->get();
+
+            $examScores = \App\Models\ApplicantExamScore::whereHas('submission', function ($q) use ($jobPost) {
+                $q->where('job_batches_rsp_id', $jobPost->id);
+            })
+                ->get()
+                ->keyBy('submission_id');
+
+            $scoresByApplicant = $allScores->groupBy(
+                fn($row) => $row->nPersonalInfo_id ?: 'control_' . $row->ControlNo
+            );
+
+            $applicants = [];
+
+            foreach ($scoresByApplicant as $rows) {
+                $first = $rows->first();
+
+                $submissionId = $first->submission_id;
+                if (!$submissionId && $first->ControlNo) {
+                    $submissionId = \App\Models\Submission::where('job_batches_rsp_id', $jobPost->id)
+                        ->where('ControlNo', $first->ControlNo)
+                        ->value('id');
+                }
+
+                $examRecord     = $submissionId ? ($examScores[$submissionId] ?? null) : null;
+                $examPercentage = $examRecord ? (float) $examRecord->exam_percentage : null;
+
+                $scoresArray = $rows->map(fn($row) => [
+                    'education'       => (float) $row->education,
+                    'experience'      => (float) $row->experience,
+                    'training'        => (float) $row->training,
+                    'performance'     => (float) $row->performance,
+                    'bei'             => $row->bei,
+                    'exam_percentage' => $examPercentage,
+                ])->toArray();
+
+                $computed = RatingService::computeFinalScore($scoresArray);
+
+                $applicants[] = [
+                    'nPersonalInfo_id' => $first->nPersonalInfo_id,
+                    'ControlNo'        => $first->ControlNo,
+                    'firstname'        => $first->nPersonalInfo_id ? $first->ext_firstname : $first->int_firstname,
+                    'lastname'         => $first->nPersonalInfo_id ? $first->ext_lastname  : $first->int_lastname,
+                ] + $computed;
+            }
+
+            $topApplicants = collect(RatingService::addRanking($applicants))
+                ->sortBy('rank')
+                ->values();
+
+            // --- sheet setup: 1 sheet per job post, titled Position - ItemNo - page ---
+            $pageNo = $index + 1;
+            $rawTitle = trim(($jobPost->Position ?: 'Position') . ' - Item: ' . ($jobPost->ItemNo ?: 'N/A') . ' - Page: ' . $pageNo);
+            $safeTitle = preg_replace('/[\[\]\*\/\\\\\?\:]/', '', $rawTitle);
+            $safeTitle = mb_substr($safeTitle, 0, 31);
+
+            // fallback guard in case of any leftover collision (e.g. duplicate ItemNo)
+            $finalTitle = $safeTitle;
+            $suffix = 1;
+            while (in_array($finalTitle, $usedTitles)) {
+                $suffixStr  = "($suffix)";
+                $finalTitle = mb_substr($safeTitle, 0, 31 - mb_strlen($suffixStr)) . $suffixStr;
+                $suffix++;
+            }
+            $usedTitles[] = $finalTitle;
+
+            if ($index === 0) {
+                $sheet = $templateSheet;
+                $sheet->setTitle($finalTitle);
+            } else {
+                $sheet = clone $templateSheet;
+                $sheet->setTitle($finalTitle);
+                $spreadsheet->addSheet($sheet, $index);
+            }
+
+            // --- header block: labels in column A, values in column B ---
+            $postDateFmt     = Carbon::parse($jobPost->post_date)->format('F d, Y');
+            $endDateFmt      = Carbon::parse($jobPost->end_date)->format('F d, Y');
+            $publicationDate = "PUBLICATION DATE: {$postDateFmt} - {$endDateFmt}";
+
+            $sheet->setCellValue('A3', $publicationDate);
+
+            $sheet->setCellValue('B5', $jobPost->Office );
+            $sheet->setCellValue('A6', 'Division/Section');
+            $sheet->setCellValue('B6', $jobPost->Division ?? $jobPost->Section);
+
+            $sheet->setCellValue('A7', 'Position');
+            $sheet->setCellValue('B7', $jobPost->Position);
+
+            $sheet->setCellValue('A8', 'Salary Grade');
+            $sheet->setCellValue('B8', $jobPost->SalaryGrade);
+
+            $sheet->setCellValue('A9', 'Plantilla Item No');
+            $sheet->setCellValue('B9', $jobPost->ItemNo);
+
+            $extraRows = $topApplicants->count() - 5;
+            if ($extraRows > 0) {
+                $sheet->insertNewRowBefore(23, $extraRows);
+            }
+
+            $row = 11;
+            foreach ($topApplicants as $applicant) {
+                $sheet->setCellValue("A{$row}", $applicant['rank'] ?? '');
+                $sheet->setCellValue("B{$row}", trim("{$applicant['firstname']} {$applicant['lastname']}"));
+                $row++;
+            }
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+
+        return new StreamedResponse(function () use ($writer) {
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="list_of_applicant_top_ranking.xlsx"',
+        ]);
     }
 }

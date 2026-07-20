@@ -759,12 +759,12 @@ class ReportController extends Controller
     // list of applicant where qualified
     public function listOfApplicantQualified($postDate)
     {
-       $applicant = $this->applicantService->ApplicantQualified($postDate);
+        $applicant = $this->applicantService->ApplicantQualified($postDate);
 
-       return $applicant;
+        return $applicant;
     }
 
-    
+
     // list of qualified applicants  tag_color yellow
     public function listQualifiedApplicantsPublicationYellow($postDate, Request $request)
     {
@@ -779,11 +779,10 @@ class ReportController extends Controller
     // only green applicant tag color
     public function applicantTagColorGreen($postDate)
     {
-    
+
         $data = $this->reportService->applicantTagColorGreen($postDate);
 
         return $data;
-
     }
 
 
@@ -802,7 +801,7 @@ class ReportController extends Controller
         return $data;
     }
 
-      // list of applicant withdraw there application
+    // list of applicant withdraw there application
     public function listApplicantWithdrawApplication($postDate, Request $request)
     {
 
@@ -813,7 +812,7 @@ class ReportController extends Controller
         return $result;
     }
 
-       // get applicant internal with lenght and current position 
+    // get applicant internal with lenght and current position 
     public function applicantAppliedInternal($date)
     {
 
@@ -822,7 +821,7 @@ class ReportController extends Controller
         return $result;
     }
 
-      // internal applicant with  service
+    // internal applicant with  service
     public function internalApplicantService(Request $request)
     {
         $validated = $request->validate([
@@ -832,4 +831,12 @@ class ReportController extends Controller
         return $this->excelService->internalService($validated);
     }
 
+    public function topRakingApplicantExcel(Request $request)
+    {
+        $validated = $request->validate([
+            'publication_date' => 'required',
+        ]);
+
+        return $this->excelService->topApplicant($validated);
+    }
 }

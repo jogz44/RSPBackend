@@ -330,6 +330,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/demographic', [ReportController::class, 'demographic']); // unqualified applicant
         Route::post('/internal/applicant/designation', [ReportController::class, 'internalApplicantDesignation']); // applincat internal with designation
         Route::post('/internal/applicant/service', [ReportController::class, 'internalApplicantService']); // applincat internal with designation
+        Route::post('/top/ranking/applicant', [ReportController::class, 'topRakingApplicantExcel']); // applincat internal with designation
 
     });
 
