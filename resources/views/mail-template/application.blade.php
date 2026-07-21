@@ -154,8 +154,8 @@
 
               <!-- Signature -->
         <div class="signature-section">
-            <p><strong>JANYLENE A. PALERMO</strong></p>
-            <p>CITY GOVERNMENT DEPARTMENT HEAD I (CITY HUMAN 
+            <p><strong>JANYLENE A. PALERMO</strong><br>
+            CITY GOVERNMENT DEPARTMENT HEAD I <br>(CITY HUMAN 
                 RESOURCE MANAGEMENT OFFICER)</p>
             <!-- <p>City Human Resource Management Officer</p> -->
             <!-- <p>Chairperson</p> -->
