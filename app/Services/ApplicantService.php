@@ -907,10 +907,14 @@ private function normalizeDate($date): ?string
             'total_assigned'    => $totalAssigned,
             'total_completed'   => $totalCompleted,
             'office'            => $jobpost->Office ?? null,
+            
             'position'          => $jobpost->Position ?? null,
             'Salary_Grade'      => $jobpost->SalaryGrade ?? null,
             'Plantilla_Item_No' => $jobpost->ItemNo ?? null,
-            'criteria'          => $criteria,
+'publication_date' => \Carbon\Carbon::parse($jobpost->post_date)->format('F j, Y')
+    . ' - ' .
+    \Carbon\Carbon::parse($jobpost->end_date)->format('F j, Y'),
+                'criteria'          => $criteria,
             'raters'            => $raters,
             'data'              => $collection,
         ]);
@@ -1098,7 +1102,6 @@ private function normalizeDate($date): ?string
     //         'data'              => $collection,
     //     ]);
     // }
-
 
 
     // applicant external photo
