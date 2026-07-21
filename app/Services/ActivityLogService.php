@@ -230,7 +230,7 @@ class ActivityLogService
                     'job_batches_rsp_id' => $validated['job_batches_rsp_id'] ?? $oldData['job_batches_rsp_id'],
                 ],
             ],
-            "'Rater {$rater->name} changed their password."
+            "'Rater {$rater->name} update assign jobpost."
 
         );
     }
