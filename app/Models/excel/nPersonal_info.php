@@ -79,6 +79,8 @@ class nPersonal_info extends Model
     //     'date_of_birth' => 'date',
     // ];
 
+protected $appends = ['image_url', 'has_image'];
+
 
     protected static function newFactory()
     {
@@ -140,7 +142,7 @@ class nPersonal_info extends Model
             'submission',
             'nPersonalInfo_id',
             'job_batches_rsp_id'
-        )->withTimestamps();
+         )->withPivot('status')->withTimestamps();
     }
 
 
