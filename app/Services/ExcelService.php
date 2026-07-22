@@ -1358,7 +1358,9 @@ class ExcelService
 
             $applicants = [];
 
-            foreach ($scoresByApplicant as $rows) {
+           
+
+           foreach ($scoresByApplicant as $rows) {
                 $first = $rows->first();
 
                 $submissionId = $first->submission_id;
@@ -1382,11 +1384,62 @@ class ExcelService
 
                 $computed = RatingService::computeFinalScore($scoresArray);
 
+                // --- internal applicant extras: office, position, length of service ---
+                $office          = null;
+                $designation     = null;
+                $lengthOfService = null;
+                $status = null;
+
+                if (!$first->nPersonalInfo_id && $first->ControlNo) {
+
+                    $current_service = xService::select('ControlNo', 'ToDate', 'FromDate', 'Office', 'Designation', 'Status')
+                        ->where('ControlNo', $first->ControlNo)
+                        ->orderByDesc('ToDate')
+                        ->orderByDesc('FromDate')
+                        ->first();
+
+                    $office      = $current_service->Office ?? null;
+                    $designation = $current_service->Designation ?? null;
+                    $status = $current_service->Status ?? null;
+
+                    if ($designation) {
+                        $designation = trim(preg_replace('/\s*\(.*?\)\s*/', '', $designation));
+                    }
+
+                    $xservice = xService::select('FromDate', 'ToDate')
+                        ->where('ControlNo', $first->ControlNo)
+                        ->get();
+
+                    $totalDays = 0;
+                    $today     = Carbon::now();
+
+                    foreach ($xservice as $service) {
+                        $from = Carbon::parse($service->FromDate);
+                        $to   = Carbon::parse($service->ToDate ?? now());
+
+                        if ($to->isFuture())   $to   = $today;
+                        if ($from->isFuture()) continue;
+
+                        $totalDays += $from->diffInDays($to);
+                    }
+
+                    $years  = intdiv($totalDays, 365);
+                    $remain = $totalDays % 365;
+                    $months = intdiv($remain, 30);
+                    $days   = $remain % 30;
+
+                    $lengthOfService = "{$years} years, {$months} months, {$days} days";
+                }
+
                 $applicants[] = [
                     'nPersonalInfo_id' => $first->nPersonalInfo_id,
                     'ControlNo'        => $first->ControlNo,
                     'firstname'        => $first->nPersonalInfo_id ? $first->ext_firstname : $first->int_firstname,
                     'lastname'         => $first->nPersonalInfo_id ? $first->ext_lastname  : $first->int_lastname,
+                    'office'           => $office,
+                    'position'         => $designation,
+                    'lenghtOfservice'  => $lengthOfService,
+                    'status'  => $status,
                 ] + $computed;
             }
 
@@ -1448,6 +1501,11 @@ class ExcelService
             foreach ($topApplicants as $applicant) {
                 $sheet->setCellValue("A{$row}", $applicant['rank'] ?? '');
                 $sheet->setCellValue("B{$row}", trim("{$applicant['firstname']} {$applicant['lastname']}"));
+                $sheet->setCellValue("C{$row}", $applicant['office'] ?? '');
+                $sheet->setCellValue("E{$row}", $applicant['status'] ?? '');
+                $sheet->setCellValue("D{$row}", $applicant['position'] ?? '');
+                $sheet->setCellValue("F{$row}", $applicant['lenghtOfservice'] ?? '');
+                
                 $row++;
             }
         }
