@@ -2,17 +2,21 @@
 
 use App\Http\Controllers\ApplicantExamScoreController;
 use App\Http\Controllers\ApplicantSubmissionController;
+use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CriteriaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DesignationQSController;
 use App\Http\Controllers\EmailController;
+use App\Http\Controllers\EmployeeAssignController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeReAssignController;
 use App\Http\Controllers\ExportApplicantController;
 use App\Http\Controllers\JobBatchesRspController;
 use App\Http\Controllers\LibraryController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\OnCriteriaJobController;
 use App\Http\Controllers\OnFundedPlantillaController;
 use App\Http\Controllers\PlantillaController;
@@ -46,10 +50,10 @@ Route::get('/applicant/pds-image/{filename}', [JobBatchesRspController::class, '
 Route::post('/verify-code', [VerificationController::class, 'verifyCode']); // verify the code
 
 Route::post('/send-verification', [VerificationController::class, 'sendVerification'])
-->middleware('throttle:send-verification'); // 5 requests per 1 minute // sending code on email
+    ->middleware('throttle:send-verification'); // 5 requests per 1 minute // sending code on email
 
 Route::post('/resend-verification', [VerificationController::class, 'reSendVerification'])
-->middleware('throttle:resend-verification'); // 5 requests per 1 minute // sending code on email
+    ->middleware('throttle:resend-verification'); // 5 requests per 1 minute // sending code on email
 
 Route::middleware('auth:sanctum')->post('/logs/auth', [LogController::class, 'logAuth']);
 
@@ -61,7 +65,7 @@ Route::prefix('rater')->group(function () {
 
 // applying route
 Route::prefix('applicant')->group(function () {
-     Route::post('/application/submission', [ApplicantSubmissionController::class, 'applicationSubmit']); // for external applicant with zip file
+    Route::post('/application/submission', [ApplicantSubmissionController::class, 'applicationSubmit']); // for external applicant with zip file
     Route::post('/submissions', [ApplicantSubmissionController::class, 'applicantStoreApplication'])->middleware('throttle:application'); // for external applicant with zip file
     Route::post('/employee', [ApplicantSubmissionController::class, 'employeeStoreApplicantApplication'])->middleware('throttle:application'); // employyee applicant applying job
     Route::post('/confirmation', [ApplicantSubmissionController::class, 'updatingApplicantApplication'])->middleware('throttle:application'); // confirmation for updating his excek file
@@ -69,7 +73,7 @@ Route::prefix('applicant')->group(function () {
 
 // applicant outside list of jobs
 Route::prefix('job-batches-rsp')->group(function () {
-    Route::get('/postdate', [JobBatchesRspController::class, 'jobPostPostDate'])->middleware('throttle:public-api');// fetch job post base on the  postdate
+    Route::get('/postdate', [JobBatchesRspController::class, 'jobPostPostDate'])->middleware('throttle:public-api'); // fetch job post base on the  postdate
     Route::get('/', [JobBatchesRspController::class, 'availableJobPost'])->middleware('throttle:public-api'); // fetching all job post
     Route::get('/list', [JobBatchesRspController::class, 'jobListCriteria'])->middleware('throttle:public-api'); // fetching the all job post on the admin
     Route::get('/{job_post_id}', [JobBatchesRspController::class, 'jobPostView'])->middleware('throttle:public-api'); // update the job-batches-rsp start date and end date
@@ -77,7 +81,7 @@ Route::prefix('job-batches-rsp')->group(function () {
 
 Route::get('/on-funded-plantilla/by-funded/{JobpostId}', [OnFundedPlantillaController::class, 'showByFunded'])->middleware('throttle:public-api');
 
- Route::get('employee/list', [AppointmentController::class, 'employee']); // employe list
+Route::get('employee/list', [AppointmentController::class, 'employee']); // employe list
 
 //erms
 
@@ -98,7 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/registration', [AuthController::class, 'userRegister']); // create an admin account
 
 
-    Route::get('/user', [UsersController::class, 'getAuthenticatedUser']);// user
+    Route::get('/user', [UsersController::class, 'getAuthenticatedUser']); // user
 
     Route::prefix('users')->group(function () {
         Route::get('/', [AuthController::class, 'getAllUsers']);
@@ -123,7 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::get('/', [UsersController::class, 'getAuthenticatedrater']);
         Route::delete('/{id}', [RaterAuthController::class, 'deleteUser']);
 
-        Route::get('/show/{jobpostId}', [RaterController::class, 'fetchApplicant']);// fetch applicant have rating score
+        Route::get('/show/{jobpostId}', [RaterController::class, 'fetchApplicant']); // fetch applicant have rating score
         Route::post('/edit/{id}', [RaterAuthController::class, 'updateRater']);
         Route::get('/job-post-list/{raterId}', [RaterController::class, 'jobPost']);
         Route::post('/update-password', [RaterAuthController::class, 'updateRaterPassword']);
@@ -255,15 +259,19 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::get('/pds-image/{filename}', [JobBatchesRspController::class, 'proxyPdsImage']);
 
         // delete the submission of the applicant
-        Route::delete('/delete/submission/{submissionId}', [SubmissionController::class, 'deleteApplicantSubmission']);  
-        
+        Route::delete('/delete/submission/{submissionId}', [SubmissionController::class, 'deleteApplicantSubmission']);
+
         //applicant tag_color
-        Route::post('/tag/color', [SubmissionController::class, 'tagColor']);  
+        Route::post('/tag/color', [SubmissionController::class, 'tagColor']);
 
         // update the application status
-        Route::post('/application', [SubmissionController::class, 'applicantStatusUpdate']);  
+        Route::post('/application', [SubmissionController::class, 'applicantStatusUpdate']);
 
+        // get the list of application
+        Route::get('/application/list/{email}', [ApplicationController::class, 'getListOfApplicant'])->withoutMiddleware(['auth:sanctum']);
 
+        // get external pds
+        Route::get('/application/pds/external/{email}', [ApplicationController::class, 'getApplicantPdsExternalApplication'])->withoutMiddleware(['auth:sanctum']);
     });
 
     Route::prefix('job-batches-rsp')->group(function () {
@@ -298,7 +306,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/applicant/xpds', [xPDSController::class, 'getPersonalDataSheet']); // employee pds
         Route::post('/update/{controlNo}', [EmployeeController::class, 'updateEmployeeCredentials']); //  updating the  employee appoitment
         Route::get('/photo/{controlNo}', [EmployeeController::class, 'proxyImageInternal']); //  proxy-image get on the 2.205 ip
-      
+
 
     });
 
@@ -360,9 +368,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/list-of-appointed', [ReportController::class, 'appointed']);
 
         // list of job post publication
-       Route::get('/list-date/publication', [ReportController::class, 'listDate']);
+        Route::get('/list-date/publication', [ReportController::class, 'listDate']);
 
-       // request job post list base on the publication date send
+        // request job post list base on the publication date send
         Route::post('/publication-job', [ReportController::class, 'jobPublication']);
 
         // list of job with bei only
@@ -372,26 +380,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/applicant/{date}', [ApplicantSubmissionController::class, 'applicantApplied']);
 
         // get all applicant where qualified
-        Route::get('/qualified/{date}', [ReportController::class, 'listOfApplicantQualified']); 
+        Route::get('/qualified/{date}', [ReportController::class, 'listOfApplicantQualified']);
 
         // list of qualified applicants  tag color yellow
-        Route::get('/applicant/qualified/yellow/{date}', [ReportController::class, 'listQualifiedApplicantsPublicationYellow']); 
-        
+        Route::get('/applicant/qualified/yellow/{date}', [ReportController::class, 'listQualifiedApplicantsPublicationYellow']);
+
         //only green applicant have tag color
-        Route::get('/applicant/green/{date}', [ReportController::class, 'applicantTagColorGreen']); 
+        Route::get('/applicant/green/{date}', [ReportController::class, 'applicantTagColorGreen']);
 
         // list of applicant no rating score
-        Route::post('/applicant/no-rating-score', [ReportController::class, 'applicantNoRatingScores']); 
+        Route::post('/applicant/no-rating-score', [ReportController::class, 'applicantNoRatingScores']);
 
         // list of applicant withraw  application 
-        Route::get('/applicant/withraw/application/{date}', [ReportController::class, 'listApplicantWithdrawApplication']); 
+        Route::get('/applicant/withraw/application/{date}', [ReportController::class, 'listApplicantWithdrawApplication']);
 
         // list of applicant internal report with lenght of service with current position
-        Route::get('/applicant/internal/service/{publicationDate}', [ReportController::class, 'applicantAppliedInternal']); 
-
-
-
-
+        Route::get('/applicant/internal/service/{publicationDate}', [ReportController::class, 'applicantAppliedInternal']);
     });
 
     Route::post('/submissions/multiple', [ExportApplicantController::class, 'exportApplicant']); // store applicant multiple on jobpost usong export
@@ -401,7 +405,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/export/applicant/{job_post_id}', [ExportApplicantController::class, 'fetchApplicantAppliedOldJobPost']); // fetching all job post
 
     Route::prefix('hire')->group(function () {
-        
+
         Route::post('/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
         Route::post('/rollback/{submissionId}', [AppointmentController::class, 'rollbackHire']); // hire an applicant external or internal
 
@@ -414,9 +418,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/logs', [LogController::class, 'index']);
 
-    Route::prefix('office')->group(function(){
-    Route::get('/', [PlantillaController::class, 'arrangement']); // this is for the modal fetching  fetching the employye // office arrangement
-    Route::get('/rater-list', [PlantillaController::class, 'raterOffices']); // this is for the modal fetching  fetching the employye // office arrangement
+    Route::prefix('office')->group(function () {
+        Route::get('/', [PlantillaController::class, 'arrangement']); // this is for the modal fetching  fetching the employye // office arrangement
+        Route::get('/rater-list', [PlantillaController::class, 'raterOffices']); // this is for the modal fetching  fetching the employye // office arrangement
     });
 
 
@@ -433,12 +437,38 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     Route::prefix('library')->group(function () {
-            Route::get('/remark/index', [LibraryController::class, 'index']); // store remarks
-            Route::post('/remark/store', [LibraryController::class, 'store']); // store remarks
-            Route::post('/remark/update/{remarksId}', [LibraryController::class, 'update']); // store remarks
-            Route::delete('/remark/delete/{remarksId}', [LibraryController::class, 'delete']); // store remarks
+        Route::get('/remark/index', [LibraryController::class, 'index']); // store remarks
+        Route::post('/remark/store', [LibraryController::class, 'store']); // store remarks
+        Route::post('/remark/update/{remarksId}', [LibraryController::class, 'update']); // store remarks
+        Route::delete('/remark/delete/{remarksId}', [LibraryController::class, 'delete']); // store remarks
+    });
+
+    Route::prefix('assign')->group(function () {
+        Route::get('/employee/list', [EmployeeAssignController::class, 'indexEmployeeAssign']);
+        Route::get('/office/employee/{office}', [OfficeController::class, 'getEmployee']);
+        Route::get('/employee/{office}', [OfficeController::class, 'contractualEmployee']);
+        Route::post('/employee/store', [EmployeeAssignController::class, 'storeEmployeeAssign']);
+        Route::get('/employee/detials/{employeeAssignId}', [EmployeeAssignController::class, 'viewEmployeeAssign']);
+
+        // Route::post('/employee', [OfficeController::class, 'getEmployee']);
 
     });
+
+      Route::prefix('re-assign')->group(function () {
+        Route::post('/store', [EmployeeReAssignController::class, 'storeEmployeeReAssign']);
+        Route::put('/update', [EmployeeReAssignController::class, 'updateEmployeeReAssign']);
+
+
+
+    });
+
+    // office library
+    Route::prefix('office')->group(function () {
+        Route::get('structure/{office}', [OfficeController::class, 'officeStructure']);
+        Route::get('/index', [OfficeController::class, 'index']);
+        Route::post('/store', [OfficeController::class, 'store']);
+        Route::put('/update/{officeId}', [OfficeController::class, 'update']);
+        Route::delete('/delete/{officeId}', [OfficeController::class, 'destroy']);
+    });
+
 });
-
-
