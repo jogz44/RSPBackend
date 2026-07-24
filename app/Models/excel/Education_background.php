@@ -22,7 +22,8 @@ class Education_background extends Model
         'year_graduated',
         'scholarship',
         'level',
-        'graduated'
+        'graduated',
+         'attachment_path'
 
     ];
 

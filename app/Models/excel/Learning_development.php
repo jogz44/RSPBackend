@@ -18,7 +18,8 @@ class Learning_development extends Model
         'inclusive_date_to',
         'number_of_hours',
         'type',
-        'conducted_by'
+        'conducted_by',
+         'attachment_path'
     ];
 
     protected static function newFactory()

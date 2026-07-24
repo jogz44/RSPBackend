@@ -296,6 +296,7 @@ class ApplicantService
         $educationImages   = [];
         $eligibilityImages = [];
         $experienceImages  = [];
+        $otherDocument  = [];
 
         if ($submission->ControlNo) {
             $internalImages = $this->getInternalPdsImage($submission->ControlNo);
@@ -305,6 +306,7 @@ class ApplicantService
             $educationImages   = $internalData['education_images']   ?? [];
             $eligibilityImages = $internalData['eligibility_images'] ?? [];
             $experienceImages  = $internalData['experience_images']  ?? [];
+            $otherDocument  = $internalData['other_documents']  ?? [];
         }
 
         // ✅ Use ControlNo folder for internal employees, nPersonalInfo_id for external
@@ -324,6 +326,7 @@ class ApplicantService
                 'education'   => $baseFolder . '/education',
                 'eligibility' => $baseFolder . '/eligibility',
                 'experience'  => $baseFolder . '/experience',
+                'other_document'  => $baseFolder . '/other_document',
             ];
 
             foreach ($folders as $type => $path) {
@@ -342,6 +345,7 @@ class ApplicantService
                     if ($type === 'education')   $educationImages   = $files;
                     if ($type === 'eligibility') $eligibilityImages = $files;
                     if ($type === 'experience')  $experienceImages  = $files;
+                    if ($type === 'other_document') $otherDocument  = $files;
                 }
             }
         }
@@ -369,7 +373,7 @@ class ApplicantService
             'image_path' => $info['image_path'] ?? null,
             'image_url' => $imageUrl,
 
-          'date_of_birth' => $this->normalizeDate($info['date_of_birth'] ?? null),
+            'date_of_birth' => $this->normalizeDate($info['date_of_birth'] ?? null),
 
             'place_of_birth' => $info['place_of_birth'] ?? null,
             'sex' => $info['sex'] ?? null,
@@ -410,10 +414,51 @@ class ApplicantService
             'residential_region' => $info['residential_region'] ?? null,
             'residential_zip' => $info['residential_zip'] ?? null,
 
-            'education' => $info['education'] ?? [],
-            'training' => $info['training'] ?? [],
-            'eligibity' => $info['eligibity'] ?? [],
-            'work_experience' => $info['work_experience'] ?? [],
+
+            'education' => collect($info['education'] ?? [])->map(function ($exp) {
+                if (!empty($exp['attachment_path'])) {
+                    $exp['attachment_url'] = filter_var($exp['attachment_path'], FILTER_VALIDATE_URL)
+                        ? $exp['attachment_path']
+                        : asset('storage/' . $exp['attachment_path']);
+                } else {
+                    $exp['attachment_url'] = null;
+                }
+                return $exp;
+            })->toArray(),
+
+            'training' => collect($info['training'] ?? [])->map(function ($exp) {
+                if (!empty($exp['attachment_path'])) {
+                    $exp['attachment_url'] = filter_var($exp['attachment_path'], FILTER_VALIDATE_URL)
+                        ? $exp['attachment_path']
+                        : asset('storage/' . $exp['attachment_path']);
+                } else {
+                    $exp['attachment_url'] = null;
+                }
+                return $exp;
+            })->toArray(),
+
+            'eligibity' => collect($info['eligibity'] ?? [])->map(function ($exp) {
+                if (!empty($exp['attachment_path'])) {
+                    $exp['attachment_url'] = filter_var($exp['attachment_path'], FILTER_VALIDATE_URL)
+                        ? $exp['attachment_path']
+                        : asset('storage/' . $exp['attachment_path']);
+                } else {
+                    $exp['attachment_url'] = null;
+                }
+                return $exp;
+            })->toArray(),
+
+
+            'work_experience' => collect($info['work_experience'] ?? [])->map(function ($exp) {
+                if (!empty($exp['attachment_path'])) {
+                    $exp['attachment_url'] = filter_var($exp['attachment_path'], FILTER_VALIDATE_URL)
+                        ? $exp['attachment_path']
+                        : asset('storage/' . $exp['attachment_path']);
+                } else {
+                    $exp['attachment_url'] = null;
+                }
+                return $exp;
+            })->toArray(),
             'voluntary_work' => $info['voluntary_work'] ?? [],
             'skills' => $info['skills'] ?? [],
             'Academic' => $info['Academic'] ?? [],
@@ -426,38 +471,39 @@ class ApplicantService
             'education_images' => $educationImages,
             'eligibility_images' => $eligibilityImages,
             'experience_images' => $experienceImages,
+            'others_document' => $otherDocument,
             'ranking' => $rating->ranking ?? null,
         ], 200, [], JSON_UNESCAPED_SLASHES); // 👈 this is the key fix
     }
 
-private function normalizeDate($date): ?string
-{
-    if (empty($date)) {
-        return null;
-    }
+    private function normalizeDate($date): ?string
+    {
+        if (empty($date)) {
+            return null;
+        }
 
-    $formats = [
-        'Y-m-d H:i:s', // internal: 2002-06-11 00:00:00
-        'Y-m-d',
-        'd/m/Y',       // external: 29/08/1994
-        'm/d/Y',
-    ];
+        $formats = [
+            'Y-m-d H:i:s', // internal: 2002-06-11 00:00:00
+            'Y-m-d',
+            'd/m/Y',       // external: 29/08/1994
+            'm/d/Y',
+        ];
 
-    foreach ($formats as $format) {
+        foreach ($formats as $format) {
+            try {
+                return \Carbon\Carbon::createFromFormat($format, trim($date))->format('m/d/Y');
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        // last resort fallback
         try {
-            return \Carbon\Carbon::createFromFormat($format, trim($date))->format('m/d/Y');
+            return \Carbon\Carbon::parse($date)->format('m/d/Y');
         } catch (\Exception $e) {
-            continue;
+            return null;
         }
     }
-
-    // last resort fallback
-    try {
-        return \Carbon\Carbon::parse($date)->format('m/d/Y');
-    } catch (\Exception $e) {
-        return null;
-    }
-}
     // fetch the applicant scores
     public function score($jobpostId, $request)
     {
@@ -763,7 +809,7 @@ private function normalizeDate($date): ?string
             ->values();
 
         // ✅ MASTER LIST OF APPLICANTS — lahat ng submitted, may rating man o wala
-            $submissions = Submission::where('job_batches_rsp_id', $jobpostId)
+        $submissions = Submission::where('job_batches_rsp_id', $jobpostId)
             ->where('status', 'Qualified')
             ->where(function ($query) {
                 $query->where('application_status', '!=', 'Withdrawn')
@@ -907,14 +953,14 @@ private function normalizeDate($date): ?string
             'total_assigned'    => $totalAssigned,
             'total_completed'   => $totalCompleted,
             'office'            => $jobpost->Office ?? null,
-            
+
             'position'          => $jobpost->Position ?? null,
             'Salary_Grade'      => $jobpost->SalaryGrade ?? null,
             'Plantilla_Item_No' => $jobpost->ItemNo ?? null,
-'publication_date' => \Carbon\Carbon::parse($jobpost->post_date)->format('F j, Y')
-    . ' - ' .
-    \Carbon\Carbon::parse($jobpost->end_date)->format('F j, Y'),
-                'criteria'          => $criteria,
+            'publication_date' => \Carbon\Carbon::parse($jobpost->post_date)->format('F j, Y')
+                . ' - ' .
+                \Carbon\Carbon::parse($jobpost->end_date)->format('F j, Y'),
+            'criteria'          => $criteria,
             'raters'            => $raters,
             'data'              => $collection,
         ]);

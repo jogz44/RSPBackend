@@ -4,31 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ApplicantApplicationRequest;
 use App\Http\Requests\applicantQsEditRequest;
+use App\Http\Requests\ApplicationRequest;
 use App\Http\Requests\EmployeeStoreApplicationRequest;
 use App\Models\Submission;
 use App\Services\ApplicantApplicationService;
 use App\Services\ApplicantService;
+use App\Services\ApplicationService;
 use App\Services\EmployeeService;
+
+use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request; // ✅ CORRECT
-
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 
 class ApplicantSubmissionController extends Controller
 {
+    use ApiResponseTrait;
 
+    protected ApplicationService $applicationService;
 
     protected $applicantApplicationService;
     protected $employeeService;
     protected $applicantService;
 
-    public function __construct(EmployeeService $employeeService, ApplicantApplicationService $applicantApplicationService, ApplicantService $applicantService)
+    public function __construct(EmployeeService $employeeService, ApplicantApplicationService $applicantApplicationService, ApplicantService $applicantService, ApplicationService $applicationService)
     {
         $this->employeeService = $employeeService;
         $this->applicantApplicationService = $applicantApplicationService;
         $this->applicantService = $applicantService;
+        $this->applicationService = $applicationService;
     }
 
 
@@ -130,7 +136,7 @@ class ApplicantSubmissionController extends Controller
             $sqlLastname  = "'{$lastname}'";
 
             // ── External applicants — nPersonalInfo uses DD/MM/YYYY (format 103) ────
-            $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status','application_status')
+            $external = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status', 'application_status')
                 ->whereNotNull('nPersonalInfo_id')
                 ->whereHas('nPersonalInfo', function ($query) use ($sqlFirstname, $sqlLastname, $sqlDate) {
                     $query
@@ -157,7 +163,7 @@ class ApplicantSubmissionController extends Controller
                 });
 
             // ── Internal applicants — xPersonal uses YYYY-MM-DD (format 120) ────────
-            $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status','application_status')
+            $internal = Submission::select('id', 'nPersonalInfo_id', 'ControlNo', 'job_batches_rsp_id', 'status', 'application_status')
                 ->whereNull('nPersonalInfo_id')
                 ->whereHas('xPersonal', function ($query) use ($sqlFirstname, $sqlLastname, $sqlDate) {
                     $query
@@ -350,7 +356,7 @@ class ApplicantSubmissionController extends Controller
     }
 
     // get all applicant 
-    public function applicantApplied($date,Request $request)
+    public function applicantApplied($date, Request $request)
     {
         $applicantType = $request->query('applicantType'); // 'internal', 'external', or null (all)
 
@@ -358,4 +364,20 @@ class ApplicantSubmissionController extends Controller
 
         return $result;
     }
+
+    // application submission  -- form base.
+    public function applicationSubmit(ApplicationRequest $applicationRequest)
+    {
+        $validatedData = $applicationRequest->validated();
+
+        $result = $this->applicationService->applicationCreate($validatedData);
+
+        if ($result instanceof \Illuminate\Http\JsonResponse) {
+            return $result;
+        }
+
+        return $this->successMessage($result['data'], $result['message'], 200);
+    }
+
+   
 }

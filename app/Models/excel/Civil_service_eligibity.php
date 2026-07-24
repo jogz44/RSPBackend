@@ -21,6 +21,7 @@ class Civil_service_eligibity extends Model
          'place_of_examination',
          'license_number',
          'date_of_validity',
+         'attachment_path'
 
     ];
 

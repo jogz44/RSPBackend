@@ -22,6 +22,7 @@ class Work_experience extends Model
         'salary_grade',
         'status_of_appointment',
         'government_service',
+        'attachment_path'
 
 
     ];
