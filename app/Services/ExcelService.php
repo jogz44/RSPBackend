@@ -12,6 +12,7 @@ use App\Models\xService;
 use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -1295,7 +1296,7 @@ class ExcelService
             $spreadsheet->setMacrosCode($spreadsheet->getMacrosCode());
         }
 
-        $templateSheet = $spreadsheet->getSheet(0); // keep reference before cloning
+        $templateSheet = $spreadsheet->getSheet(0);
 
         $postDateRaw = $postDateInput['publication_date'];
 
@@ -1303,15 +1304,17 @@ class ExcelService
             ->select('id', 'Office', 'Division', 'Section', 'Position', 'SalaryGrade', 'ItemNo', 'post_date', 'end_date')
             ->get();
 
+
         if ($jobPosts->isEmpty()) {
             return response()->json(['message' => 'No job posts found for this date.'], 404);
         }
 
         $usedTitles = [];
+        $templateSheet = $spreadsheet->getSheet(0); // keep reference before cloning
+        $pristineTemplate = clone $templateSheet;   // <-- add this: untouched master copy
 
         foreach ($jobPosts as $index => $jobPost) {
 
-            // --- ranking data for this job post (unchanged logic) ---
             $allScores = rating_score::select(
                 'rating_score.id',
                 'rating_score.nPersonalInfo_id',
@@ -1358,9 +1361,7 @@ class ExcelService
 
             $applicants = [];
 
-           
-
-           foreach ($scoresByApplicant as $rows) {
+            foreach ($scoresByApplicant as $rows) {
                 $first = $rows->first();
 
                 $submissionId = $first->submission_id;
@@ -1384,15 +1385,15 @@ class ExcelService
 
                 $computed = RatingService::computeFinalScore($scoresArray);
 
-                // --- internal applicant extras: office, position, length of service ---
                 $office          = null;
                 $designation     = null;
                 $lengthOfService = null;
                 $status = null;
+                $sg = null;
 
                 if (!$first->nPersonalInfo_id && $first->ControlNo) {
 
-                    $current_service = xService::select('ControlNo', 'ToDate', 'FromDate', 'Office', 'Designation', 'Status')
+                    $current_service = xService::select('ControlNo', 'ToDate', 'FromDate', 'Office', 'Designation', 'Status', 'Grades')
                         ->where('ControlNo', $first->ControlNo)
                         ->orderByDesc('ToDate')
                         ->orderByDesc('FromDate')
@@ -1401,6 +1402,7 @@ class ExcelService
                     $office      = $current_service->Office ?? null;
                     $designation = $current_service->Designation ?? null;
                     $status = $current_service->Status ?? null;
+                    $sg = $current_service->Grades ?? null;
 
                     if ($designation) {
                         $designation = trim(preg_replace('/\s*\(.*?\)\s*/', '', $designation));
@@ -1440,6 +1442,7 @@ class ExcelService
                     'position'         => $designation,
                     'lenghtOfservice'  => $lengthOfService,
                     'status'  => $status,
+                    'sg'  => $sg,
                 ] + $computed;
             }
 
@@ -1453,7 +1456,6 @@ class ExcelService
             $safeTitle = preg_replace('/[\[\]\*\/\\\\\?\:]/', '', $rawTitle);
             $safeTitle = mb_substr($safeTitle, 0, 31);
 
-            // fallback guard in case of any leftover collision (e.g. duplicate ItemNo)
             $finalTitle = $safeTitle;
             $suffix = 1;
             while (in_array($finalTitle, $usedTitles)) {
@@ -1467,19 +1469,18 @@ class ExcelService
                 $sheet = $templateSheet;
                 $sheet->setTitle($finalTitle);
             } else {
-                $sheet = clone $templateSheet;
+                $sheet = clone $pristineTemplate;   // <-- clone from the pristine copy, not $templateSheet
                 $sheet->setTitle($finalTitle);
                 $spreadsheet->addSheet($sheet, $index);
             }
 
-            // --- header block: labels in column A, values in column B ---
             $postDateFmt     = Carbon::parse($jobPost->post_date)->format('F d, Y');
             $endDateFmt      = Carbon::parse($jobPost->end_date)->format('F d, Y');
             $publicationDate = "PUBLICATION DATE: {$postDateFmt} - {$endDateFmt}";
 
             $sheet->setCellValue('A3', $publicationDate);
 
-            $sheet->setCellValue('B5', $jobPost->Office );
+            $sheet->setCellValue('B5', $jobPost->Office);
             $sheet->setCellValue('A6', 'Division/Section');
             $sheet->setCellValue('B6', $jobPost->Division ?? $jobPost->Section);
 
@@ -1502,10 +1503,11 @@ class ExcelService
                 $sheet->setCellValue("A{$row}", $applicant['rank'] ?? '');
                 $sheet->setCellValue("B{$row}", trim("{$applicant['firstname']} {$applicant['lastname']}"));
                 $sheet->setCellValue("C{$row}", $applicant['office'] ?? '');
-                $sheet->setCellValue("E{$row}", $applicant['status'] ?? '');
                 $sheet->setCellValue("D{$row}", $applicant['position'] ?? '');
-                $sheet->setCellValue("F{$row}", $applicant['lenghtOfservice'] ?? '');
-                
+                $sheet->setCellValue("E{$row}", $applicant['sg'] ?? '');
+                $sheet->setCellValue("F{$row}", $applicant['status'] ?? '');
+                $sheet->setCellValue("G{$row}", $applicant['lenghtOfservice'] ?? '');
+
                 $row++;
             }
         }
