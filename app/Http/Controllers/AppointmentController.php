@@ -31,13 +31,44 @@ class AppointmentController extends Controller
         $this->appiontmentService = $appiontmentService;
     }
 
-    public function hireApplicant($submissionId, Request $request)
-    {
+    public function hireApplicant(Request $request)
+    {   
+    
 
         // Call the service method
-
-        return $this->hiringService->hireApplicant($submissionId, $request);
+        return $this->hiringService->hireApplicant($request);
     }
+
+    public function hireTemporaryApplicant($submissionId, Request $request)
+    {
+
+        return $this->hiringService->hireTemporaryApplicant($submissionId, $request);
+    }
+
+
+    public function hireTemporaryRevert(int $submissionId)
+    {
+        $this->hiringService->hireTemporaryRevert($submissionId);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Temporary hire reverted.',
+        ]);
+    }
+
+
+    public function listOfTemporaryApplicant()
+    {
+        $data =  $this->hiringService->listOfTemporaryApplicantHired();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'list of hired temporary',
+            'applicant' => $data
+        ]);
+    }
+
+
 
     public function rollbackHire($submissionId, Request $request)
     {
@@ -197,7 +228,7 @@ class AppointmentController extends Controller
     public function effectiveDateList()
     {
         $date = xService::select('effectiveDate')->whereNotNull('effectiveDate')->where('effectiveDate', '!=', '')
-        ->distinct()->orderBy('effectiveDate', 'asc')->get();
+            ->distinct()->orderBy('effectiveDate', 'asc')->get();
         if ($date->isEmpty()) {
             return $this->infoMessage('No effective dates found', 200);
         }
@@ -207,10 +238,16 @@ class AppointmentController extends Controller
     public function deliberationDateList()
     {
         $date = TempRegAppointmentReorg::select('deliberation_date')->whereNotNull('deliberation_date')->where('deliberation_date', '!=', '')
-        ->distinct()->orderBy('deliberation_date', 'asc')->get();
+            ->distinct()->orderBy('deliberation_date', 'asc')->get();
         if ($date->isEmpty()) {
             return $this->infoMessage('No deliberation dates found', 200);
         }
         return $this->successMessage($date, 'Successful', 200);
+    }
+
+
+    public function temporaryAppointment(string $controlNo)
+    {
+        return $this->appiontmentService->temporaryAppointment($controlNo);
     }
 }

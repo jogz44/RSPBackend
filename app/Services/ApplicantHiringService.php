@@ -19,47 +19,76 @@ use Illuminate\Support\Facades\Mail;
 
 class ApplicantHiringService
 
-
 {
-    // hire an employee
-    public function hireApplicant($submissionId, $request)
+
+    public function hireApplicant($request)
     {
+        $validated = $request->validate([
+            'hires'                 => 'required|array|min:1',
+            'hires.*.submission_id' => 'required|distinct|exists:submission,id',
+
+            // service
+            'hires.*.SepDate'   => 'nullable|date',
+            'hires.*.SepCause'  => 'nullable|string|max:255',
+
+            // tempreg
+            'hires.*.sepdate'   => 'nullable|date',
+            'hires.*.sepcause'  => 'nullable|string|max:255',
+            'hires.*.vicename'  => 'nullable|string|max:255',
+            'hires.*.vicecause' => 'nullable|string|max:255',
+        ]);
+
+        $results = [];
+
+        foreach ($validated['hires'] as $hire) {
+            try {
+                $results[] = $this->hireSingleApplicant($hire, $request);
+            } catch (\Throwable $e) {
+                Log::error('hireApplicant failed', [
+                    'submission_id' => $hire['submission_id'],
+                    'error'         => $e->getMessage(),
+                    'line'          => $e->getLine(),
+                ]);
+
+                $results[] = [
+                    'submission_id' => $hire['submission_id'],
+                    'success'       => false,
+                    'message'       => $e->getMessage(),
+                ];
+            }
+        }
+
+        $succeeded = collect($results)->where('success', true)->count();
+        $total     = count($results);
+
+        return response()->json([
+            'success'   => $succeeded === $total,
+            'message'   => "{$succeeded} of {$total} applicant(s) hired successfully.",
+            'succeeded' => $succeeded,
+            'failed'    => $total - $succeeded,
+            'results'   => $results,
+        ], $succeeded === $total ? 200 : ($succeeded > 0 ? 207 : 422));
+    }
 
 
-        DB::beginTransaction();
-        try {
-            // These methods exist on Illuminate\Http\Request
-            $request->validate([
+    private function hireSingleApplicant(array $hire, $request): array
+    {
+        $submissionId = $hire['submission_id'];
 
-                // service
-                'SepDate' => 'nullable|date',
-                'SepCause' => 'nullable|string|max:255',
+        return DB::transaction(function () use ($hire, $request, $submissionId,) {
 
-                // temprog
-                'sepdate' => 'nullable|date',
-                'sepcause' => 'nullable|string|max:255',
-                'vicename' => 'nullable|string|max:255',
-                'vicecause' => 'nullable|string|max:255',
+            $rawFromDate = DB::table('temporary_xservices')
+                ->where('submission_id', $submissionId)
 
-                //appoitment affective
-                'fromDate' => 'required|date_format:Y-m-d'
+                ->value('FromDate');
 
-            ]);
+            if (!$rawFromDate) {
+                throw new \RuntimeException(
+                    'No temporary appointment date found for this submission. Save the temporary hire first.'
+                );
+            }
 
-            // appiotment date
-            $fromDate = Carbon::parse($request->input('fromDate'));
-
-
-            // Then pass them explicitly
-            $SepDate_service  = $request->input('SepDate');
-            $SepCause_service = $request->input('SepCause');
-
-
-            $sepdate = $request->input('sepdate');
-            $sepcause = $request->input('sepcause');
-            $vicename = $request->input('vicename');
-            $vicecause = $request->input('vicecause');
-
+            $fromDate = Carbon::parse($rawFromDate);
 
 
             $submission = Submission::with([
@@ -72,29 +101,35 @@ class ApplicantHiringService
                 'nPersonalInfo.training',
                 'nPersonalInfo.references',
                 'nPersonalInfo.skills',
-                'nPersonalInfo.personal_declarations'
+                'nPersonalInfo.personal_declarations',
             ])->findOrFail($submissionId);
+
+            $jobPost = JobBatchesRsp::findOrFail($submission->job_batches_rsp_id);
+
+            // // Check first, before any insert
+            // if ($jobPost->status === 'Occupied') {
+            //     throw new \RuntimeException('This job post is already occupied.');
+            // }
 
             $applicant = $submission->nPersonalInfo;
 
-            // Case 1: Already employee
-            if (!$applicant && $submission->ControlNo) {
+            if (!$applicant && !$submission->ControlNo) {
+                throw new \RuntimeException('Applicant personal info not found.');
+            }
+
+            if (!$applicant) {
+                // Already an employee
                 $finalControlNo = $submission->ControlNo;
             } else {
-                if (!$applicant) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Applicant personal info not found.'
-                    ], 404);
-                }
-
-                $family = $applicant->family;
-
+                $family                = $applicant->family;
                 $personal_declarations = $applicant->personal_declarations->first();
 
-                $existingControlNo = $applicant->control_no ?? $applicant->controlno ?? $applicant->ControlNo ?? $submission->ControlNo ?? null;
+                $existingControlNo = $applicant->control_no
+                    ?? $applicant->controlno
+                    ?? $applicant->ControlNo
+                    ?? $submission->ControlNo
+                    ?? null;
 
-                // ✅ If no ControlNo on model, check xPersonal by name before generating
                 if (!$existingControlNo) {
                     $existingInDB = DB::table('xPersonal')
                         ->where('Surname',    $applicant->lastname)
@@ -103,7 +138,6 @@ class ApplicantHiringService
                         ->first();
 
                     if ($existingInDB) {
-                        // Reuse existing ControlNo — skip all inserts
                         $existingControlNo = $existingInDB->ControlNo;
                     }
                 }
@@ -114,9 +148,8 @@ class ApplicantHiringService
                     ->where('ControlNo', $finalControlNo)
                     ->exists();
 
-                // $existingControlNo
                 if (!$alreadyInXPersonal) {
-                    $this->insertPersonalInfo($applicant, $family,  $personal_declarations, $finalControlNo, $submissionId);
+                    $this->insertPersonalInfo($applicant, $family, $personal_declarations, $finalControlNo, $submissionId);
                     $this->insertxPersonalAddt($applicant, $family, $personal_declarations, $finalControlNo, $submissionId);
                     $this->insertChildren($applicant->children, $finalControlNo, $submissionId);
                     $this->insertWorkExperience($applicant->work_experience, $finalControlNo, $submissionId);
@@ -133,90 +166,99 @@ class ApplicantHiringService
                 }
             }
 
-            // Update job post and submission status
-            $jobPost = JobBatchesRsp::findOrFail($submission->job_batches_rsp_id);
-
             $prevSubmissionStatus = $submission->status;
             $prevJobPostStatus    = $jobPost->status;
 
-            if ($jobPost->status === 'Occupied') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'This job post is already occupied.'
-                ], 400);
-            }
+            // $jobPost->update(['status' => 'Occupied']);
 
-            $jobPost->update(['status' => 'Occupied']);
-            $submission->update(['status' => 'Hired']);
+            $submission->update([
 
-            // Update plantilla structure
-            // $SepDate_service  = $request->input('SepDate');
-            // $SepCause_service = $request->input('SepCause');
-            $this->updatePlantillaStructure($jobPost, $finalControlNo, $SepDate_service, $SepCause_service, $sepdate, $sepcause, $vicename, $vicecause, $fromDate, $submissionId);
-
-            // ✅ Send email notification to the hired applicant
-            $internalApplicant = DB::table('xPersonalAddt')
-                ->join('xPersonal', 'xPersonalAddt.ControlNo', '=', 'xPersonal.ControlNo')
-                ->where('xPersonalAddt.ControlNo', $submission->ControlNo)
-                ->select('xPersonalAddt.*', 'xPersonal.Firstname', 'xPersonal.Surname', 'xPersonalAddt.EmailAdd')
+                'temporary_hired' => false,
+            ]);
+            $temporary_tempregReorg = DB::table('temporary_tempreg_appointment_reorg')
+                ->where('submission_id', $submissionId)
                 ->first();
 
-            $activeApplicant = $applicant ?? $internalApplicant;
+            if (!$temporary_tempregReorg) {
+                throw new \RuntimeException('No temporary reorg record found for this submission.');
+            }
 
 
+            $temporary_tempreg_appointment_reorg_ext = DB::table('temporary_tempreg_appointment_reorg_ext')
+                ->where('submission_id', $submissionId)
+                ->first();
+
+            if (!$temporary_tempreg_appointment_reorg_ext) {
+                throw new \RuntimeException('No temporary reorg record found for this submission.');
+            }
+
+
+            $this->updatePlantillaStructure(
+                $jobPost,
+                $finalControlNo,
+                $hire['SepDate']   ?? null,
+                $hire['SepCause']  ?? null,
+                $hire['sepdate']   ?? null,
+                $hire['sepcause']  ?? null,
+                $hire['vicename']  ?? null,
+                $hire['vicecause'] ?? null,
+                $fromDate,
+                $submissionId,
+                $temporary_tempregReorg,
+                $temporary_tempreg_appointment_reorg_ext
+            );
+
+            $tables = [
+                'temporary_tempreg_appointment_reorg_ext', // child muna
+                'temporary_tempreg_appointment_reorg',
+                'temporary_xservices',
+                'temporary_posting_dates',
+                'temporary_x_personal',
+            ];
+
+            foreach ($tables as $table) {
+                DB::table($table)->where('submission_id', $submissionId)->delete();
+            }
 
             $user = Auth::user();
 
-            if ($user && $user instanceof \App\Models\User) {
-
+            if ($user instanceof \App\Models\User) {
                 $position = $jobPost->Position ?? $jobPost->position ?? 'Unknown Position';
 
                 activity($user->username)
                     ->causedBy($user)
                     ->performedOn($submission)
                     ->withProperties([
-                        'username' => $user->username,
-                        'office' => $user->office,
-                        'job_position'      => $position,
-                        'hired_control_no'  => $finalControlNo,
-                        'submission_id'     => $submission->id,
-                        'ip_address'        => $request->ip(),
-                        'user_agent'        => $request->header('User-Agent'),
+                        'username'         => $user->username,
+                        'office'           => $user->office,
+                        'job_position'     => $position,
+                        'hired_control_no' => $finalControlNo,
+                        'submission_id'    => $submission->id,
+                        'ip_address'       => $request->ip(),
+                        'user_agent'       => $request->header('User-Agent'),
                     ])
                     ->log("{$user->name} hired applicant (ControlNo: {$finalControlNo}) for job post {$jobPost->id}.");
             }
 
-            // save the for the rollback just in case
             DB::table('hire_rollbacks')->insert([
-                'controlNo'  => $finalControlNo,
-                'submission_id'        => $submissionId,
-                'job_batches_rsp_id'   => $jobPost->id,
-                'prev_submission_status'  => $prevSubmissionStatus,
-                'prev_job_post_status'    => $prevJobPostStatus,
-
-                'expired_at'           => Carbon::now()->addDays(3),
-                'created_at'           => Carbon::now(),
-                'updated_at'           => Carbon::now(),
+                'controlNo'              => $finalControlNo,
+                'submission_id'          => $submissionId,
+                'job_batches_rsp_id'     => $jobPost->id,
+                'prev_submission_status' => $prevSubmissionStatus,
+                'prev_job_post_status'   => $prevJobPostStatus,
+                'expired_at'             => Carbon::now()->addDays(3),
+                'created_at'             => Carbon::now(),
+                'updated_at'             => Carbon::now(),
             ]);
 
-
-            DB::commit();
-
-            return response()->json([
-                'success'    => true,
-                'message'    => 'Applicant hired successfully, plantilla updated, and email sent.',
-                'control_no' => $finalControlNo,
-                'job_post'   => $jobPost->id,
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error hiring applicant',
-                'error'   => $e->getMessage()
-            ], 500);
-        }
+            return [
+                'submission_id' => $submissionId,
+                'success'       => true,
+                'message'       => 'Applicant hired successfully.',
+                'control_no'    => $finalControlNo,
+                'job_post'      => $jobPost->id,
+            ];
+        });
     }
 
 
@@ -298,14 +340,6 @@ class ApplicantHiringService
 
             'submission_id' => $submissionId
 
-
-
-
-            // 'R1' =>  $personal_declarations->{'response_34'} ?? null,
-
-            // 'Q2' =>  $personal_declarations->{'question_34b'}  ?? null,
-            // 'R2' =>  $personal_declarations->{'response_34'} ?? null,
-            // 'Q22' =>  $personal_declarations->{'question_40c'} ?? null,
         ]);
     }
 
@@ -594,7 +628,7 @@ class ApplicantHiringService
         }
     }
 
-    private function updatePlantillaStructure($jobPost, $controlNo, $SepDate_service, $SepCause_service, $sepdate, $sepcause, $vicename, $vicecause, $fromDate, $submissionId)
+    private function updatePlantillaStructure($jobPost, $controlNo, $SepDate_service, $SepCause_service, $sepdate, $sepcause, $vicename, $vicecause, $fromDate, $submissionId, $temporary_tempregReorg, $temporary_tempreg_appointment_reorg_ext)
     {
 
         $tblStructureDetails_ID = $jobPost->tblStructureDetails_ID;
@@ -646,7 +680,7 @@ class ApplicantHiringService
 
                     $newRow['SepDate']  = Carbon::parse($fromDate)->format('m/d/Y');
                     $newRow['SepCause'] = 'APPOINTED (ORIGINAL)';
-                    $newRow['renew']    = 'ORIGINAL';
+                    $newRow['Renew']    = 'ORIGINAL';
                     $newRow['FromDate'] = Carbon::parse($fromDate)->subDay()->format('Y-m-d H:i:s');
                     $newRow['ToDate']   = Carbon::parse($fromDate)->subDay()->format('Y-m-d H:i:s');
 
@@ -656,7 +690,7 @@ class ApplicantHiringService
                     DB::table('xService')
                         ->where('PMID', $activeService->PMID)
                         ->update([
-                            'renew'    => 'ORIGINAL',
+                            'Renew'    => 'ORIGINAL',
                             'SepCause' => 'APPOINTED (ORIGINAL)',
                             'SepDate'  => Carbon::parse($fromDate)->format('m/d/Y'),
                         ]);
@@ -766,7 +800,7 @@ class ApplicantHiringService
             'StatCode'     => '00001', // 1
             'Status'       => 'REGULAR',
             'OffCode'      => $officeCode ?? '00000', // 1
-            'Office'       => $jobPost->Office ?? 'NONE',  // 1
+            'Office'       => $jobPost->Office ?? 'NONE',  // 1a
             'BranCode'     => '00001',
             'Branch'       => 'LGU-TAGUM',
             'LVRemarks'    => '',
@@ -819,10 +853,18 @@ class ApplicantHiringService
             // 'group',//
             'unitcode' =>     $UnitCode ?? null,
             'unit' => $jobPost->Unit ?? null,
-            'sepdate' =>  $this->upper($sepdate),
-            'sepcause' =>  $this->upper($sepcause),
-            'vicename' =>  $this->upper($vicename),
-            'vicecause' =>  $this->upper($vicecause),
+            'sepdate'   => $temporary_tempregReorg->sepdate
+                ? Carbon::parse($temporary_tempregReorg->sepdate)->format('Y-m-d')
+                : null,
+            'sepcause'  => $this->upper($temporary_tempregReorg->sepcause),
+            'vicename'  => $this->upper($temporary_tempregReorg->vicename),
+            'vicecause' => $this->upper($temporary_tempregReorg->vicecause),
+            'deliberation_date'   => $temporary_tempregReorg->deliberation_date
+                ? Carbon::parse($temporary_tempregReorg->deliberation_date)->format('Y-m-d')
+                : null,
+            'assessment_date'   => $temporary_tempregReorg->assessment_date
+                ? Carbon::parse($temporary_tempregReorg->assessment_date)->format('Y-m-d')
+                : null,
             'submission_id' => $submissionId
 
         ]);
@@ -839,60 +881,60 @@ class ApplicantHiringService
 
         DB::table('tempRegAppointmentReorgExt')->insert([
             // 'ID'            => $nextId,
-            'ControlNo'     => $controlNo,
-            'PresAppro'         =>  $temPregExt->PresAppro ?? null,
-            'PrevAppro'         => $temPregExt->PrevAppro ?? null,
-            'SalAuthorized'     => $rateMon !== null ? number_format($rateMon, 2) . ' / mo.' : null,
-            'OtherComp'         => $temPregExt->OtherComp ?? null,
-            'SupPosition'       => null,
-            'HSupPosition'      => null,
-            'Tool'              => $temPregExt->Tool ?? null,
+            'ControlNo'     => $temporary_tempreg_appointment_reorg_ext->ControlNo,
+            'PresAppro'         =>  $temporary_tempreg_appointment_reorg_ext->PresAppro ?? null,
+            'PrevAppro'         => $temporary_tempreg_appointment_reorg_ext->PrevAppro ?? null,
+            'SalAuthorized'     => $temporary_tempreg_appointment_reorg_ext->SalAuthorized ?? null,
+            'OtherComp'         => $temporary_tempreg_appointment_reorg_ext->OtherComp ?? null,
+            'SupPosition'       => $temporary_tempreg_appointment_reorg_ext->SupPosition ?? null,
+            'HSupPosition'      => $temporary_tempreg_appointment_reorg_ext->HSupPosition ?? null,
+            'Tool'              => $temporary_tempreg_appointment_reorg_ext->Tool ?? null,
 
-            'Contact1'          => $temPregExt->Contact1 ?? null,
-            'Contact2'          => $temPregExt->Contact2 ?? null,
-            'Contact3'          => $temPregExt->Contact3 ?? null,
-            'Contact4'          => $temPregExt->Contact4 ?? null,
-            'Contact5'          => $temPregExt->Contact5 ?? null,
-            'Contact6'          => $temPregExt->Contact6 ?? null,
-            'ContactOthers'     => $temPregExt->ContactOthers ?? null,
+            'Contact1'          => $temporary_tempreg_appointment_reorg_ext->Contact1 ?? null,
+            'Contact2'          => $temporary_tempreg_appointment_reorg_ext->Contact2 ?? null,
+            'Contact3'          => $temporary_tempreg_appointment_reorg_ext->Contact3 ?? null,
+            'Contact4'          => $temporary_tempreg_appointment_reorg_ext->Contact4 ?? null,
+            'Contact5'          => $temporary_tempreg_appointment_reorg_ext->Contact5 ?? null,
+            'Contact6'          => $temporary_tempreg_appointment_reorg_ext->Contact6 ?? null,
+            'ContactOthers'     => $temporary_tempreg_appointment_reorg_ext->ContactOthers ?? null,
 
-            'Working1'          => $temPregExt->Working1 ?? null,
-            'Working2'          => $temPregExt->Working2 ?? null,
-            'WorkingOthers'     => $temPregExt->WorkingOthers ?? null,
+            'Working1'          => $temporary_tempreg_appointment_reorg_ext->Working1 ?? null,
+            'Working2'          => $temporary_tempreg_appointment_reorg_ext->Working2 ?? null,
+            'WorkingOthers'     => $temporary_tempreg_appointment_reorg_ext->WorkingOthers ?? null,
 
-            'DescriptionSection'   => $temPregExt->DescriptionSection ?? null,
-            'DescriptionFunction'  => $temPregExt->DescriptionFunction ?? null,
+            'DescriptionSection'   => $temporary_tempreg_appointment_reorg_ext->DescriptionSection ?? null,
+            'DescriptionFunction'  => $temporary_tempreg_appointment_reorg_ext->DescriptionFunction ?? null,
 
-            'StandardEduc'      => $qs->Education ?? null,
-            'StandardExp'       => $qs->Experience ?? null,
-            'StandardTrain'     => $qs->Training ?? null,
-            'StandardElig'      => $qs->Eligibility ?? null,
+            'StandardEduc'      => $temporary_tempreg_appointment_reorg_ext->StandardEduc ?? null,
+            'StandardExp'       => $temporary_tempreg_appointment_reorg_ext->StandardExp ?? null,
+            'StandardTrain'     => $temporary_tempreg_appointment_reorg_ext->StandardTrain ?? null,
+            'StandardElig'      => $temporary_tempreg_appointment_reorg_ext->StandardElig ?? null,
 
-            'Supervisor'        => null,
+            'Supervisor'        => $temporary_tempreg_appointment_reorg_ext->Supervisor ?? null,
 
-            'Core1'             => $temPregExt->Core1 ?? null,
-            'Core2'             => $temPregExt->Core2 ?? null,
-            'Core3'             => $temPregExt->Core3 ?? null,
+            'Core1'             => $temporary_tempreg_appointment_reorg_ext->Core1 ?? null,
+            'Core2'             => $temporary_tempreg_appointment_reorg_ext->Core2 ?? null,
+            'Core3'             => $temporary_tempreg_appointment_reorg_ext->Core3 ?? null,
 
-            'Corelevel1'        => $temPregExt->Corelevel1 ?? null,
-            'Corelevel2'        => $temPregExt->Corelevel2 ?? null,
-            'Corelevel3'        => $temPregExt->Corelevel3 ?? null,
-            'Corelevel4'        => $temPregExt->Corelevel4 ?? null,
+            'Corelevel1'        => $temporary_tempreg_appointment_reorg_ext->Corelevel1 ?? null,
+            'Corelevel2'        => $temporary_tempreg_appointment_reorg_ext->Corelevel2 ?? null,
+            'Corelevel3'        => $temporary_tempreg_appointment_reorg_ext->Corelevel3 ?? null,
+            'Corelevel4'        => $temporary_tempreg_appointment_reorg_ext->Corelevel4 ?? null,
 
-            'Leader1'           => $temPregExt->Leader1 ?? null,
-            'Leader2'           => $temPregExt->Leader2 ?? null,
-            'Leader3'           => $temPregExt->Leader3 ?? null,
-            'Leader4'           => $temPregExt->Leader4 ?? null,
+            'Leader1'           => $temporary_tempreg_appointment_reorg_ext->Leader1 ?? null,
+            'Leader2'           => $temporary_tempreg_appointment_reorg_ext->Leader2 ?? null,
+            'Leader3'           => $temporary_tempreg_appointment_reorg_ext->Leader3 ?? null,
+            'Leader4'           => $temporary_tempreg_appointment_reorg_ext->Leader4 ?? null,
 
-            'leaderlevel1'      => $temPregExt->leaderlevel1 ?? null,
-            'leaderlevel2'      => $temPregExt->leaderlevel2 ?? null,
-            'leaderlevel3'      => $temPregExt->leaderlevel3 ?? null,
-            'leaderlevel4'      => $temPregExt->leaderlevel4 ?? null,
+            'leaderlevel1'      => $temporary_tempreg_appointment_reorg_ext->leaderlevel1 ?? null,
+            'leaderlevel2'      => $temporary_tempreg_appointment_reorg_ext->leaderlevel2 ?? null,
+            'leaderlevel3'      => $temporary_tempreg_appointment_reorg_ext->leaderlevel3 ?? null,
+            'leaderlevel4'      => $temporary_tempreg_appointment_reorg_ext->leaderlevel4 ?? null,
 
-            'structureid'       => null,
+            'StructureID'       => $temporary_tempreg_appointment_reorg_ext->StructureID ?? null,
 
-            'submission_id' => $submissionId
-
+            'submission_id' => $temporary_tempreg_appointment_reorg_ext->submission_id ?? null,
+            'signing_date' => $temporary_tempreg_appointment_reorg_ext->signing_date ?? null,
         ]);
 
 
@@ -916,9 +958,13 @@ class ApplicantHiringService
     {
         DB::beginTransaction();
         try {
+
+
             $rollback = DB::table('hire_rollbacks')
                 ->where('submission_id', $submissionId)
                 ->first();
+
+
 
             if (!$rollback) {
                 return response()->json([
@@ -927,20 +973,17 @@ class ApplicantHiringService
                 ], 404);
             }
 
-            // if (Carbon::now()->isAfter($rollback->expired_at)) {
-            //     return response()->json([
-            //         'success' => false,
-            //         'message' => 'Rollback window has expired (3 days).',
-            //     ], 403);
-            // }
 
-            // Restore submission status
+            // return to Qualified and  false temporary hired
             Submission::where('id', $submissionId)
-                ->update(['status' => $rollback->prev_submission_status]);
+                ->update([
+                    'status' => 'Qualified',
+                    'temporary_hired' => false
+                ]);
 
-            // Restore job post status
+            // Rreturn to rated the job post
             JobBatchesRsp::where('id', $rollback->job_batches_rsp_id)
-                ->update(['status' => $rollback->prev_job_post_status]);
+                ->update(['status' => 'rated']);
 
             $snapshots = DB::table('hire_service_snapshots')
                 ->where('submission_id', $submissionId)
@@ -1039,7 +1082,7 @@ class ApplicantHiringService
                 ->where('submission_id', $submissionId)
                 ->delete();
 
-                      // Delete rollback record (one-time use)
+            // Delete rollback record (one-time use)
             DB::table('xReference')
                 ->where('submission_id', $submissionId)
                 ->delete();
@@ -1053,7 +1096,6 @@ class ApplicantHiringService
             DB::table('tempRegAppointmentReorgExt')
                 ->where('submission_id', $submissionId)
                 ->delete();
-
 
 
             // Activity log
@@ -1148,5 +1190,416 @@ class ApplicantHiringService
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    //----------------------------------------------------------------------------------------------------------------temporary function 
+
+
+    // hire an employee
+    public function hireTemporaryApplicant($submissionId, $request)
+    {
+        // validation sa labas ng transaction para 422 ang lumabas, hindi 500
+        $request->validate(
+            [
+                'fromDate' => 'required|date_format:Y-m-d',
+            ],
+            [
+                'fromDate.required'    => 'The fromDate field is required. Format: YYYY-MM-DD (example: 2026-10-28).',
+                'fromDate.date_format' => 'The fromDate format is invalid. Use YYYY-MM-DD (example: 2026-10-28).',
+            ]
+
+        );
+
+        DB::beginTransaction();
+        try {
+            $fromDate = Carbon::parse($request->input('fromDate'));
+
+            $submission = Submission::with('nPersonalInfo')->findOrFail($submissionId);
+            $applicant  = $submission->nPersonalInfo;
+
+            // I-check muna ang job post bago mag-insert ng anuman
+            $jobPost = JobBatchesRsp::findOrFail($submission->job_batches_rsp_id);
+
+            if ($jobPost->status === 'Occupied') {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This job post is already occupied.'
+                ], 400);
+            }
+
+            if (!$applicant && !$submission->ControlNo) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Applicant personal info not found.'
+                ], 404);
+            }
+
+            $existingInDB = null;
+
+            if (!$applicant) {
+                // Case 1: Already employee, walang personal info sa applicant side
+                $finalControlNo = $submission->ControlNo;
+                $existingInDB = DB::table('xPersonal')
+                    ->where('ControlNo', $finalControlNo)
+                    ->first();
+            } else {
+                $existingControlNo = $applicant->control_no
+                    ?? $applicant->controlno
+                    ?? $applicant->ControlNo
+                    ?? $submission->ControlNo
+                    ?? null;
+
+                if ($existingControlNo) {
+                    $existingInDB = DB::table('xPersonal')
+                        ->where('ControlNo', $existingControlNo)
+                        ->first();
+                } else {
+                    $existingInDB = DB::table('xPersonal')
+                        ->where('Surname',    $applicant->lastname)
+                        ->where('Firstname',  $applicant->firstname)
+                        ->where('Middlename', $applicant->middlename)
+                        ->first();
+
+                    if ($existingInDB) {
+                        $existingControlNo = $existingInDB->ControlNo;
+                    }
+                }
+
+                $finalControlNo = $existingControlNo ?? $this->generateControlNo();
+            }
+
+            // Laging mag-save sa temporary_x_personal
+            $this->insertxPersonalTemporary($applicant, $finalControlNo, $submissionId, $existingInDB);
+
+            $jobPost->update(['status' => 'Occupied']);
+
+            $submission->update([
+                'status'          => 'Hired',
+                'temporary_hired' => true,
+            ]);
+
+            $this->temporaryHirePlantilla($jobPost, $finalControlNo, $fromDate, $submissionId);
+
+            DB::commit();
+
+            return response()->json([
+                'success'    => true,
+                'message' => 'The applicant has been successfully appointed to a temporary position.',
+                'control_no' => $finalControlNo,
+                'job_post'   => $jobPost->id,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('hireTemporaryApplicant failed', [
+                'submission_id' => $submissionId,
+                'error'         => $e->getMessage(),
+                'line'          => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error hiring applicant',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function insertxPersonalTemporary($applicant, $controlNo, $submissionId, $existing = null)
+    {
+        try {
+            $data = [
+                'ControlNo'     => $controlNo,
+                'Surname'       => $existing->Surname    ?? $this->upper(optional($applicant)->lastname),
+                'Firstname'     => $existing->Firstname  ?? $this->upper(optional($applicant)->firstname),
+                'Middlename'    => $existing->MIddlename ?? $this->upper(optional($applicant)->middlename),
+                'Sex'           => $existing->Sex        ?? $this->upper(optional($applicant)->sex),
+                'BirthDate'     => $existing->BirthDate  ?? ($applicant ? $this->formatDateTime($applicant->date_of_birth) : null),
+                'TINNo'         => $existing->TINNo      ?? optional($applicant)->tin_no,
+                'submission_id' => $submissionId,
+            ];
+
+            Log::info('Inserting temporary_x_personal', $data);
+
+            DB::table('temporary_x_personal')->insert($data);
+        } catch (\Throwable $e) {
+            Log::error('insertxPersonalTemporary failed', [
+                'submission_id' => $submissionId,
+                'control_no'    => $controlNo,
+                'error'         => $e->getMessage(),
+            ]);
+            throw new \Exception('Failed to save temporary_x_personal: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    private function temporaryHirePlantilla($jobPost, $controlNo,  $fromDate, $submissionId)
+    {
+
+        $tblStructureDetails_ID = $jobPost->tblStructureDetails_ID;
+        $itemNo = $jobPost->ItemNo;
+        $pageNo = $jobPost->PageNo;
+
+        $designation = DB::table('yDesignation')
+            ->select('Codes', 'Descriptions', 'Status')
+            ->where('Descriptions', $jobPost->Position)
+            ->where('Status', 'REGULAR')
+            ->first();
+
+        $office = DB::table('yOffice')
+            ->where('Descriptions', $jobPost->Office)
+            ->orWhere('Codes', $jobPost->Office)
+            ->first();
+
+        $officeCode = $office->Codes ?? '00000';
+
+        $salary = DB::table('tblSalarySchedule')
+            ->where('Grade', $jobPost->SalaryGrade)
+            ->where('Steps', 1)
+            ->first();
+
+        $rateMon  = $salary->Salary ?? 0;
+        $rateDay  = $rateMon > 0 ? $rateMon / 22 : 0;
+        $rateYear = $rateMon * 12;
+
+        $toDate = Carbon::parse('2050-12-31 00:00:00');
+
+        $Division = DB::table('yDivision')
+            ->where('Descriptions', $jobPost->Division)
+
+            ->first();
+
+        $DivCode = $Division->Codes ?? '00000';
+
+        $Section = DB::table('ySection')
+            ->where('Descriptions', $jobPost->Section)
+
+            ->first();
+
+        $SecCode = $Section->Codes ?? '00000';
+
+        $Unit = DB::table('yUnit')
+            ->where('Descriptions', $jobPost->Unit)
+
+            ->first();
+
+        $UnitCode =    $Unit->Codes ?? '00000';
+
+
+        $employeeStatus = xService::select(['ControlNo', 'FromDate', 'ToDate', 'Status'])
+            ->latest('FromDate', 'ToDate')
+            ->limit(1)
+            ->where('ControlNo', $controlNo)
+            ->first();
+
+        $renewType = $this->determineRenewType($employeeStatus); // ← idagdag ito
+
+        $structure = DB::table('tblStructureDetails')
+            ->where('ID', $jobPost->tblStructureDetails_ID)
+            ->where('PageNo', $jobPost->PageNo)
+            ->where('ItemNo', $jobPost->ItemNo)
+            ->first();
+
+        DB::table('temporary_xservices')->insert([
+            'ControlNo'    => $controlNo, // 1
+            'FromDate'     => $fromDate->format('Y-m-d H:i:s'), // 1
+            'ToDate'       => $toDate->format('Y-m-d H:i:s'), // 1
+            'DesigCode'    => $designation->Codes ?? '00000', // 1
+            'Designation'  => $designation->Descriptions ?? $jobPost->Position, // 1
+            'StatCode'     => '00001', // 1
+            'Status'       => 'REGULAR',
+            'OffCode'      => $officeCode ?? '00000', // 1
+            'Office'       => $jobPost->Office ?? 'NONE',  // 1a
+            'BranCode'     => '00001',
+            'Branch'       => 'LGU-TAGUM',
+            'LVRemarks'    => '',
+            'RateDay'      => $rateDay, // 1
+            'RateMon'      => $rateMon, // 1
+            'RateYear'     => $rateYear, // 1
+            'SepDate'      => '',
+            'SepCause'     => '',
+            'AppCode'      => '0',
+            'DivCode'      => $DivCode ?? '00000', // 1
+            'Divisions'    => $jobPost->Division ?? 'NONE', // 1
+            'SecCode'      => $SecCode ?? '00000', // 1
+            'Sections'     => $jobPost->Section ?? 'NONE', // 1
+            'PlantCode'    => '', // 1
+            'Renew'        => '', // 1
+            'Grades'       => $jobPost->SalaryGrade ?? null, // 1
+            'Steps'        => 1,
+            'Charges'      => '',
+            'effectiveDate'      => $fromDate->format('Y-m-d H:i:s'),
+            'submission_id' => $submissionId,
+            'itemNo'        => $itemNo,
+            'Pages'         => $pageNo,
+            'StructureID'   => $structure->StructureID ?? null,
+        ]);
+
+
+        //  get the renew 
+
+        DB::table('temporary_tempreg_appointment_reorg')->insert([
+            // 'ID'            => $nextId,
+            'ControlNo'     => $controlNo, //1
+            'DesigCode'     => $designation->Codes ?? null, //1
+            'NewDesignation' => $designation->Descriptions ?? $jobPost->Position, //1
+            'Designation'   => $designation->Descriptions ?? $jobPost->Position, //1
+            'SG'            => $jobPost->SalaryGrade, //1
+            'Step'          => 1,
+            'Status'        => $designation->Status, //1
+            'OffCode'       => $officeCode, //1
+            'NewOffice'     => $jobPost->Office,
+            'Office'        => $jobPost->Office,
+            'MRate'         => $rateMon, //1
+            'Official'      => 0,
+            'Renew'         => $renewType,
+            'ItemNo'        => $itemNo,
+            'Pages'         => $pageNo,
+            'StructureID'   => $structure->StructureID ?? null,
+            'DivCode' => $DivCode ?? null, // 1
+            'SecCode' => $SecCode ?? null, // 1
+            // 'groupcode',//
+            // 'group',//
+            'unitcode' =>     $UnitCode ?? null,
+            'unit' => $jobPost->Unit ?? null,
+            'sepdate' => ' ',
+            'sepcause' =>  ' ',
+            'vicename' =>  ' ',
+            'vicecause' =>  ' ',
+            'submission_id' => $submissionId
+
+        ]);
+
+        // get the temRegExt
+        $temPregExt = DB::table('vwPositiondescription')
+            ->where('Designation', $jobPost->Position)
+            ->orderBy('ID', 'desc')
+            ->first();
+
+        // qs of jobpost
+        $qs = OnCriteriaJob::where('job_batches_rsp_id', $jobPost->id)->first();
+
+
+        DB::table('temporary_tempreg_appointment_reorg_ext')->insert([
+            // 'ID'            => $nextId,
+            'ControlNo'     => $controlNo,
+            'PresAppro'         =>  $temPregExt->PresAppro ?? null,
+            'PrevAppro'         => $temPregExt->PrevAppro ?? null,
+            'SalAuthorized'     => $rateMon !== null ? number_format($rateMon, 2) . ' / mo.' : null,
+            'OtherComp'         => $temPregExt->OtherComp ?? null,
+            'SupPosition'       => null,
+            'HSupPosition'      => null,
+            'Tool'              => $temPregExt->Tool ?? null,
+
+            'Contact1'          => $temPregExt->Contact1 ?? null,
+            'Contact2'          => $temPregExt->Contact2 ?? null,
+            'Contact3'          => $temPregExt->Contact3 ?? null,
+            'Contact4'          => $temPregExt->Contact4 ?? null,
+            'Contact5'          => $temPregExt->Contact5 ?? null,
+            'Contact6'          => $temPregExt->Contact6 ?? null,
+            'ContactOthers'     => $temPregExt->ContactOthers ?? null,
+
+            'Working1'          => $temPregExt->Working1 ?? null,
+            'Working2'          => $temPregExt->Working2 ?? null,
+            'WorkingOthers'     => $temPregExt->WorkingOthers ?? null,
+
+            'DescriptionSection'   => $temPregExt->DescriptionSection ?? null,
+            'DescriptionFunction'  => $temPregExt->DescriptionFunction ?? null,
+
+            'StandardEduc'      => $qs->Education ?? null,
+            'StandardExp'       => $qs->Experience ?? null,
+            'StandardTrain'     => $qs->Training ?? null,
+            'StandardElig'      => $qs->Eligibility ?? null,
+
+            'Supervisor'        => null,
+
+            'Core1'             => $temPregExt->Core1 ?? null,
+            'Core2'             => $temPregExt->Core2 ?? null,
+            'Core3'             => $temPregExt->Core3 ?? null,
+
+            'Corelevel1'        => $temPregExt->Corelevel1 ?? null,
+            'Corelevel2'        => $temPregExt->Corelevel2 ?? null,
+            'Corelevel3'        => $temPregExt->Corelevel3 ?? null,
+            'Corelevel4'        => $temPregExt->Corelevel4 ?? null,
+
+            'Leader1'           => $temPregExt->Leader1 ?? null,
+            'Leader2'           => $temPregExt->Leader2 ?? null,
+            'Leader3'           => $temPregExt->Leader3 ?? null,
+            'Leader4'           => $temPregExt->Leader4 ?? null,
+
+            'leaderlevel1'      => $temPregExt->leaderlevel1 ?? null,
+            'leaderlevel2'      => $temPregExt->leaderlevel2 ?? null,
+            'leaderlevel3'      => $temPregExt->leaderlevel3 ?? null,
+            'leaderlevel4'      => $temPregExt->leaderlevel4 ?? null,
+
+            'StructureID'       => $structure->StructureID ?? null,
+
+            'submission_id' => $submissionId
+
+        ]);
+
+
+        DB::table('temporary_posting_dates')->insert([
+            'ControlNo'     => $controlNo,
+            'post_date' => $jobPost->post_date,
+            'end_date' => $jobPost->end_date,
+            'job_batches_rsp_id' => $jobPost->id,
+            'submission_id' => $submissionId
+        ]);
+    }
+
+
+    public function hireTemporaryRevert(int $submissionId): void
+    {
+        DB::transaction(function () use ($submissionId) {
+            $submission = Submission::findOrFail($submissionId);
+            $jobPost    = JobBatchesRsp::findOrFail($submission->job_batches_rsp_id);
+
+
+
+            $jobPost->update(['status' => 'rated']);
+
+            $submission->update([
+                'status'          => 'Qualified',
+                'temporary_hired' => false,
+            ]);
+
+            $tables = [
+                'temporary_xservices',
+                'temporary_tempreg_appointment_reorg',
+                'temporary_tempreg_appointment_reorg_ext',
+                'temporary_posting_dates', // verify: 'posting_date' ba ang tama?
+                'temporary_x_personal',
+
+            ];
+
+            foreach ($tables as $table) {
+                DB::table($table)->where('submission_id', $submissionId)->delete();
+            }
+        });
+    }
+
+    public function listOfTemporaryApplicantHired()
+    {
+        return DB::table('submission as s')
+            ->join('temporary_xservices as x', 'x.submission_id', '=', 's.id')
+            ->leftJoin('temporary_x_personal as p', 'p.submission_id', '=', 's.id')
+            ->leftJoin('xPersonal as xp', 'xp.ControlNo', '=', 'x.ControlNo')
+            ->where('s.status', 'Hired')
+            ->where('s.temporary_hired', true)
+            ->select([
+                's.id as submission_id',
+                'x.ControlNo',
+                DB::raw('COALESCE(p.Surname, xp.Surname) as Surname'),
+                DB::raw('COALESCE(p.Firstname, xp.Firstname) as Firstname'),
+                DB::raw('COALESCE(p.Middlename, xp.Middlename) as Middlename'),
+                'x.Designation',
+                'x.Office',
+                'x.FromDate',
+                'x.RateMon',
+                'x.Pages',
+                'x.ItemNo',
+            ])
+            ->get();
     }
 }

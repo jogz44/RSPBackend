@@ -44,7 +44,8 @@ class Submission extends Model
         'exam_remarks',
         'is_emailed',
         'tag_color',
-        'application_status'
+        'application_status',
+        'temporary_hired'
 
     ];
 
@@ -56,6 +57,7 @@ class Submission extends Model
         'created_at'               => 'string', // ✅ prevent Carbon hydration
         'updated_at'               => 'string', // ✅ prevent Carbon hydration
         'exam_date'                => 'string', // ✅ prevent Carbon hydration
+                'temporary_hired' => 'boolean',
     ];
 
     public $timestamps = true; // or just remove if not set

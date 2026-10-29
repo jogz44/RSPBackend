@@ -2,19 +2,21 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
 use App\Mail\EmailApi;
-use App\Models\Submission;
-use Illuminate\Http\Request;
 use App\Models\JobBatchesRsp;
+use App\Models\Submission;
 use App\Models\TempRegAppointmentReorg;
 use App\Models\TempRegHistory;
 use App\Models\vwActive;
+use App\Models\vwplantillastructure;
 use App\Models\xPersonal;
 use App\Traits\ApiResponseTrait;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 
 
@@ -315,16 +317,16 @@ class AppiontmentService
 
 
     // list of employee advance appoitment
-public function listOfEmployeeAdvance()
-{
-    $employeeActive = xPersonal::select('ControlNo', 'Surname', 'Firstname', 'MIddlename')
-        ->get();
+    public function listOfEmployeeAdvance()
+    {
+        $employeeActive = xPersonal::select('ControlNo', 'Surname', 'Firstname', 'MIddlename')
+            ->get();
 
-    $tempRegByControlNo = TempRegAppointmentReorg::select('ControlNo', 'Status', 'ItemNo', 'Pages')
-        ->get()
-        ->keyBy('ControlNo');
+        $tempRegByControlNo = TempRegAppointmentReorg::select('ControlNo', 'Status', 'ItemNo', 'Pages')
+            ->get()
+            ->keyBy('ControlNo');
 
-    $latestService = DB::table(DB::raw("(
+        $latestService = DB::table(DB::raw("(
         SELECT
             s.PMID,
             s.ControlNo,
@@ -337,41 +339,257 @@ public function listOfEmployeeAdvance()
         FROM xService s
         INNER JOIN xPersonal v ON s.ControlNo = v.ControlNo
     ) as t"))
-    ->where('rn', 1)
-    ->whereIn('Status',['CO-TERMINOUS','REGULAR','ELECTIVE'])
-    ->get()
-    ->keyBy('ControlNo');
+            ->where('rn', 1)
+            ->whereIn('Status', ['CO-TERMINOUS', 'REGULAR', 'ELECTIVE'])
+            ->get()
+            ->keyBy('ControlNo');
 
-    $today = Carbon::today();
+        $today = Carbon::today();
 
-    $result = $employeeActive
-        ->map(function ($employee) use ($latestService, $tempRegByControlNo, $today) {
-            $record = $latestService->get($employee->ControlNo);
+        $result = $employeeActive
+            ->map(function ($employee) use ($latestService, $tempRegByControlNo, $today) {
+                $record = $latestService->get($employee->ControlNo);
 
-            if (!$record) return null;
+                if (!$record) return null;
 
-            $fromDate = $record->FromDate ? Carbon::parse($record->FromDate) : null;
+                $fromDate = $record->FromDate ? Carbon::parse($record->FromDate) : null;
 
-            if (!$fromDate || $fromDate->lt($today)) return null;
+                if (!$fromDate || $fromDate->lt($today)) return null;
 
-            $toDate = $record->ToDate ? Carbon::parse($record->ToDate) : null;
+                $toDate = $record->ToDate ? Carbon::parse($record->ToDate) : null;
 
-            $tempReg = $tempRegByControlNo->get($employee->ControlNo);
+                $tempReg = $tempRegByControlNo->get($employee->ControlNo);
 
-            $employee->Designation = $record->Designation ?? null;
-            $employee->Office      = $record->Office ?? null;
-            $employee->FromDate    = $fromDate?->format('m/d/Y');
-            $employee->ToDate      = $toDate?->format('m/d/Y');
-            $employee->PMID        = $record->PMID ?? null;
-            $employee->Status      = $tempReg->Status ?? null;
-            $employee->ItemNo      = $tempReg->ItemNo ?? null;
-            $employee->Pages      = $tempReg->Pages ?? null;
+                $employee->Designation = $record->Designation ?? null;
+                $employee->Office      = $record->Office ?? null;
+                $employee->FromDate    = $fromDate?->format('m/d/Y');
+                $employee->ToDate      = $toDate?->format('m/d/Y');
+                $employee->PMID        = $record->PMID ?? null;
+                $employee->Status      = $tempReg->Status ?? null;
+                $employee->ItemNo      = $tempReg->ItemNo ?? null;
+                $employee->Pages      = $tempReg->Pages ?? null;
 
-            return $employee;
-        })
-        ->filter()
-        ->values();
+                return $employee;
+            })
+            ->filter()
+            ->values();
 
-    return $result;
-}
+        return $result;
+    }
+
+
+    private const SPECIAL_OFFICES = [
+        'OFFICE OF THE CITY MAYOR',
+        'OFFICE OF THE CITY VICE MAYOR / SANGGUNIANG PANLUNGSOD',
+    ];
+
+    private const SERVICE_COLUMNS = [
+        'ControlNo',
+        'FromDate',
+        'ToDate',
+        'Designation',
+        'Status',
+        'Office',
+        'RateYear',
+        'RateDay',
+        'RateMon',
+        'effectiveDate',
+    ];
+
+    private const PERSONAL_COLUMNS = [
+        'ControlNo',
+        'Surname',
+        'TINNo',
+        'Address',
+        'BirthDate',
+        'Firstname',
+        'Middlename',
+        'Sex',
+    ];
+
+    private const APPOINTMENT_COLUMNS = [
+        'ID as tempId',
+        'ControlNo',
+        'DesigCode',
+        'NewDesignation',
+        'Designation',
+        'SG',
+        'Step',
+        'Status',
+        'OffCode',
+        'NewOffice',
+        'Office',
+        'MRate',
+        'ItemNo',
+        'Pages',
+        'DivCode',
+        'SecCode',
+        'Official',
+        'Renew',
+        'StructureID',
+        'Groupcode',
+        'group',
+        'unitcode',
+        'vicecause',
+        'vicename',
+        'sepdate',
+        'sepcause',
+        'deliberation_date',
+        'assessment_date',
+    ];
+
+    private const APPOINTMENT_EXT_COLUMNS = [
+        'ID as tempExtId',
+        'ControlNo',
+        'PresAppro',
+        'PrevAppro',
+        'SalAuthorized',
+        'OtherComp',
+        'SupPosition',
+        'HSupPosition',
+        'Tool',
+        'Contact1',
+        'Contact2',
+        'Contact3',
+        'Contact4',
+        'Contact5',
+        'Contact6',
+        'ContactOthers',
+        'Working1',
+        'Working2',
+        'WorkingOthers',
+        'DescriptionSection',
+        'DescriptionFunction',
+        'StandardEduc',
+        'StandardExp',
+        'StandardTrain',
+        'StandardElig',
+        'Supervisor',
+        'Core1',
+        'Core2',
+        'Core3',
+        'Corelevel1',
+        'Corelevel2',
+        'Corelevel3',
+        'Corelevel4',
+        'Leader1',
+        'Leader2',
+        'Leader3',
+        'Leader4',
+        'leaderlevel1',
+        'leaderlevel2',
+        'leaderlevel3',
+        'leaderlevel4',
+        'structureid',
+        'signing_date',
+    ];
+
+    public function temporaryAppointment(string $controlNo): JsonResponse
+    {
+        try {
+            $service = DB::table('temporary_xservices')
+                ->select(self::SERVICE_COLUMNS)
+                ->where('ControlNo', $controlNo)
+                ->orderByDesc('FromDate')
+                ->orderByDesc('ToDate')
+                ->first();
+
+            if (!$service) {
+                return response()->json(['message' => 'Temporary appointment not found.'], 404);
+            }
+
+            $personal = DB::table('temporary_x_personal')
+                ->select(self::PERSONAL_COLUMNS)
+                ->where('ControlNo', $controlNo)
+                ->first();
+
+            $postingDate = DB::table('temporary_posting_dates')
+                ->select(['ControlNo', 'post_date', 'end_date'])
+                ->where('ControlNo', $controlNo)
+                ->first();
+
+            $appointment = DB::table('temporary_tempreg_appointment_reorg')
+                ->select(self::APPOINTMENT_COLUMNS)
+                ->where('ControlNo', $controlNo)
+                ->orderByDesc('ID')
+                ->first();
+
+            $appointmentExt = DB::table('temporary_tempreg_appointment_reorg_ext')
+                ->select(self::APPOINTMENT_EXT_COLUMNS)
+                ->where('ControlNo', $controlNo)
+                ->orderByDesc('ID')
+                ->first();
+
+            if ($appointment) {
+                $this->applySpecialOffice($appointment, $this->plantillaOffice2($controlNo));
+                $appointment->employment_type = $this->employmentType($appointment->Status);
+            }
+
+            $officeHead = $this->findOfficeHead($appointment->Office ?? null);
+
+            return response()->json([
+                    'personal'        => $personal,
+                    'service'         => $service,
+                    'posting_date'    => $postingDate,
+                    'temp_reg_appointments'     => $appointment,
+                    'temp_reg_appointment_reorg_ext' => $appointmentExt,
+             
+                'office_head' => $officeHead,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('temporaryAppointment failed', [
+                'controlNo' => $controlNo,
+                'error'     => $e->getMessage(),
+            ]);
+
+            return response()->json(['message' => 'Failed to fetch data'], 500);
+        }
+    }
+
+    /**
+     * Mayor / Vice Mayor offices use "office2" from the plantilla when it is set.
+     */
+    private function applySpecialOffice(object $appointment, ?string $plantillaOffice2): void
+    {
+        $office = trim(strtoupper($appointment->Office ?? ''));
+
+        if (in_array($office, self::SPECIAL_OFFICES, true)) {
+            $appointment->NewOffice = !empty($plantillaOffice2)
+                ? $plantillaOffice2
+                : $appointment->Office;
+        }
+    }
+
+    /**
+     * TODO: fill in. The original read this from the "plantilla" relation, which is
+     * not defined anywhere in the posted code, so I can't tell which table it uses.
+     */
+    private function plantillaOffice2(string $controlNo): ?string
+    {
+        return null;
+    }
+
+    private function findOfficeHead(?string $office)
+    {
+        if (!$office) {
+            return null;
+        }
+
+        return vwplantillastructure::select('ControlNo', 'Name4', 'office', 'position')
+            ->where('office', $office)
+            ->where('position', 'LIKE', 'CITY GOVERNMENT DEPARTMENT HEAD I%')
+            ->first();
+    }
+
+    private function employmentType(?string $status): ?string
+    {
+        // Strip everything that is not a letter (tildes, dashes, spaces).
+        $status = preg_replace('/[^A-Z]/', '', strtoupper(trim($status ?? '')));
+
+        return match ($status) {
+            'REGULAR'  => 'PERMANENT',
+            'ELECTIVE' => 'TEMPORARY',
+            default    => null,
+        };
+    }
 }

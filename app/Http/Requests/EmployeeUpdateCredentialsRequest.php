@@ -33,7 +33,7 @@ class EmployeeUpdateCredentialsRequest extends FormRequest
             // 'Firstname' => 'required|string',
             // 'MIddlename' => 'nullable|string',
             'Sex' => 'nullable|string',
-            'CivilStatus' => 'required|string',
+            'CivilStatus' => 'nullable|string',
             'BirthDate' => 'nullable|date',
             'TINNo' => 'nullable|string',
             'Address' => 'nullable|string',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActingHeadController;
 use App\Http\Controllers\ApplicantExamScoreController;
 use App\Http\Controllers\ApplicantSubmissionController;
 use App\Http\Controllers\ApplicationController;
@@ -27,12 +28,15 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StructureDetailController;
 use App\Http\Controllers\SubmissionController;
+use App\Http\Controllers\TemporaryController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\ViewActiveController;
 use App\Http\Controllers\xPDSController;
 use App\Models\ApplicantExamScore;
 use Illuminate\Support\Facades\Route;
+
+
 
 
 
@@ -281,7 +285,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/application/data/{jobPostId}/{nPersonalId}', [ApplicationController::class, 'getDataApplicantJobpostApplied'])->withoutMiddleware(['auth:sanctum']);
 
         Route::get('/list/not-chosen/{jobPostId}/', [ApplicationController::class, 'listOfNotChosen']);
-
     });
 
     Route::prefix('job-batches-rsp')->group(function () {
@@ -299,8 +302,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // get the list of unqualified on specific job post 
         Route::get('/applicant/unqualified/{jobPostId}', [JobBatchesRspController::class, 'getApplicantUnqualifiedOnJobPost']);
         Route::get('/applicant/qualification/remarks/{jobPostId}/{submissionId}', [JobBatchesRspController::class, 'getApplicantUnqualifiedQualificationRemarks']);
-
-        });
+    });
 
 
     // qs of every position
@@ -317,7 +319,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/applicant/xpds', [xPDSController::class, 'getPersonalDataSheet']); // employee pds
         Route::post('/update/{controlNo}', [EmployeeController::class, 'updateEmployeeCredentials']); //  updating the  employee appoitment
         Route::get('/photo/{controlNo}', [EmployeeController::class, 'proxyImageInternal']); //  proxy-image get on the 2.205 ip
-
 
     });
 
@@ -336,8 +337,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
         Route::post('/re-send/application', [ApplicantSubmissionController::class, 'resendNotificationEmailAndSms'])->withoutMiddleware(['auth:sanctum']);
-
-
     });
 
 
@@ -424,8 +423,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('hire')->group(function () {
 
-        Route::post('/{submissionId}', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
+        Route::post('applicant/', [AppointmentController::class, 'hireApplicant']); // hire an applicant external or internal
         Route::post('/rollback/{submissionId}', [AppointmentController::class, 'rollbackHire']); // hire an applicant external or internal
+        Route::post('temporary/{submissionId}', [AppointmentController::class, 'hireTemporaryApplicant']); // hire an applicant external or internal
+        Route::post('temporary/revert/{submissionId}', [AppointmentController::class, 'hireTemporaryRevert']); // hire an applicant external or internal
+        Route::get('list/temporary/applicant', [AppointmentController::class, 'listOfTemporaryApplicant']); // hire an applicant external or internal
+
+    });
+     Route::prefix('temporary')->group(function () {
+
+        Route::get('appointment/controlNo/{controlNo}', [AppointmentController::class, 'temporaryAppointment']); // hire an applicant external or internal
+        Route::post('/update/tempregreorg/{controlNo}', [TemporaryController::class, 'updateTemporaryReorgAndExt']); //  updating the  employee appoitment
 
     });
 
@@ -470,8 +478,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/update/{controlNo}', [EmployeeAssignController::class, 'updateEmployeeAssign']);
         Route::delete('/delete/{controlNo}', [EmployeeAssignController::class, 'deleteEmployeeAssign']);
         Route::get('/history/{controlNo}', [EmployeeAssignController::class, 'viewEmployeeAssign']);
-
     });
+
 
     Route::prefix('re-assign')->group(function () {
         Route::post('/store', [EmployeeReAssignController::class, 'storeEmployeeReAssign']);
@@ -493,26 +501,33 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/update/structure/{structureId}', [OfficeController::class, 'updateStructure']);
         Route::post('/structure/store', [OfficeController::class, 'structureStore']);
         Route::delete('/structure/delete/{structureId}', [OfficeController::class, 'structureDelete']);
-
     });
 
     // Route::get('/publication/date', [ReportController::class, 'listDate'])->withoutMiddleware(['auth:sanctum']);
+    
+    Route::prefix('acting')->group(function () {
+        Route::post('/employee/store', [ActingHeadController::class, 'addEmployee']);
+        Route::get('/head/list/{officeName}', [ActingHeadController::class, 'getListActingHead'])->withoutMiddleware(['auth:sanctum']);
+
+        Route::get('/list/office/employee/{officeName}', [ActingHeadController::class, 'employeeList'])->withoutMiddleware(['auth:sanctum']);
+
+        Route::delete('/delete/{employeeId}', [ActingHeadController::class, 'delete']);
+        Route::get('/office/structure/{officeName}', [ActingHeadController::class, 'officePlantilla']);
+    });
+
 
 
     // api.php
-Route::get('/storage-cors/{path}', function ($path) {
-    $fullPath = storage_path('app/public/' . $path);
+    Route::get('/storage-cors/{path}', function ($path) {
+        $fullPath = storage_path('app/public/' . $path);
 
-    if (!file_exists($fullPath)) {
-        abort(404);
-    }
+        if (!file_exists($fullPath)) {
+            abort(404);
+        }
 
-    return response()->file($fullPath, [
-        'Access-Control-Allow-Origin' => '*', // o specific origin
-        'Access-Control-Allow-Methods' => 'GET',
-    ]);
-})->where('path', '.*')->withoutMiddleware(['auth:sanctum']);
-
-
-
+        return response()->file($fullPath, [
+            'Access-Control-Allow-Origin' => '*', // o specific origin
+            'Access-Control-Allow-Methods' => 'GET',
+        ]);
+    })->where('path', '.*')->withoutMiddleware(['auth:sanctum']);
 });
