@@ -29,6 +29,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StructureDetailController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\TemporaryController;
+use App\Http\Controllers\TempAppointmentReportController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\ViewActiveController;
@@ -230,6 +231,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/generate-certification-report/{ControlNo}', [AppointmentReportController::class, 'generateCertificationReport']);
     Route::get('/generate-position-description-report/{ControlNo}', [AppointmentReportController::class, 'generatePositionDescriptionReport']);
 
+    Route::get('/temp/report/appointment/{ControlNo}', [TempAppointmentReportController::class, 'generateReport'])->name('report.appointment');
+    Route::get('/temp/generate-certification-report/{ControlNo}', [TempAppointmentReportController::class, 'generateCertificationReport']);
+    Route::get('/temp/generate-position-description-report/{ControlNo}', [TempAppointmentReportController::class, 'generatePositionDescriptionReport']);
+
     Route::prefix('applicant')->group(function () {
         // routes/api.php
         Route::get('/photo/{nPersonalInfoId}', [ApplicantSubmissionController::class, 'applicantPhoto']);
@@ -430,7 +435,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('list/temporary/applicant', [AppointmentController::class, 'listOfTemporaryApplicant']); // hire an applicant external or internal
 
     });
-     Route::prefix('temporary')->group(function () {
+    Route::prefix('temporary')->group(function () {
 
         Route::get('appointment/controlNo/{controlNo}', [AppointmentController::class, 'temporaryAppointment']); // hire an applicant external or internal
         Route::post('/update/tempregreorg/{controlNo}', [TemporaryController::class, 'updateTemporaryReorgAndExt']); //  updating the  employee appoitment
@@ -504,7 +509,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Route::get('/publication/date', [ReportController::class, 'listDate'])->withoutMiddleware(['auth:sanctum']);
-    
+
     Route::prefix('acting')->group(function () {
         Route::post('/employee/store', [ActingHeadController::class, 'addEmployee']);
         Route::get('/head/list/{officeName}', [ActingHeadController::class, 'getListActingHead'])->withoutMiddleware(['auth:sanctum']);
